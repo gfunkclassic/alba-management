@@ -70,6 +70,12 @@ const normalizeDateStr = (dateStr) => {
   
   let str = String(dateStr).trim();
 
+  // Excel serial date 처리 (예: 45658)
+  if (!isNaN(str) && Number(str) > 30000 && Number(str) < 80000) {
+    const d = new Date(Math.round((Number(str) - 25569) * 86400 * 1000));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+  }
+
   // 1. YYYYMMDD 8자리 숫자인 경우 바로 변환 (구분자 없음)
   if (/^\d{8}$/.test(str)) {
     return `${str.substring(0, 4)}-${str.substring(4, 6)}-${str.substring(6, 8)}`;
@@ -78,27 +84,44 @@ const normalizeDateStr = (dateStr) => {
   // 2. 공백, 점(.), 슬래시(/), 한글(년,월,일)을 하이픈(-)으로 통일하고, 연속된 구분자는 하나로(-) 합침
   let normalized = str.replace(/[\s./년월일]+/g, '-');
   
-  // 끝에 붙은 하이픈 제거 (예: "2024-01-01-" -> "2024-01-01")
+  // 끝에 붙은 하이픈 제거
   if (normalized.endsWith('-')) normalized = normalized.slice(0, -1);
-  // 시작에 붙은 하이픈 제거 (혹시 모를 오동작 방지)
   if (normalized.startsWith('-')) normalized = normalized.slice(1);
 
-  // 3. YYYY-M-D 형식을 YYYY-MM-DD로 변환 (패딩 처리 및 연도 보정)
+  // 3. 패턴 분해해서 정확한 Y, M, D 유추
   const parts = normalized.split('-');
   if (parts.length === 3) {
-    let [y, m, d] = parts;
+    let [p1, p2, p3] = parts;
+    let y, m, d;
     
-    // 연도가 2자리인 경우 2000년대로 가정 (예: 24-01-01 -> 2024-01-01)
-    if (y.length === 2) y = `20${y}`;
+    if (p1.length === 4) {
+      y = p1; m = p2; d = p3; // YYYY-MM-DD
+    } else if (p3.length === 4) {
+      y = p3; m = p1; d = p2; // MM-DD-YYYY or DD-MM-YYYY
+    } else {
+      // 둘 다 2자리 이하인 경우 (1/1/26 -> 1, 1, 26)
+      const n1 = parseInt(p1);
+      const n3 = parseInt(p3);
+      if (n3 > 31) {
+        y = `20${p3.padStart(2,'0')}`; m = p1; d = p2; // M/D/YY
+      } else if (n1 > 31) {
+        y = `20${p1.padStart(2,'0')}`; m = p2; d = p3; // YY/M/D
+      } else {
+        // 모호한 경우 (1/2/26 같은 건 n3 > 31 이 아니지만, 연도일 가능성이 높으면 p1아니면 p3)
+        // 한국에서는 보통 년-월-일 (YY-MM-DD). 엑셀 기본은 월/일/년 (M/D/YY).
+        // 20년대 연도라고 간주할 때 p3이 20~29 사이라면 연도일 수 있음.
+        if (n3 >= 20 && n3 <= 31 && n1 <= 12) {
+          y = `20${p3.padStart(2,'0')}`; m = p1; d = p2; 
+        } else {
+          y = `20${p1.padStart(2,'0')}`; m = p2; d = p3;
+        }
+      }
+    }
     
-    // 월, 일이 0으로 시작하지 않으면 패딩 추가 (1 -> 01)
     m = m.padStart(2, '0');
     d = d.padStart(2, '0');
-
-    // 간단한 유효성 검사 (결과가 날짜 형식이 맞는지)
     const dateObj = new Date(`${y}-${m}-${d}`);
-    if (isNaN(dateObj.getTime())) return normalized; // 변환 불가시 정규화된 문자열 반환
-
+    if (isNaN(dateObj.getTime())) return normalized;
     return `${y}-${m}-${d}`;
   }
   return normalized;
@@ -1338,21 +1361,37 @@ export default function App() {
           // [수정] 날짜 정규화 함수 적용 (YYYY.M.D -> YYYY-MM-DD)
           const normalizedDate = normalizeDateStr(date);
 
+          const parseExcelTime = (val) => {
+            if (!val) return '';
+            const str = String(val).trim();
+            if (!isNaN(str) && Number(str) > 0 && Number(str) < 1) {
+              const totalMins = Math.round(Number(str) * 24 * 60);
+              const h = Math.floor(totalMins / 60);
+              const m = totalMins % 60;
+              return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            }
+            return str.replace('시', ':00');
+          };
+
           const user = users.find(u => u.name === String(name).trim());
           if (user) {
             if (!newAttendance[user.id]) newAttendance[user.id] = {};
             let finalOvertime = 0;
             const explicitOvertime = idxOvertime !== -1 ? parseFloat(row[idxOvertime]) : null;
+            
+            const parsedIn = row[idxIn] ? parseExcelTime(row[idxIn]) : user.checkIn;
+            const parsedOut = row[idxOut] ? parseExcelTime(row[idxOut]) : user.checkOut;
+
             if (explicitOvertime !== null && !isNaN(explicitOvertime) && explicitOvertime > 0) {
               finalOvertime = explicitOvertime;
-            } else if (row[idxIn] && row[idxOut]) {
-              const { hours } = calculateDailyWage(user.wage, String(row[idxIn]), String(row[idxOut]), 0);
+            } else if (parsedIn && parsedOut) {
+              const { hours } = calculateDailyWage(user.wage, parsedIn, parsedOut, 0);
               const contractHours = user.workHours || 8;
               if (hours > contractHours) finalOvertime = hours - contractHours;
             }
             newAttendance[user.id][normalizedDate] = {
-              checkIn: row[idxIn] ? String(row[idxIn]).replace('시', ':00') : user.checkIn,
-              checkOut: row[idxOut] ? String(row[idxOut]).replace('시', ':00') : user.checkOut,
+              checkIn: parsedIn,
+              checkOut: parsedOut,
               overtime: finalOvertime,
               reason: idxReason !== -1 ? (row[idxReason] || '') : ''
             };
