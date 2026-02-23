@@ -1318,7 +1318,7 @@ export default function App() {
         const headers = rows[0];
         const mapIdx = (key) => headers.findIndex(h => h && String(h).replace(/\s/g, '').includes(key));
         const idxName = mapIdx('이름');
-        const idxDate = mapIdx('일자') === -1 ? mapIdx('날짜') : mapIdx('일자');
+        const idxDate = mapIdx('일자') !== -1 ? mapIdx('일자') : (mapIdx('날짜') !== -1 ? mapIdx('날짜') : mapIdx('근무일'));
         const idxIn = mapIdx('출근') === -1 ? mapIdx('출근시간') : mapIdx('출근');
         const idxOut = mapIdx('퇴근') === -1 ? mapIdx('퇴근시간') : mapIdx('퇴근');
         const idxReason = mapIdx('사유') === -1 ? mapIdx('비고') : mapIdx('사유');
