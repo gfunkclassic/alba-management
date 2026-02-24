@@ -13,7 +13,7 @@ export default function CalendarModal({ user, onClose, attendance, onSave, calcu
     });
     const [activeDate, setActiveDate] = useState(null);
     const [editMode, setEditMode] = useState(false);
-    const [form, setForm] = useState({ checkIn: user.checkIn, checkOut: user.checkOut, overtime: 0, reason: '' });
+    const [form, setForm] = useState({ checkIn: user.checkIn, checkOut: user.checkOut, overtime: 0, reason: '', earlyLeaveReason: '', overtimeReason: '' });
     const [calendarViewMode, setCalendarViewMode] = useState('TIME');
     const modalFileInputRef = useRef(null);
 
@@ -38,8 +38,8 @@ export default function CalendarModal({ user, onClose, attendance, onSave, calcu
     const handleDayClick = (day) => {
         const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         setActiveDate(dateStr);
-        const existing = attendance[dateStr] || { checkIn: user.checkIn, checkOut: user.checkOut, overtime: 0, reason: '' };
-        setForm({ ...existing, checkIn: normalizeForInput(existing.checkIn), checkOut: normalizeForInput(existing.checkOut) });
+        const existing = attendance[dateStr] || { checkIn: user.checkIn, checkOut: user.checkOut, overtime: 0, reason: '', earlyLeaveReason: '', overtimeReason: '' };
+        setForm({ ...existing, checkIn: normalizeForInput(existing.checkIn), checkOut: normalizeForInput(existing.checkOut), earlyLeaveReason: existing.earlyLeaveReason || '', overtimeReason: existing.overtimeReason || '' });
         setEditMode(true);
     };
 
@@ -101,6 +101,7 @@ export default function CalendarModal({ user, onClose, attendance, onSave, calcu
                                 const displayCheckOut = hasData ? hasData.checkOut : '';
                                 const displayOvertime = hasData?.overtime || 0;
                                 let totalDailyHours = 0, regularHours = 0, dailyWageAmount = 0;
+                                const isEarly = hasData && hasData.checkOut && hasData.checkOut < user.checkOut;
                                 if (displayCheckIn && displayCheckOut) {
                                     let currentDailyWage = user.wage;
                                     if (user.wageIncreaseDate && user.previousWage && new Date(dateStr) < new Date(user.wageIncreaseDate)) {
@@ -111,11 +112,28 @@ export default function CalendarModal({ user, onClose, attendance, onSave, calcu
                                     totalDailyHours = dailyCalc.hours; regularHours = dailyCalc.regularHours;
                                     dailyWageAmount = dailyCalc.basePay + dailyCalc.overtimePay;
                                 }
+                                // 사유 뱃지 생성
+                                const badges = [];
+                                if (hasData?.reason) {
+                                    const r = hasData.reason;
+                                    const isAbsence = r.includes('결근');
+                                    const isLeave = r.includes('연차');
+                                    const color = isAbsence ? 'bg-[#a65d57] text-white' : isLeave ? 'bg-[#4a6070] text-white' : 'bg-[#c65911] text-white';
+                                    badges.push({ label: r.length > 4 ? r.substring(0, 4) : r, color });
+                                }
+                                if (isEarly && hasData?.earlyLeaveReason) {
+                                    badges.push({ label: `조퇴:${hasData.earlyLeaveReason.length > 3 ? hasData.earlyLeaveReason.substring(0, 3) : hasData.earlyLeaveReason}`, color: 'bg-[#c65911] text-white' });
+                                } else if (isEarly && !hasData?.reason) {
+                                    badges.push({ label: '조기퇴근', color: 'bg-[#c65911] text-white' });
+                                }
+                                if (hasData?.overtimeReason) {
+                                    badges.push({ label: `연장:${hasData.overtimeReason.length > 3 ? hasData.overtimeReason.substring(0, 3) : hasData.overtimeReason}`, color: 'bg-[#4a6070] text-white' });
+                                }
                                 return (
                                     <button key={day} onClick={() => handleDayClick(day)} className={`h-24 p-1.5 text-left transition relative flex flex-col justify-between bg-[#f5f3e8] hover:bg-[#e8ebd8] ${isToday ? 'ring-2 ring-inset ring-[#5d6c4a]' : ''} ${hasData ? 'bg-[#f4f5eb]' : ''} ${activeDate === dateStr ? 'bg-[#e8ebd8] ring-2 ring-inset ring-[#5d6c4a]' : ''}`}>
                                         <div className="flex justify-between items-start w-full">
                                             <span className={`text-xs font-bold ${dayOfWeek === 0 ? 'text-[#a65d57]' : (dayOfWeek === 6 ? 'text-[#4a6070]' : 'text-[#7a7565]')} ${isToday ? '!text-[#5d6c4a]' : ''}`}>{day}</span>
-                                            {hasData?.reason && <span className="w-1.5 h-1.5 bg-[#a65d57] block"></span>}
+                                            {badges.length > 0 && <div className="flex flex-col gap-px">{badges.map((b, i) => <span key={i} className={`${b.color} text-[7px] font-bold px-1 py-px leading-tight truncate max-w-[60px]`}>{b.label}</span>)}</div>}
                                         </div>
                                         <div className="w-full flex flex-col gap-0.5 mt-auto">
                                             {(displayCheckIn && displayCheckOut) && (
@@ -156,7 +174,11 @@ export default function CalendarModal({ user, onClose, attendance, onSave, calcu
                                             <span className="text-[10px] text-[#7a7565]">x1.5</span>
                                         </div>
                                     </div>
-                                    <div><label className="text-[10px] font-bold text-[#7a7565]">메모/사유</label><textarea className="w-full p-1.5 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm h-16 resize-none focus:border-[#5d6c4a] outline-none" placeholder="특이사항 입력" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} /></div>
+                                    <div className="space-y-2">
+                                        <div><label className="text-[10px] font-bold text-[#7a7565]">근태 사유</label><input type="text" className="w-full p-1.5 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" placeholder="결근 / 연차 / 공휴일 등" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} /></div>
+                                        {isEarlyLeave && <div><label className="text-[10px] font-bold text-[#c65911]">조기퇴근 사유</label><input type="text" className="w-full p-1.5 border-2 border-[#c65911]/30 bg-[#f5f3e8] text-sm focus:border-[#c65911] outline-none" placeholder="병원진료, 개인사유 등" value={form.earlyLeaveReason} onChange={e => setForm({ ...form, earlyLeaveReason: e.target.value })} /></div>}
+                                        {form.overtime > 0 && <div><label className="text-[10px] font-bold text-[#4a6070]">연장근무 사유</label><input type="text" className="w-full p-1.5 border-2 border-[#4a6070]/30 bg-[#f5f3e8] text-sm focus:border-[#4a6070] outline-none" placeholder="긴급 출하, 재고 정리 등" value={form.overtimeReason} onChange={e => setForm({ ...form, overtimeReason: e.target.value })} /></div>}
+                                    </div>
                                 </div>
                                 <div className="mt-auto pt-4 space-y-2 border-t-2 border-[#e8e4d4]">
                                     <div className="flex justify-between text-xs text-[#7a7565]"><span>기본급 ({estimatedDaily.regularHours}h)</span><span>₩{estimatedDaily.basePay.toLocaleString()}</span></div>

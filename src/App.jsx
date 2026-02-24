@@ -1109,7 +1109,7 @@ export default function App() {
             )}
 
             {showUserForm && <UserFormModal user={formUser} onClose={() => closeModal('userForm')} onSave={handleUserSave} />}
-            {showCalendar && selectedUser && <CalendarModal user={selectedUser} attendance={attendance} onSaveAttendance={saveAttendance} onClose={() => closeModal('calendar')} />}
+            {showCalendar && selectedUser && <CalendarModal user={selectedUser} attendance={attendance[selectedUser.id] || {}} onSave={(date, form) => saveAttendance(selectedUser.id, date, form)} calculateWage={calculateDailyWage} onFileUpload={handleAttendanceUpload} onClose={() => closeModal('calendar')} />}
             {showLeaveCalendar && selectedUser && <LeaveCalendarModal user={selectedUser} leaveRecords={leaveRecords} adjustments={adjustments} carryovers={carryovers} stats={calculateLeave(selectedUser)} teamCounts={teamCounts} filteredData={filteredData} activeTab={activeTab} searchOptions={{ searchTerm, filterTeam, viewMode }} onSelectUser={handleSelectUser} onAddLeave={handleAddLeave} onDeleteLeave={handleDeleteLeave} onSaveAdjustment={handleSaveAdjustment} onClose={() => closeModal('leaveCalendar')} />}
             {showAdjustModal && adjustUser && <AdjustLeaveModal user={adjustUser} onClose={() => { closeModal('adjust'); setAdjustUser(null); }} onSave={handleSaveAdjustment} currentAdjustment={adjustments[adjustUser.id] || 0} />}
         </div>

@@ -15,16 +15,21 @@ export default function PayrollView({ users, calculateMonthlyWage, onDownloadIns
     }, [users, mode, searchTerm]);
 
     const summary = useMemo(() => {
-        const totalCount = filteredUsers.length;
+        let totalCount = 0;
+        let recordCount = 0;
         const totalAmount = filteredUsers.reduce((sum, u) => {
             const wage = calculateMonthlyWage(u, payrollMonth);
-            return sum + (mode === 'INSURED' ? wage.actual : wage.strictFinalPayout);
+            totalCount++;
+            if (wage.hasRecord) recordCount++;
+            const amt = wage.hasRecord ? (mode === 'INSURED' ? wage.actual : wage.strictFinalPayout) : 0;
+            return sum + amt;
         }, 0);
         const totalDeduction = filteredUsers.reduce((sum, u) => {
             const wage = calculateMonthlyWage(u, payrollMonth);
+            if (!wage.hasRecord) return sum;
             return sum + (mode === 'INSURED' ? 0 : wage.strictDeduction);
         }, 0);
-        return { totalCount, totalAmount, totalDeduction };
+        return { totalCount, recordCount, totalAmount, totalDeduction };
     }, [filteredUsers, calculateMonthlyWage, mode, payrollMonth]);
 
     return (
@@ -50,7 +55,7 @@ export default function PayrollView({ users, calculateMonthlyWage, onDownloadIns
                 <div className="bg-[#5d6c4a] p-4 text-[#f5f3e8] flex flex-col justify-center border-2 border-[#3d472f]">
                     <span className="text-xs text-[#d4dcc0] font-bold uppercase mb-1">{mode === 'INSURED' ? '실제 근무 기준 총액 (세전)' : '실제 근무 기준 지급 총액'}</span>
                     <div className="flex justify-between items-end">
-                        <span className="text-2xl font-black">{summary.totalCount}명</span>
+                        <span className="text-2xl font-black">{summary.recordCount}/{summary.totalCount}명</span>
                         <span className="text-lg font-bold opacity-80">₩{summary.totalAmount.toLocaleString()}</span>
                     </div>
                 </div>
@@ -122,13 +127,13 @@ export default function PayrollView({ users, calculateMonthlyWage, onDownloadIns
                                                 <td className="p-3 text-center text-[#5a5545]">{user.workDays}</td>
                                                 <td className="p-3 text-right text-[#5a5545]">{wage.hasRecord ? `${wage.totalActualHours}h` : '-'}</td>
                                                 <td className="p-3 text-right text-[#a65d57] font-bold">{wage.hasRecord && wage.totalActualOvertime > 0 ? `+${wage.totalActualOvertime}h` : '-'}</td>
-                                                <td className="p-3 text-right pr-4 font-bold text-[#5d6c4a]">₩{wage.actual.toLocaleString()}</td>
+                                                <td className="p-3 text-right pr-4 font-bold text-[#5d6c4a]">{wage.hasRecord ? `₩${wage.actual.toLocaleString()}` : '-'}</td>
                                             </>
                                         ) : (
                                             <>
-                                                <td className="p-3 text-right text-[#5a5545]">₩{wage.actual.toLocaleString()}</td>
-                                                <td className="p-3 text-right text-[#a65d57]">₩{wage.strictDeduction.toLocaleString()}</td>
-                                                <td className="p-3 text-right pr-4 font-black text-[#3d472f]">₩{wage.strictFinalPayout.toLocaleString()}</td>
+                                                <td className="p-3 text-right text-[#5a5545]">{wage.hasRecord ? `₩${wage.actual.toLocaleString()}` : '-'}</td>
+                                                <td className="p-3 text-right text-[#a65d57]">{wage.hasRecord ? `₩${wage.strictDeduction.toLocaleString()}` : '-'}</td>
+                                                <td className="p-3 text-right pr-4 font-black text-[#3d472f]">{wage.hasRecord ? `₩${wage.strictFinalPayout.toLocaleString()}` : '-'}</td>
                                             </>
                                         )}
                                     </tr>
