@@ -1,3 +1,85 @@
+﻿===== index.html =====
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>인사 급여관리 시스템</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+
+===== vite.config.js =====
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+
+
+===== package.json =====
+{
+  "name": "alba-management",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide-react": "^0.475.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.19.0",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.18",
+    "globals": "^15.14.0",
+    "postcss": "^8.5.2",
+    "tailwindcss": "^3.4.17",
+    "vite": "^6.1.0"
+  }
+}
+
+
+===== src\main.jsx =====
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+    <StrictMode>
+        <App />
+    </StrictMode>,
+)
+
+
+===== src\index.css =====
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+===== src\App.jsx =====
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Layers, ChevronDown, Download, RotateCcw, X, UserMinus, Calendar, AlertTriangle, Check, Users } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
@@ -1115,3 +1197,1225 @@ export default function App() {
         </div>
     );
 }
+
+
+===== src\data\initialUsers.js =====
+export const INITIAL_USERS = [
+    { id: 1, gender: '남', name: '권신우', bank: '국민', account: '943202-00-057996', team: '까페', position: '아르바이트', startDate: '2025-08-11', insuranceDate: '2025-08-11', insuranceStatus: true, renewalDate: '2026-01-16', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 11500, wageIncreaseDate: '', phone: '010-9385-5026', rrn: '970930-1018717', address: '서울특별시 노원구 노원로19길 31, 409동 403호', email: 'shinw0o@naver.com', resignDate: '' },
+    { id: 2, gender: '남', name: '최홍석', bank: '국민', account: '938002-00-912389', team: '생산', position: '아르바이트', startDate: '2025-07-24', insuranceDate: '2025-09-01', insuranceStatus: true, renewalDate: '2025-12-26', checkIn: '10:00', checkOut: '16:00', workHours: 5, workDays: '5일', wage: 11000, wageIncreaseDate: '2025-11-01', phone: '010-5449-2954', rrn: '010601-3013226', address: '서울특별시 동대문구 장안1동 189-24', email: 'set295@naver.com', resignDate: '' },
+    { id: 3, gender: '여', name: '김아영', bank: '국민', account: '038701-04-575432', team: 'QC', position: '아르바이트', startDate: '2023-11-01', insuranceDate: '2024-06-17', insuranceStatus: true, renewalDate: '2025-12-02', checkIn: '09:00', checkOut: '18:00', workHours: 8, workDays: '5일', wage: 12000, wageIncreaseDate: '2024-12-13', phone: '010-3369-9657', rrn: '881114-2041614', address: '서울시 중랑구 용마산로 94가길 28 201호', email: 'jukynim1@naver.com', resignDate: '' },
+    { id: 4, gender: '여', name: '김소은', bank: '국민', account: '546901-01-168952', team: 'QC', position: '아르바이트', startDate: '2023-09-25', insuranceDate: '2023-10-16', insuranceStatus: true, renewalDate: '2025-12-02', checkIn: '09:00', checkOut: '18:00', workHours: 8, workDays: '5일', wage: 12000, wageIncreaseDate: '2024-12-25', phone: '010-4166-7771', rrn: '900118-2020117', address: '서울시 광진구 중곡동 용마산로 186 신우에코밸리 101동 502호', email: 'wusml18@naver.com', resignDate: '' },
+    { id: 5, gender: '여', name: '박세희', bank: '국민', account: '942760-83-154', team: 'ER', position: '아르바이트', startDate: '2024-06-10', insuranceDate: '2024-06-15', insuranceStatus: true, renewalDate: '2025-11-17', checkIn: '09:00', checkOut: '18:00', workHours: 8, workDays: '5일', wage: 11000, wageIncreaseDate: '2026-01-02', phone: '010-4920-9381', rrn: '930831-2011221', address: '서울시 동대문구 답십리로 1109동 1108호(답십리동, 래미안 미드카운티)', email: 'sehui993@naver.com', resignDate: '' },
+    { id: 6, gender: '남', name: '송명욱', bank: '국민', account: '008602-04-214601', team: 'ER', position: '아르바이트', startDate: '2024-12-23', insuranceDate: '2024-12-23', insuranceStatus: true, renewalDate: '2025-12-01', checkIn: '14:00', checkOut: '18:00', workHours: 4, workDays: '5일', wage: 11000, wageIncreaseDate: '2026-01-02', phone: '010-5347-0134', rrn: '910125-1178714', address: '서울시 동대문구 장안로 91 b동 806호', email: 'tad0125@naver.com', resignDate: '' },
+    { id: 7, gender: '여', name: '권기덕', bank: '국민', account: '774601-04-113169', team: 'ER', position: '아르바이트', startDate: '2025-12-01', insuranceDate: '2025-12-01', insuranceStatus: true, renewalDate: '신규', checkIn: '09:00', checkOut: '18:00', workHours: 8, workDays: '5일', wage: 10500, wageIncreaseDate: '2026-01-02', phone: '010-3877-0389', rrn: '761010-2850622', address: '서울시 동대문구 장한로26나길 14, A동 302호', email: 'imp7610@naver.com', resignDate: '' },
+    { id: 8, gender: '남', name: '김상휘', bank: '국민', account: '938002-00-450171', team: 'ER', position: '아르바이트', startDate: '2025-12-01', insuranceDate: '2025-12-01', insuranceStatus: true, renewalDate: '신규', checkIn: '09:00', checkOut: '18:00', workHours: 8, workDays: '5일', wage: 10500, wageIncreaseDate: '2026-01-02', phone: '010-4308-5120', rrn: '991223-1011811', address: '서울시 중랑구 동일로 156길 69-9, 가동 201호', email: 'iceuserman@gmail.com', resignDate: '' },
+    { id: 9, gender: '여', name: '이지율', bank: '국민', account: '607302-01-109699', team: 'LM', position: '아르바이트', startDate: '2021-04-05', insuranceDate: '2024-04-15', insuranceStatus: true, renewalDate: '2026-01-02', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 14000, wageIncreaseDate: '', phone: '010-8597-0221', rrn: '890929-2209423', address: '경기도 남양주시 화도읍 먹갓로서길29 세원빌라 A동 504호', email: 'jiyuljiyul89@naver.com', resignDate: '' },
+    { id: 10, gender: '남', name: '이태호', bank: '국민', account: '527802-01-307368', team: 'LM', position: '아르바이트', startDate: '2021-05-03', insuranceDate: '2024-04-15', insuranceStatus: true, renewalDate: '2026-01-02', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 14280, wageIncreaseDate: '', phone: '010-9945-0742', rrn: '921031-1075719', address: '서울 동대문구 휘경로 11길52 107-1604', email: 'cjdfid30436@naver.com', resignDate: '' },
+    { id: 11, gender: '남', name: '박성수', bank: '국민', account: '058101-04-373313', team: 'LM', position: '아르바이트', startDate: '2021-09-23', insuranceDate: '2022-02-16', insuranceStatus: true, renewalDate: '2026-01-02', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 14850, wageIncreaseDate: '', phone: '010-3628-4519', rrn: '920528-1012426', address: '서울 중랑구 망우로 65길 16 A동 301호', email: 'sixoz@naver.com', resignDate: '' },
+    { id: 12, gender: '여', name: '안소라', bank: '국민', account: '631602-01-345278', team: 'LM', position: '아르바이트', startDate: '2024-03-12', insuranceDate: '2024-04-15', insuranceStatus: true, renewalDate: '2026-01-02', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12500, wageIncreaseDate: '2025-11-03', phone: '010-9967-8692', rrn: '920228-2081214', address: '경기도 구리시 안골로 64번길 10 104동 2904호', email: 'dksthfk568@naver.com', resignDate: '' },
+    { id: 13, gender: '여', name: '허지윤', bank: '국민', account: '437202-04-102201', team: 'LM', position: '아르바이트', startDate: '2025-04-21', insuranceDate: '2025-05-01', insuranceStatus: true, renewalDate: '2026-01-02', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '2025-11-03', phone: '010-4810-7042', rrn: '840310-2041210', address: '경기도 남양주시 화도읍 경춘로 2290번길 2 105동 2701호', email: '1984wldbs@naver.com', resignDate: '' },
+    { id: 14, gender: '여', name: '함유진', bank: '국민', account: '643-21-0108-792', team: 'LM', position: '아르바이트', startDate: '2025-11-05', insuranceDate: '2025-12-01', insuranceStatus: true, renewalDate: '2026-01-05', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-8594-1989', rrn: '791105-2804413', address: '경기도 남양주시 화도읍 경춘로 2290번길 2 112동 104호', email: 'ujinnee@nate.com', resignDate: '' },
+    { id: 15, gender: '남', name: '윤영상', bank: '국민', account: '672701-01-770322', team: 'LM', position: '아르바이트', startDate: '2025-11-12', insuranceDate: '2025-12-01', insuranceStatus: true, renewalDate: '2026-01-12', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-3991-3813', rrn: '850601-1223617', address: '경기도 구리시 아차산로 500번길 58-1', email: 'goodby201375@gmail.com', resignDate: '' },
+    { id: 16, gender: '남', name: '최휘강', bank: '국민', account: '943202-01-505506', team: 'LM', position: '아르바이트', startDate: '2025-11-13', insuranceDate: '2025-12-01', insuranceStatus: true, renewalDate: '2026-01-12', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-9626-1174', rrn: '040208-3012016', address: '경기도 남양주시 화도읍 녹촌로 9 101동 1503호', email: 'choihg0208@gmail.com', resignDate: '' },
+    { id: 17, gender: '여', name: '이희정', bank: '국민', account: '616302-04-123546', team: 'LM', position: '아르바이트', startDate: '2025-11-17', insuranceDate: '2025-12-01', insuranceStatus: true, renewalDate: '2026-01-16', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-3777-8801', rrn: '711116-2237515', address: '경기도 가평군 청평면 오리동길 18-13 1층', email: 'hj3049@hanmail.net', resignDate: '' },
+    { id: 18, gender: '남', name: '박태언', bank: '국민', account: '616302-04-196209', team: 'LM', position: '아르바이트', startDate: '2025-11-18', insuranceDate: '2025-12-01', insuranceStatus: true, renewalDate: '2026-01-17', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-8448-8721', rrn: '970526-1081516', address: '경기도 남양주시 화도읍 경춘로 1790-1 영진그린필아파트 102동 903호', email: 'qkrxodjs526@naver.com', resignDate: '' },
+    { id: 19, gender: '여', name: '안정미', bank: '국민', account: '331301-04-036036', team: 'LM', position: '아르바이트', startDate: '2025-11-24', insuranceDate: '2025-12-01', insuranceStatus: true, renewalDate: '2026-01-23', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-6779-6676', rrn: '740320-2457722', address: '경기도 남양주시 화도읍 비룡로 56-8 신명스카이뷰그린 106동 1002호', email: 'reessa@naver.com', resignDate: '' },
+    { id: 20, gender: '남', name: '홍석훈', bank: '국민', account: '216502-04-429745', team: 'LM', position: '아르바이트', startDate: '2025-12-01', insuranceDate: '2025-12-01', insuranceStatus: true, renewalDate: '2026-01-31', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-4374-2787', rrn: '951030-1222430', address: '경기도 남양주시 화도읍 경춘로 2102-16 101동 504호', email: 'hsh8763@naver.com', resignDate: '' },
+    { id: 21, gender: '남', name: '김종섭', bank: '국민', account: '459625-01-008633', team: 'LM', position: '아르바이트', startDate: '2025-12-01', insuranceDate: '2025-12-01', insuranceStatus: true, renewalDate: '2026-02-02', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-9206-2840', rrn: '660815-1254241', address: '경기도 가평군 청평면 안대성길 50-13', email: 'sieist2840@naver.com', resignDate: '' },
+    { id: 22, gender: '여', name: '이윤정', bank: '국민', account: '701801-04-309221', team: 'LM', position: '아르바이트', startDate: '2025-12-02', insuranceDate: '2025-12-02', insuranceStatus: true, renewalDate: '2026-02-02', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-9470-4150', rrn: '840802-2249115', address: '경기도 양평균 양서면 목왕로 53 용호빌딩 401호', email: 'dbswjd0727@gmail.com', resignDate: '' },
+    { id: 23, gender: '남', name: '김동현', bank: '토스', account: '1000-0224-1327', team: 'LM', position: '아르바이트', startDate: '2022-02-11', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 14000, wageIncreaseDate: '', phone: '010-6888-9040', rrn: '960505-1054529', address: '경기도 의정부시 시민로 122번길 20', email: 'k오960505@naver.com', resignDate: '2024-01-15' },
+    { id: 24, gender: '남', name: '우건희', bank: '국민', account: '943202-00-404107', team: 'LM', position: '아르바이트', startDate: '2023-10-23', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-5767-9457', rrn: '990116-1222217', address: '', email: '', resignDate: '2024-01-31' },
+    { id: 25, gender: '남', name: '황재현', bank: '신한', account: '110-382-562734', team: 'LM', position: '아르바이트', startDate: '2023-10-10', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-7594-6687', rrn: '940409-1020717', address: '', email: '', resignDate: '2024-03-01' },
+    { id: 26, gender: '남', name: '김태원', bank: '농협', account: '351-0494-2001-63', team: 'LM', position: '아르바이트', startDate: '2023-12-11', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 6, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-2834-8668', rrn: '990520-1222441', address: '', email: '', resignDate: '2024-03-01' },
+    { id: 27, gender: '남', name: '박환규', bank: '국민', account: '943202-00-241407', team: 'LM', position: '아르바이트', startDate: '2023-05-30', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 13000, wageIncreaseDate: '', phone: '010-4185-9617', rrn: '981012-1009815', address: '', email: '', resignDate: '2024-03-04' },
+    { id: 28, gender: '남', name: '박예담', bank: '농협', account: '352-1416-1173-93', team: 'LM', position: '아르바이트', startDate: '2023-01-09', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-9001-6535', rrn: '991202-1169622', address: '', email: '', resignDate: '2024-03-04' },
+    { id: 29, gender: '남', name: '임승민', bank: '기업', account: '299-098894-01-012', team: 'LM', position: '아르바이트', startDate: '2023-11-14', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 10000, wageIncreaseDate: '', phone: '', rrn: '960314-1203210', address: '', email: '', resignDate: '2024-03-18' },
+    { id: 30, gender: '남', name: '서휘원', bank: '카카오', account: '3333-19-1073211', team: 'LM', position: '아르바이트', startDate: '2023-02-21', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 6, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-6691-7661', rrn: '970430-1222419', address: '', email: '', resignDate: '2024-05-10' },
+    { id: 31, gender: '여', name: '엄현지', bank: '농협', account: '352-8386-5507-73', team: 'LM', position: '아르바이트', startDate: '2023-08-30', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 6, workDays: '5일', wage: 11000, wageIncreaseDate: '', phone: '010-8386-5507', rrn: '980327-2203415', address: '', email: '', resignDate: '2024-07-05' },
+    { id: 32, gender: '여', name: '오지애', bank: '농협', account: '352-1494-9415-03', team: 'LM', position: '아르바이트', startDate: '2024-03-04', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 6, workDays: '5일', wage: 10000, wageIncreaseDate: '', phone: '', rrn: '010307-4781214', address: '', email: '', resignDate: '2024-07-05' },
+    { id: 33, gender: '여', name: '박은옥', bank: '카카오', account: '3333-14-0348947', team: 'LM', position: '아르바이트', startDate: '2022-10-17', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 5, workDays: '5일', wage: 11500, wageIncreaseDate: '', phone: '010-9182-0918', rrn: '810223-2222639', address: '', email: '', resignDate: '2024-08-28' },
+    { id: 34, gender: '남', name: '김상은', bank: '국민', account: '620002-04-134998', team: 'LM', position: '아르바이트', startDate: '2021-10-23', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 10000, wageIncreaseDate: '', phone: '010-3293-5889', rrn: '940317-1788410', address: '남양주시 화도읍 녹촌로 87-29 106동 1004호', email: 'theone3917@naver.com', resignDate: '2024-11-15' },
+    { id: 35, gender: '여', name: '박선희', bank: '국민', account: '672701-01-706716', team: 'LM', position: '아르바이트', startDate: '2021-11-21', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 10000, wageIncreaseDate: '', phone: '010-4078-7337', rrn: '951115-2222416', address: '남양주시 화도읍 묵현로 25번길 32-10 가동402호', email: '69861@naver.com', resignDate: '2024-11-28' },
+    { id: 36, gender: '여', name: '박해옥', bank: '국민', account: '283502-04-206009', team: 'LM', position: '아르바이트', startDate: '2022-10-17', insuranceDate: '2024-04-15', insuranceStatus: true, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 5, workDays: '5일', wage: 11500, wageIncreaseDate: '', phone: '010-4082-1032', rrn: '790914-2222615', address: '경기도 남양주시 오남읍 진건오남로 512번길 25-1 신우아이딜@ 107-105', email: 'balam-soli@hanmail.net', resignDate: '2025-01-14' },
+    { id: 37, gender: '여', name: '윤수진', bank: '국민', account: '616301-04-276360', team: 'LM', position: '아르바이트', startDate: '2023-10-10', insuranceDate: '2024-04-15', insuranceStatus: true, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 10000, wageIncreaseDate: '', phone: '010-9118-1748', rrn: '030614-4217515', address: '경기도 남양주시 수레로 1233번길34 101동 1002호', email: 'sck1748321@naver.com', resignDate: '2025-02-14' },
+    { id: 38, gender: '남', name: '김수빈', bank: '국민', account: '616301-04-130705', team: 'LM', position: '아르바이트', startDate: '2023-11-16', insuranceDate: '2024-05-16', insuranceStatus: true, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 13000, wageIncreaseDate: '', phone: '010-3719-9742', rrn: '941003-1218617', address: '경기도 남양주시 화도읍 묵현로 14번길2-4 가동 303호', email: 'tnqls7959@naver.com', resignDate: '2025-02-14' },
+    { id: 39, gender: '남', name: '김성우', bank: '국민', account: '943202-00-443678', team: 'LM', position: '아르바이트', startDate: '2025-02-03', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 10500, wageIncreaseDate: '', phone: '010-9694-8802', rrn: '991010-1203516', address: '경기도 남양주시 화도읍 수레로 청구아파트(101-1206)', email: 'kimsw8802@naver.com', resignDate: '2025-02-28' },
+    { id: 40, gender: '남', name: '최재연', bank: '국민', account: '006002-04-162681', team: 'LM', position: '아르바이트', startDate: '2023-03-09', insuranceDate: '2024-04-15', insuranceStatus: true, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-4082-1032', rrn: '940621-1013022', address: '경기도 남양주시 화도읍 묵현리 271-19 드림빌 102동 101호', email: 'jmelody621@gmail.com', resignDate: '2025-06-09' },
+    { id: 41, gender: '남', name: '이우성', bank: '국민', account: '616302-04-169199', team: 'LM', position: '아르바이트', startDate: '2023-11-14', insuranceDate: '2024-04-15', insuranceStatus: true, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 10000, wageIncreaseDate: '2025-01-01', phone: '010-8481-4287', rrn: '960315-1222415', address: '경기도 남양주시 화도읍 비룡로 55번길3-21', email: 'foolishsuccess@gmail.com', resignDate: '2025-04-15' },
+    { id: 42, gender: '여', name: '성미정', bank: '국민', account: '017002-04-268949', team: 'LM', position: '아르바이트', startDate: '2024-03-04', insuranceDate: '2024-04-15', insuranceStatus: true, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 10000, wageIncreaseDate: '2025-01-01', phone: '010-8801-2144', rrn: '870925-2002019', address: '경기도 남양주시 화도읍 경춘로 2290번길2 부영아파트 103-1001호', email: 'alwjd2144@naver.com', resignDate: '2025-09-05' },
+    { id: 43, gender: '남', name: '이시형', bank: '국민', account: '453202-04-133120', team: 'LM', position: '아르바이트', startDate: '2024-03-25', insuranceDate: '2024-04-15', insuranceStatus: true, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 6, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-7497-7942', rrn: '870127-1127111', address: '경기도 양주시 양주산성로838-71 서광아침의빛 아파트 109동 1401 호', email: 'sanaie41@naver.com', resignDate: '2025-03-24' },
+    { id: 44, gender: '남', name: '최진혁', bank: '국민', account: '631601-01-463986', team: 'LM', position: '아르바이트', startDate: '2024-05-13', insuranceDate: '2024-05-16', insuranceStatus: true, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-3207-6712', rrn: '991211-1013013', address: '경기도 남양주시 화도읍 묵현로 양현2길 7-6, 102동 101호', email: 'kidcjn1211@gmail.com', resignDate: '2025-05-12' },
+    { id: 45, gender: '남', name: '김동구', bank: '국민', account: '0167020-4806670', team: 'LM', position: '아르바이트', startDate: '2025-02-26', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 10500, wageIncreaseDate: '', phone: '010-9904-2125', rrn: '860108-1526214', address: '서울시 강북구 인수봉로 51길 23 102호', email: 'doob3000@gmail.com', resignDate: '2025-05-23' },
+    { id: 46, gender: '남', name: '김우열', bank: '국민', account: '616301-04-284442', team: 'LM', position: '아르바이트', startDate: '2025-03-04', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 10500, wageIncreaseDate: '', phone: '010-4083-4579', rrn: '881010-1150817', address: '경기도남양주시화도읍가곡로106대신주택B동201호', email: 'dnduf32@naver.com', resignDate: '2025-04-30' },
+    { id: 47, gender: '여', name: '조춘희', bank: '국민', account: '690502-01-104201', team: 'LM', position: '아르바이트', startDate: '2025-11-03', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-5008-4942', rrn: '671205-2637131', address: '경기도 남양주시 호평로35번길 25, 102동 1305호', email: 'chun9973@naver.com', resignDate: '2025-11-07' },
+    { id: 48, gender: '여', name: '박화영', bank: '국민', account: '992801-01-052384', team: 'LM', position: '아르바이트', startDate: '2025-11-12', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-3865-0094', rrn: '810103-2222538', address: '경기도 남양주시 화도읍 먹갓원터길 20 가-202', email: 'moon7476@naver.com', resignDate: '2025-11-18' },
+    { id: 49, gender: '여', name: '박애란', bank: '국민', account: '202602-04-268530', team: 'LM', position: '아르바이트', startDate: '2025-11-12', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-6739-2846', rrn: '860518-2056427', address: '경기도 남양주시 화도읍 경춘로 2290번길 2 103동 2704호', email: 'aeran518@naver.com', resignDate: '2025-11-18' },
+    { id: 50, gender: '여', name: '나진아', bank: '국민', account: '801702-04-091601', team: 'LM', position: '아르바이트', startDate: '2025-11-11', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-8955-3425', rrn: '710110-2481016', address: '경기도 남양주시 조안면 북한강로 499번길 55', email: 'cns367@naver.com', resignDate: '2025-11-18' },
+    { id: 51, gender: '여', name: '이안나', bank: '국민', account: '601501-01-313860', team: 'LM', position: '아르바이트', startDate: '2025-11-14', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-8910-3214', rrn: '721202-2646015', address: '경기도 남양주시 평내로 146, 2008동 605호', email: 'radix501@naver.com', resignDate: '2025-11-14' },
+    { id: 52, gender: '여', name: '최보윤', bank: '국민', account: '344-24-0049-831', team: 'LM', position: '아르바이트', startDate: '2025-11-13', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-4520-1339', rrn: '790115-2011733', address: '경기도 남양주시 별내3로 159 2705동 402호', email: 'borong79@naver.com', resignDate: '2025-11-14' },
+    { id: 53, gender: '남', name: '박정진', bank: '국민', account: '853802-04-278702', team: 'LM', position: '아르바이트', startDate: '2025-12-02', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 12000, wageIncreaseDate: '', phone: '010-2943-1425', rrn: '890225-1821219', address: '경기도 남양주시 호평동 298-39 헤리터움 103동 401호', email: 'bakgy88@naver.com', resignDate: '2025-12-07' },
+    { id: 54, gender: '여', name: '박성희', bank: '국민', account: '450901-01-495274', team: 'ER', position: '아르바이트', startDate: '2021-09-13', insuranceDate: '2024-06-15', insuranceStatus: true, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 8, workDays: '5일', wage: 12000, wageIncreaseDate: '2025-11-17', phone: '010-8021-8333', rrn: '000901-4075013', address: '서울시 동대문구 장한로26가길 9 어반슈필라움 702호', email: 'qkrtjdgml987@naver.com', resignDate: '2025-12-31' },
+    { id: 55, gender: '여', name: '장희진', bank: '국민', account: '605301-04-093930', team: 'ER', position: '아르바이트', startDate: '2025-12-15', insuranceDate: '', insuranceStatus: false, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 8, workDays: '5일', wage: 10300, wageIncreaseDate: '', phone: '010-4283-7169', rrn: '960330-2013713', address: '서울특별시 중랑구 신내로 155 , 808동 806호 (신내동 , 화성아파트)', email: 'soso050803@naver.com', resignDate: '2025-12-31' },
+    { id: 56, gender: '남', name: '조범준', bank: '국민', account: '943202-01-024670', team: 'LM', position: '아르바이트', startDate: '2024-11-21', insuranceDate: '2024-11-21', insuranceStatus: true, renewalDate: '신규', checkIn: '09:00', checkOut: '17:00', workHours: 7, workDays: '5일', wage: 0, wageIncreaseDate: '2026-01-02', phone: '010-8231-6634', rrn: '020110-3012919', address: '남양주시 화도읍 수례로 1120번길 33-1, 105동 802호', email: 'yuhwan4870@naver.com', resignDate: '2026-01-02' }
+];
+
+
+===== src\utils\csvUtils.js =====
+// src/utils/csvUtils.js
+import * as XLSX from 'xlsx';
+
+export const escapeCsvField = (field) => {
+    if (field === null || field === undefined) return '';
+    const stringField = String(field);
+    if (stringField.includes(',') || stringField.includes('"') || stringField.includes('\n')) {
+        return `"${stringField.replace(/"/g, '""')}"`;
+    }
+    return stringField;
+};
+
+export const readFileData = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsArrayBuffer(file);
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array', codepage: 949 });
+                let allRows = [];
+                let headerRow = null;
+
+                workbook.SheetNames.forEach((sheetName, idx) => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
+                    if (rows.length === 0) return;
+                    if (idx === 0) {
+                        allRows = [...rows];
+                        headerRow = rows[0];
+                    } else {
+                        const firstRow = rows[0];
+                        const isHeader = headerRow && firstRow &&
+                            headerRow.length === firstRow.length &&
+                            headerRow.every((h, i) => String(h).trim() === String(firstRow[i]).trim());
+                        allRows.push(...rows.slice(isHeader ? 1 : 0));
+                    }
+                });
+                resolve(allRows);
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = () => reject(new Error("파일을 읽는 중 오류가 발생했습니다."));
+    });
+};
+
+
+===== src\utils\dateUtils.js =====
+// src/utils/dateUtils.js
+
+export const getMonthsBetween = (startDate, endDate) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+};
+
+export const getDaysBetween = (startDate, endDate) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return Math.floor((end - start) / (1000 * 60 * 60 * 24));
+};
+
+export const normalizeDateStr = (dateStr) => {
+    if (!dateStr) return '';
+
+    let str = String(dateStr).trim();
+
+    // Excel serial date 처리
+    if (!isNaN(str) && Number(str) > 30000 && Number(str) < 80000) {
+        const d = new Date(Math.round((Number(str) - 25569) * 86400 * 1000));
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    }
+
+    // 1. YYYYMMDD 8자리 숫자인 경우 바로 변환
+    if (/^\d{8}$/.test(str)) {
+        return `${str.substring(0, 4)}-${str.substring(4, 6)}-${str.substring(6, 8)}`;
+    }
+
+    // 2. 공백, 점(.), 슬래시(/), 한글(년,월,일)을 하이픈(-)으로 통일
+    let normalized = str.replace(/[\s./년월일]+/g, '-');
+
+    if (normalized.endsWith('-')) normalized = normalized.slice(0, -1);
+    if (normalized.startsWith('-')) normalized = normalized.slice(1);
+
+    // 3. 패턴 분해해서 정확한 Y, M, D 유추
+    const parts = normalized.split('-');
+    if (parts.length === 3) {
+        let [p1, p2, p3] = parts;
+        let y, m, d;
+
+        if (p1.length === 4) {
+            y = p1; m = p2; d = p3;
+        } else if (p3.length === 4) {
+            y = p3; m = p1; d = p2;
+        } else {
+            const n1 = parseInt(p1);
+            const n3 = parseInt(p3);
+            if (n3 > 31) {
+                y = `20${p3.padStart(2, '0')}`; m = p1; d = p2;
+            } else if (n1 > 31) {
+                y = `20${p1.padStart(2, '0')}`; m = p2; d = p3;
+            } else {
+                if (n3 >= 20 && n3 <= 31 && n1 <= 12) {
+                    y = `20${p3.padStart(2, '0')}`; m = p1; d = p2;
+                } else {
+                    y = `20${p1.padStart(2, '0')}`; m = p2; d = p3;
+                }
+            }
+        }
+
+        m = m.padStart(2, '0');
+        d = d.padStart(2, '0');
+        const dateObj = new Date(`${y}-${m}-${d}`);
+        if (isNaN(dateObj.getTime())) return normalized;
+        return `${y}-${m}-${d}`;
+    }
+    return normalized;
+};
+
+
+===== src\utils\leaveUtils.js =====
+// src/utils/leaveUtils.js
+import { getMonthsBetween } from './dateUtils';
+
+export const getLegalAnnualLeave = (yearsWorked) => {
+    if (yearsWorked < 1) return 0;
+    const baseLeave = 15;
+    const additionalLeave = Math.floor((yearsWorked - 1) / 2);
+    return Math.min(baseLeave + additionalLeave, 25);
+};
+
+export const getFirstYearLeave = (startDate, endDate, absences = {}) => {
+    const months = getMonthsBetween(startDate, endDate);
+    let earnedDays = 0;
+    for (let i = 0; i < Math.min(months, 11); i++) {
+        const monthStart = new Date(startDate);
+        monthStart.setMonth(monthStart.getMonth() + i);
+        const monthKey = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+        const monthAbsences = Object.keys(absences).filter(date => date.startsWith(monthKey)).length;
+        if (monthAbsences === 0) earnedDays++;
+    }
+    return Math.min(earnedDays, 11);
+};
+
+export const getFirstYearCarryoverDeadline = (startDate) => {
+    const start = new Date(startDate);
+    return new Date(start.getFullYear() + 1, 11, 31);
+};
+
+
+===== src\components\PayrollView.jsx =====
+import React, { useState, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, Building, Wallet, Search, Download, AlertCircle } from 'lucide-react';
+
+export default function PayrollView({ users, calculateMonthlyWage, onDownloadInsured, onDownloadFreelancer, onDownloadTemplate, payrollMonth, onMonthChange }) {
+    const [mode, setMode] = useState('INSURED'); // 'INSURED' or 'FREELANCER'
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredUsers = useMemo(() => {
+        return users.filter(u => {
+            if (u.resignDate) return false;
+            const matchesSearch = u.name.includes(searchTerm);
+            const matchesMode = mode === 'INSURED' ? u.insuranceStatus : !u.insuranceStatus;
+            return matchesSearch && matchesMode;
+        });
+    }, [users, mode, searchTerm]);
+
+    const summary = useMemo(() => {
+        const totalCount = filteredUsers.length;
+        const totalAmount = filteredUsers.reduce((sum, u) => {
+            const wage = calculateMonthlyWage(u, payrollMonth);
+            return sum + (mode === 'INSURED' ? wage.actual : wage.strictFinalPayout);
+        }, 0);
+        const totalDeduction = filteredUsers.reduce((sum, u) => {
+            const wage = calculateMonthlyWage(u, payrollMonth);
+            return sum + (mode === 'INSURED' ? 0 : wage.strictDeduction);
+        }, 0);
+        return { totalCount, totalAmount, totalDeduction };
+    }, [filteredUsers, calculateMonthlyWage, mode, payrollMonth]);
+
+    return (
+        <div className="space-y-4">
+            <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <button onClick={() => onMonthChange(-1)} className="p-1.5 hover:bg-[#e8e4d4] text-[#5a5545] border border-[#c5c0b0]"><ChevronLeft size={20} /></button>
+                    <h2 className="text-xl font-black text-[#3d472f] tracking-tight min-w-[120px] text-center">{payrollMonth.replace('-', '.')}</h2>
+                    <button onClick={() => onMonthChange(1)} className="p-1.5 hover:bg-[#e8e4d4] text-[#5a5545] border border-[#c5c0b0]"><ChevronRight size={20} /></button>
+                </div>
+                <p className="text-xs text-[#7a7565] font-bold">급여 정산 기준월</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2 bg-[#f5f3e8] border-2 border-[#3d472f] p-1 flex">
+                    <button onClick={() => setMode('INSURED')} className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${mode === 'INSURED' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#e8e4d4]'}`}>
+                        <Building size={16} /> 4대보험 (노무사 산정)
+                    </button>
+                    <button onClick={() => setMode('FREELANCER')} className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${mode === 'FREELANCER' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#e8e4d4]'}`}>
+                        <Wallet size={16} /> 3.3% 공제 (본사 지급)
+                    </button>
+                </div>
+                <div className="bg-[#5d6c4a] p-4 text-[#f5f3e8] flex flex-col justify-center border-2 border-[#3d472f]">
+                    <span className="text-xs text-[#d4dcc0] font-bold uppercase mb-1">{mode === 'INSURED' ? '실제 근무 기준 총액 (세전)' : '실제 근무 기준 지급 총액'}</span>
+                    <div className="flex justify-between items-end">
+                        <span className="text-2xl font-black">{summary.totalCount}명</span>
+                        <span className="text-lg font-bold opacity-80">₩{summary.totalAmount.toLocaleString()}</span>
+                    </div>
+                </div>
+            </div>
+
+            <section className="bg-[#f5f3e8] p-4 border-2 border-[#c5c0b0] flex justify-between items-center gap-4">
+                <div className="relative flex-1 max-w-md">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9a9585]" />
+                    <input type="text" placeholder="이름 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none" />
+                </div>
+                <div className="flex gap-2">
+                    <div className="flex items-center border-2 border-[#c5c0b0] bg-[#f5f3e8]">
+                        <select id="templateTeamSelect" defaultValue="전체" className="bg-transparent text-[#3d472f] text-sm font-bold px-2 py-2 outline-none cursor-pointer">
+                            <option value="전체">전체</option>
+                            {[...new Set(users.filter(u => !u.resignDate).map(u => u.team).filter(Boolean))].sort().map(t => (
+                                <option key={t} value={t}>{t}</option>
+                            ))}
+                        </select>
+                        <button onClick={() => onDownloadTemplate(document.getElementById('templateTeamSelect').value)} className="text-[#3d472f] px-3 py-2 text-sm font-bold flex items-center gap-1.5 hover:bg-[#e8e4d4] border-l-2 border-[#c5c0b0]">
+                            <Download size={16} /> 근태 양식
+                        </button>
+                    </div>
+                    <button onClick={mode === 'INSURED' ? onDownloadInsured : onDownloadFreelancer} className="bg-[#3d472f] text-[#f5f3e8] px-4 py-2 text-sm font-bold border-2 border-[#2d3721] flex items-center gap-2 hover:bg-[#2d3721]">
+                        <Download size={16} /> {mode === 'INSURED' ? '노무사 전달용 엑셀' : '지급 요청용 엑셀'}
+                    </button>
+                </div>
+            </section>
+
+            <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] shadow-md overflow-hidden">
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                    <table className="w-full">
+                        <thead className="bg-[#e8e4d4] sticky top-0 z-10 border-b-2 border-[#c5c0b0] text-xs font-bold text-[#5d6c4a] uppercase tracking-wider">
+                            <tr>
+                                <th className="p-3 pl-4 text-left">직원 정보</th>
+                                <th className="p-3 text-left">계좌 정보</th>
+                                {mode === 'INSURED' ? (
+                                    <>
+                                        <th className="p-3 text-center">근무일수</th>
+                                        <th className="p-3 text-right">실 근무시간</th>
+                                        <th className="p-3 text-right">연장시간</th>
+                                        <th className="p-3 text-right pr-4">실적 급여(세전)</th>
+                                    </>
+                                ) : (
+                                    <>
+                                        <th className="p-3 text-right">실적 총액</th>
+                                        <th className="p-3 text-right text-[#a65d57]">3.3% 공제</th>
+                                        <th className="p-3 text-right pr-4">실지급액</th>
+                                    </>
+                                )}
+                            </tr>
+                        </thead>
+                        <tbody className="text-sm divide-y divide-[#ebe8db]">
+                            {filteredUsers.map(user => {
+                                const wage = calculateMonthlyWage(user, payrollMonth);
+                                return (
+                                    <tr key={user.id} className="hover:bg-[#f4f5eb] transition-colors">
+                                        <td className="p-3 pl-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 flex items-center justify-center bg-[#5d6c4a] text-[#f5f3e8] text-xs font-bold">{user.name[0]}</div>
+                                                <div><p className="font-bold text-[#3d472f]">{user.name}</p><p className="text-xs text-[#9a9585]">{user.team}</p></div>
+                                            </div>
+                                        </td>
+                                        <td className="p-3">
+                                            <p className="font-bold text-[#5a5545]">{user.bank}</p>
+                                            <p className="text-xs text-[#7a7565] font-mono">{user.account}</p>
+                                        </td>
+                                        {mode === 'INSURED' ? (
+                                            <>
+                                                <td className="p-3 text-center text-[#5a5545]">{user.workDays}</td>
+                                                <td className="p-3 text-right text-[#5a5545]">{wage.hasRecord ? `${wage.totalActualHours}h` : '-'}</td>
+                                                <td className="p-3 text-right text-[#a65d57] font-bold">{wage.hasRecord && wage.totalActualOvertime > 0 ? `+${wage.totalActualOvertime}h` : '-'}</td>
+                                                <td className="p-3 text-right pr-4 font-bold text-[#5d6c4a]">₩{wage.actual.toLocaleString()}</td>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <td className="p-3 text-right text-[#5a5545]">₩{wage.actual.toLocaleString()}</td>
+                                                <td className="p-3 text-right text-[#a65d57]">₩{wage.strictDeduction.toLocaleString()}</td>
+                                                <td className="p-3 text-right pr-4 font-black text-[#3d472f]">₩{wage.strictFinalPayout.toLocaleString()}</td>
+                                            </>
+                                        )}
+                                    </tr>
+                                );
+                            })}
+                            {filteredUsers.length === 0 && (
+                                <tr><td colSpan={6} className="p-10 text-center text-[#9a9585] text-sm">해당 유형의 대상자가 없습니다.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div className="bg-[#e8ebd8] p-4 border-2 border-[#b8c4a0] text-xs text-[#5d6c4a] flex items-start gap-2">
+                <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                {mode === 'INSURED' ? (
+                    <p><strong>노무사 전달 안내:</strong> 4대보험 가입자는 위 <strong>실제 근무 기록</strong>을 바탕으로 산출된 급여 내역입니다. 상단의 '엑셀 다운로드'를 통해 근무 기록을 노무사에게 전달하여 <strong>최종 확정 급여</strong>를 산출받으세요.</p>
+                ) : (
+                    <p><strong>본사 지급 안내:</strong> 3.3% 공제 대상자는 <strong>실제 근무 기록</strong>을 기준으로 산출된 <strong>실지급액</strong>입니다. 근무 기록이 없는 경우 0원으로 표시됩니다. '지급 요청용 엑셀'을 다운로드하여 재무팀에 전달하세요.</p>
+                )}
+            </div>
+        </div>
+    );
+}
+
+
+===== src\components\HRView.jsx =====
+import React from 'react';
+import { Search, RotateCcw, Monitor, Users, Briefcase, Wallet, Calendar, AlertTriangle, FileText, UserMinus, Check, Edit } from 'lucide-react';
+import StatCard from './ui/StatCard';
+import InfoRow from './ui/InfoRow';
+
+export default function HRView({
+    stats,
+    teamCounts,
+    viewMode, setViewMode,
+    searchTerm, setSearchTerm,
+    filterTeam, setFilterTeam,
+    filterStatus, setFilterStatus,
+    filteredData,
+    selectedUser, handleSelectUser,
+    calculateMonthlyWage, payrollMonth,
+    openModal, openUserForm, openResignModal
+}) {
+    return (
+        <>
+            <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatCard title="전체 직원" value={`${stats.totalActive}명`} icon={<Users size={20} className="text-[#5d6c4a]" />} />
+                <StatCard title="4대보험 미가입" value={`${stats.insuranceNeeded}명`} icon={<AlertTriangle size={20} className="text-[#a65d57]" />} danger={stats.insuranceNeeded > 0} />
+                <StatCard title="계약 갱신 요망 (14일 이내)" value={`${stats.needRenewal}명`} icon={<RotateCcw size={20} className="text-[#d8973c]" />} warning={stats.needRenewal > 0} />
+                <StatCard title="총 예상 급여" value={`₩${stats.totalWage.toLocaleString()}`} sub="실제 근무 기록 기준" icon={<Wallet size={20} className="text-[#5d6c4a]" />} />
+            </section>
+
+            <section className="bg-[#f5f3e8] p-4 border-2 border-[#c5c0b0] mt-4">
+                <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-3 flex items-center gap-2"><Briefcase size={14} /> 팀별 현황</h3>
+                <div className="flex flex-wrap gap-2">
+                    {Object.entries(teamCounts).map(([team, count]) => (
+                        <button
+                            key={team}
+                            onClick={() => setFilterTeam(team)}
+                            className={`px-3 py-1.5 text-xs font-bold border-2 transition-colors ${filterTeam === team ? 'bg-[#5d6c4a] text-[#f5f3e8] border-[#3d472f]' : 'bg-[#e8e4d4] text-[#7a7565] border-[#c5c0b0] hover:border-[#5d6c4a]'}`}
+                        >
+                            {team} <span className="ml-1 opacity-70">({count})</span>
+                        </button>
+                    ))}
+                </div>
+            </section>
+
+            <section className="bg-[#f5f3e8] p-4 border-2 border-[#c5c0b0] flex flex-wrap gap-4 items-center mt-4">
+                <div className="relative flex-1 min-w-[200px]">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9a9585]" />
+                    <input type="text" placeholder="직원 검색 (이름, 연락처)..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none" />
+                </div>
+                <div className="flex gap-2">
+                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-3 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm font-bold text-[#5a5545] outline-none">
+                        <option value="ALL">전체 상태</option>
+                        <option value="RENEWAL_NEEDED">계약 갱신 임박 (14일 내)</option>
+                        <option value="INSURANCE_NEEDED">4대보험 미가입</option>
+                    </select>
+                    <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)} className="px-3 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm font-bold text-[#5a5545] border-none outline-none">
+                        {Object.keys(teamCounts).map(team => (<option key={team} value={team}>{team} ({teamCounts[team]})</option>))}
+                    </select>
+                </div>
+                <div className="flex bg-[#e8e4d4] border-2 border-[#c5c0b0]">
+                    <button onClick={() => setViewMode('ACTIVE')} className={`px-4 py-2 text-xs font-bold transition ${viewMode === 'ACTIVE' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#d4dcc0]'}`}>재직자</button>
+                    <button onClick={() => setViewMode('RESIGNED')} className={`px-4 py-2 text-xs font-bold border-l-2 border-[#c5c0b0] transition ${viewMode === 'RESIGNED' ? 'bg-[#a65d57] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#e6d0ce]'}`}>퇴사자</button>
+                    <button onClick={() => setViewMode('ALL')} className={`px-4 py-2 text-xs font-bold transition flex items-center ${viewMode === 'ALL' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#d4dcc0]'}`}>전체</button>
+                </div>
+            </section>
+
+            <div className="flex flex-col lg:flex-row gap-4 mt-4">
+                <div className="flex-1 bg-[#f5f3e8] border-2 border-[#c5c0b0] shadow-md overflow-hidden">
+                    <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                        <table className="w-full">
+                            <thead className="bg-[#e8e4d4] sticky top-0 z-10 border-b-2 border-[#c5c0b0] text-xs font-bold text-[#5d6c4a] uppercase tracking-wider">
+                                <tr>
+                                    <th className="p-3 pl-4 text-left">직원 정보</th>
+                                    <th className="p-3 text-left">계약 현황</th>
+                                    <th className="p-3 text-left">근무/급여 조건</th>
+                                    <th className="p-3 text-left">상태 관리</th>
+                                    <th className="p-3 pr-4 text-right">빠른 실행</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-sm divide-y divide-[#ebe8db]">
+                                {filteredData.map(user => {
+                                    const isRenewalTarget = user.renewalDate && user.renewalDate !== '신규' && !user.resignDate && ((new Date(user.renewalDate) - new Date()) / (1000 * 60 * 60 * 24)) >= 0 && ((new Date(user.renewalDate) - new Date()) / (1000 * 60 * 60 * 24)) <= 14;
+                                    return (
+                                        <tr key={user.id} onClick={() => handleSelectUser(user)} className={`group cursor-pointer hover:bg-[#f4f5eb] transition-colors ${selectedUser?.id === user.id ? 'bg-[#e8ebd8]' : ''}`}>
+                                            <td className="p-3 pl-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-10 h-10 flex items-center justify-center font-bold text-lg border-2 ${user.resignDate ? 'bg-[#e8e4d4] text-[#9a9585] border-[#c5c0b0]' : 'bg-[#5d6c4a] text-[#f5f3e8] border-[#3d472f]'}`}>
+                                                        {user.name[0]}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-[#3d472f] text-base group-hover:text-[#5d6c4a] transition-colors">{user.name} <span className="text-xs font-normal text-[#7a7565] ml-1">{user.gender}</span></p>
+                                                        <p className="text-xs font-bold text-[#9a9585] flex items-center gap-1"><Briefcase size={12} />{user.team} | {user.position}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="p-3">
+                                                <p className="text-[#5a5545] font-medium"><span className="text-[#9a9585] text-xs">입사:</span> {user.startDate}</p>
+                                                <div className="flex flex-col gap-1 mt-1">
+                                                    {user.insuranceStatus ? <span className="inline-flex items-center w-fit text-xs font-bold text-[#5d6c4a]"><Check size={12} className="mr-1" />4대보험 ({user.insuranceDate})</span> : <span className="inline-flex items-center w-fit text-xs font-bold text-[#a65d57]"><AlertTriangle size={12} className="mr-1" />3.3% 공제</span>}
+                                                </div>
+                                            </td>
+                                            <td className="p-3"><p className="font-semibold text-[#4a4535]">₩{user.wage.toLocaleString()}</p><p className="text-xs text-[#9a9585]">{user.workDays} 근무</p></td>
+                                            <td className="p-3">
+                                                <div className="flex gap-1 flex-wrap">
+                                                    {isRenewalTarget && <span className="px-1.5 py-0.5 bg-[#fcf4dc] text-[#a67c00] border border-[#e5c07b] text-[10px] font-bold animate-pulse">갱신임박</span>}
+                                                    {!user.insuranceStatus && !user.resignDate && <span className="px-1.5 py-0.5 bg-[#f8f0ef] text-[#a65d57] border border-[#dcc0bc] text-[10px] font-bold">보험미가입</span>}
+                                                    {user.resignDate && <span className="px-1.5 py-0.5 bg-[#f8f0ef] text-[#a65d57] border border-[#dcc0bc] text-[10px] font-bold">퇴사</span>}
+                                                </div>
+                                            </td>
+                                            <td className="p-3 pr-4 text-right">
+                                                <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                    <button onClick={(e) => openUserForm(user, e)} className="p-1.5 bg-[#e8e4d4] text-[#5d6c4a] hover:bg-[#d4dcc0] title='정보 수정'"><Edit size={14} /></button>
+                                                    {!user.resignDate && (
+                                                        <button onClick={(e) => openResignModal(user, e)} className="p-1.5 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#f0e5e4] title='퇴사 처리'"><UserMinus size={14} /></button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div className="w-full lg:w-80 bg-[#f5f3e8] border-2 border-[#c5c0b0] shadow-md flex flex-col h-[700px]">
+                    {selectedUser ? (
+                        <div className="flex flex-col h-full">
+                            <div className="p-6 bg-[#5d6c4a] border-b-2 border-[#3d472f]">
+                                <div className="flex justify-between items-start mb-2">
+                                    <h2 className="text-2xl font-black text-[#f5f3e8] tracking-tight">{selectedUser.name}</h2>
+                                    <span className={`px-2 py-0.5 text-xs font-bold border-2 ${selectedUser.resignDate ? 'bg-[#a65d57] border-[#8b4d47] text-[#f5f3e8]' : 'bg-[#d4dcc0] border-[#b8c4a0] text-[#3d472f]'}`}>
+                                        {selectedUser.resignDate ? '퇴사' : '재직중'}
+                                    </span>
+                                </div>
+                                <p className="text-[#d4dcc0] text-sm font-bold flex items-center gap-2"><Briefcase size={14} /> {selectedUser.team} | {selectedUser.position}</p>
+                                {selectedUser.resignDate && (
+                                    <div className="mt-3 p-3 bg-[#8b4d47] border-l-4 border-[#3d3929] text-xs">
+                                        <div className="font-bold text-[#f5f3e8]">퇴사일: {selectedUser.resignDate}</div>
+                                        {selectedUser.resignReason && <div className="mt-1 text-[#dcc0bc]">사유: {selectedUser.resignReason}</div>}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                <div><h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">Contact & Info</h3>
+                                    <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
+                                        <InfoRow label="연락처" value={selectedUser.phone} />
+                                        <InfoRow label="주민가명" value={`${selectedUser.rrn?.substring(0, 8)}******`} />
+                                        <InfoRow label="계좌" value={`${selectedUser.bank} ${selectedUser.account}`} />
+                                    </div>
+                                </div>
+                                <div><h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">Employment</h3>
+                                    <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
+                                        <InfoRow icon={<Calendar size={14} />} label="입사일" value={selectedUser.startDate} />
+                                        <InfoRow icon={<Monitor size={14} />} label="근무시간" value={`${selectedUser.checkIn} - ${selectedUser.checkOut}`} />
+                                        <InfoRow icon={<Wallet size={14} />} label="시급" value={`₩${selectedUser.wage.toLocaleString()}`} />
+                                        <InfoRow icon={<RotateCcw size={14} />} label="Renew By" value={selectedUser.renewalDate} />
+                                    </div>
+                                </div>
+                                {selectedUser.resignDate && (
+                                    <div className="bg-[#f8f0ef] p-4 border-2 border-[#dcc0bc]">
+                                        <h3 className="text-xs font-bold text-[#a65d57] uppercase mb-2">퇴사 정보</h3>
+                                        <InfoRow icon={<Calendar size={14} />} label="퇴사일" value={selectedUser.resignDate} />
+                                        <InfoRow icon={<FileText size={14} />} label="사유" value={selectedUser.resignReason || '미기재'} />
+                                    </div>
+                                )}
+                                <div className="bg-[#e8ebd8] p-4 border-2 border-[#b8c4a0]">
+                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2 flex items-center justify-between">
+                                        Payroll Est.
+                                        <span className="text-[10px] bg-[#5d6c4a] text-[#f5f3e8] px-1.5 py-0.5">{selectedUser.insuranceStatus ? '세전' : '3.3%공제'}</span>
+                                    </h3>
+                                    {(() => {
+                                        const wage = calculateMonthlyWage(selectedUser, payrollMonth);
+                                        if (selectedUser.insuranceStatus) {
+                                            return (
+                                                <>
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="text-[#7a7565] text-xs font-bold">월 기본급 (예상)</span>
+                                                        <span className="text-[#3d472f] font-mono font-bold">₩{wage.estimated.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center pt-2 border-t-2 border-[#d4dcc0]">
+                                                        <span className="text-[#5d6c4a] text-sm font-black">실적 합계</span>
+                                                        <span className="text-[#2d3721] font-black text-lg">₩{wage.actual.toLocaleString()}</span>
+                                                    </div>
+                                                    <p className="text-[10px] text-[#7a7565] text-right mt-1">4대보험 공제는 노무사 산정 후 확정</p>
+                                                </>
+                                            );
+                                        } else {
+                                            return (
+                                                <>
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="text-[#7a7565] text-xs font-bold">월 기본급 (예상)</span>
+                                                        <span className="text-[#3d472f] font-mono font-bold">₩{wage.estimated.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-[#7a7565] text-xs font-bold">실적 합계</span>
+                                                        <span className="text-[#3d472f] font-mono font-bold">₩{wage.actual.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-[#a65d57] mt-1 mb-2">
+                                                        <span className="text-xs font-bold">- 3.3% 공제</span>
+                                                        <span className="font-mono font-bold">-₩{wage.strictDeduction.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center pt-2 border-t-2 border-[#d4dcc0]">
+                                                        <span className="text-[#5d6c4a] text-sm font-black">실지급액</span>
+                                                        <span className="text-[#2d3721] font-black text-lg">₩{wage.strictFinalPayout.toLocaleString()}</span>
+                                                    </div>
+                                                </>
+                                            );
+                                        }
+                                    })()}
+                                </div>
+                            </div>
+                            <div className="p-4 border-t-2 border-[#e8e4d4] bg-[#faf8f0]">
+                                <button onClick={() => openModal('calendar')} className="w-full py-3 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border-2 border-[#3d472f] flex justify-center items-center gap-2"><Calendar size={16} /> 근태 관리 열기</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-[#9a9585] p-8 text-center"><Users size={48} className="mb-4 opacity-20" /><p className="text-sm font-medium">직원을 선택하여<br />상세 정보를 확인하세요</p></div>
+                    )}
+                </div>
+            </div>
+        </>
+    );
+}
+
+
+===== src\components\LeaveView.jsx =====
+import React from 'react';
+import { Users, UserMinus, Calendar, Edit, Briefcase, CalendarCheck, AlertTriangle } from 'lucide-react';
+import StatCard from './ui/StatCard';
+import InfoRow from './ui/InfoRow';
+
+export default function LeaveView({
+    users, viewMode, setViewMode, filteredData,
+    selectedUser, handleSelectUser, calculateLeave,
+    openModal, setAdjustUser
+}) {
+    return (
+        <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 bg-[#f5f3e8] border-2 border-[#c5c0b0] shadow-md overflow-hidden">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border-b-2 border-[#c5c0b0] bg-[#faf8f0]">
+                    <StatCard title="전체 인원" value={`${users.length}명`} icon={<Users size={20} />} onClick={() => setViewMode('ALL')} active={viewMode === 'ALL'} />
+                    <StatCard title="재직 인원" value={`${users.filter(u => !u.resignDate).length}명`} icon={<Briefcase size={20} />} onClick={() => setViewMode('ACTIVE')} active={viewMode === 'ACTIVE'} />
+                    <StatCard title="연차 소진 필요 (<3일)" value={`${users.filter(u => !u.resignDate && calculateLeave(u).remaining <= 3).length}명`} icon={<CalendarCheck size={20} className="text-[#a65d57]" />} danger />
+                    <StatCard title="퇴사 인원" value={`${users.filter(u => u.resignDate).length}명`} icon={<UserMinus size={20} />} onClick={() => setViewMode('RESIGNED')} active={viewMode === 'RESIGNED'} />
+                </div>
+
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                    <table className="w-full">
+                        <thead className="bg-[#e8e4d4] sticky top-0 z-10 border-b-2 border-[#c5c0b0] text-xs font-bold text-[#5d6c4a] uppercase tracking-wider">
+                            <tr>
+                                <th className="p-3 pl-4 text-left">직원 정보</th>
+                                <th className="p-3 text-center">근속 연수</th>
+                                <th className="p-3 text-center">총 발생연차</th>
+                                <th className="p-3 text-center">사용 연차</th>
+                                <th className="p-3 text-center">조정 연차</th>
+                                <th className="p-3 text-center">잔여 연차</th>
+                                <th className="p-3 pr-4 text-right">상세</th>
+                            </tr>
+                        </thead>
+                        <tbody className="text-sm divide-y divide-[#ebe8db]">
+                            {filteredData.map(user => {
+                                const leave = calculateLeave(user);
+                                return (
+                                    <tr key={user.id} onClick={() => handleSelectUser(user)} className={`group cursor-pointer hover:bg-[#f4f5eb] transition-colors ${selectedUser?.id === user.id ? 'bg-[#e8ebd8]' : ''}`}>
+                                        <td className="p-3 pl-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 flex items-center justify-center font-bold text-xs ${user.resignDate ? 'bg-[#c5c0b0] text-[#f5f3e8]' : 'bg-[#5d6c4a] text-[#f5f3e8]'}`}>
+                                                    {user.name[0]}
+                                                </div>
+                                                <div>
+                                                    <p className={`font-bold ${user.resignDate ? 'text-[#9a9585]' : 'text-[#3d472f]'}`}>{user.name}</p>
+                                                    <p className="text-[10px] text-[#7a7565]">{user.startDate} 입사</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="p-3 text-center text-[#5a5545]"><span className="font-mono bg-[#e8e4d4] px-1">{leave.yearsWorked}년</span></td>
+                                        <td className="p-3 text-center text-[#5a5545] font-bold">{leave.totalEarned}일</td>
+                                        <td className="p-3 text-center text-[#5a5545] font-bold">{leave.usedLeave}일</td>
+                                        <td className="p-3 text-center"><span className={`font-bold ${leave.adjustment >= 0 ? 'text-[#5d6c4a]' : 'text-[#a65d57]'}`}>{leave.adjustment >= 0 ? '+' : ''}{leave.adjustment}일</span></td>
+                                        <td className="p-3 text-center"><span className={`px-2 py-1 text-xs font-bold ${leave.remaining <= 3 ? 'bg-[#f8f0ef] text-[#a65d57] border border-[#dcc0bc]' : 'bg-[#e8ebd8] text-[#5d6c4a] border border-[#b8c4a0]'}`}>{leave.remaining}일</span></td>
+                                        <td className="p-3 pr-4 text-right">
+                                            <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                <button onClick={(e) => { e.stopPropagation(); setAdjustUser(user); openModal('adjust'); }} className="p-1 px-2 text-xs bg-[#e8e4d4] text-[#5d6c4a] hover:bg-[#d4dcc0] font-bold flex items-center gap-1 border border-[#c5c0b0]"><Edit size={12} />조정</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div className="w-full lg:w-80 bg-[#f5f3e8] border-2 border-[#c5c0b0] shadow-md flex flex-col">
+                {selectedUser ? (
+                    <div className="flex flex-col h-full">
+                        <div className="p-6 bg-[#5d6c4a] border-b-2 border-[#3d472f]">
+                            <div className="flex justify-between items-start mb-2">
+                                <h2 className="text-2xl font-black text-[#f5f3e8] tracking-tight">{selectedUser.name}</h2>
+                            </div>
+                            <p className="text-[#d4dcc0] text-sm font-bold">{selectedUser.team} | {selectedUser.startDate}</p>
+                            {selectedUser.resignDate && (<p className="text-xs text-[#f8f0ef] mt-1 bg-[#a65d57] inline-block px-2 py-0.5">퇴사: {selectedUser.resignDate}</p>)}
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            <div><h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2 pb-1 border-b-2 border-[#e8e4d4]">근무 정보</h3>
+                                <InfoRow label="근속기간" value={`${calculateLeave(selectedUser).yearsWorked}년 (${calculateLeave(selectedUser).monthsWorked}개월)`} />
+                            </div>
+                            <div><h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2 pb-1 border-b-2 border-[#e8e4d4]">연차 현황</h3>
+                                {(() => {
+                                    const leave = calculateLeave(selectedUser);
+                                    return (<>
+                                        <InfoRow label="1년 미만 발생" value={`${leave.firstYearLeave}일`} />
+                                        <InfoRow label="법정 연차 발생" value={`${leave.annualLeave}일`} />
+                                        <InfoRow label="이월 연차 반영" value={`${leave.carryover + leave.firstYearCarryover}일`} />
+                                        <InfoRow label="임의 조정" value={`${leave.adjustment > 0 ? '+' : ''}${leave.adjustment}일`} />
+                                        <div className="border-t border-[#e8e4d4] my-2 pt-2"></div>
+                                        <InfoRow label="총 사용 연차" value={`${leave.usedLeave}일`} />
+                                        {leave.absenceCount > 0 && (<InfoRow icon={<AlertTriangle size={14} />} label="결근" value={`${leave.absenceCount}일`} />)}
+                                    </>);
+                                })()}
+                            </div>
+                            <div className="bg-[#e8ebd8] p-4 border-2 border-[#b8c4a0]">
+                                <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">잔여 연차</h3>
+                                <div className="flex justify-between items-end">
+                                    <span className="text-2xl font-black text-[#5d6c4a]">{calculateLeave(selectedUser).remaining}일</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 border-t-2 border-[#e8e4d4] bg-[#faf8f0]">
+                            <button onClick={() => { setAdjustUser(selectedUser); openModal('adjust'); }} className="w-full py-3 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border-2 border-[#3d472f] flex justify-center items-center gap-2"><Edit size={16} /> 연차 조정</button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-[#9a9585] p-8 text-center"><Users size={48} className="mb-4 opacity-30" /><p className="text-sm font-medium">직원을 선택하여<br />상세 정보를 확인하세요</p></div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+
+===== src\components\CalculatorWidget.jsx =====
+// src/components/CalculatorWidget.jsx
+import React, { useState, useEffect, useCallback } from 'react';
+import { Calculator as CalculatorIcon, X } from 'lucide-react';
+
+export default function CalculatorWidget({ onClose }) {
+    const [input, setInput] = useState('');
+    const [result, setResult] = useState('');
+
+    const handleClick = useCallback((value) => {
+        if (value === '=') {
+            try {
+                const calc = new Function('return ' + input.replace(/x/g, '*').replace(/÷/g, '/'))();
+                setResult(String(calc));
+            } catch (e) {
+                setResult('Error');
+            }
+        }
+        else if (value === 'C') { setInput(''); setResult(''); }
+        else if (value === 'DEL') { setInput(prev => prev.slice(0, -1)); }
+        else { setInput(prev => prev + value); }
+    }, [input]);
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            const key = e.key;
+            if ((key >= '0' && key <= '9') || key === '.') handleClick(key);
+            else if (key === '+') handleClick('+');
+            else if (key === '-') handleClick('-');
+            else if (key === '*' || key.toLowerCase() === 'x') handleClick('x');
+            else if (key === '/') handleClick('÷');
+            else if (key === 'Enter' || key === '=') { e.preventDefault(); handleClick('='); }
+            else if (key === 'Backspace') handleClick('DEL');
+            else if (key === 'Escape' || key.toLowerCase() === 'c') handleClick('C');
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleClick]);
+
+    const buttons = ['C', '÷', 'x', 'DEL', '7', '8', '9', '-', '4', '5', '6', '+', '1', '2', '3', '=', '0', '.'];
+
+    return (
+        <div className="fixed bottom-4 right-4 w-72 bg-[#4a4535] shadow-2xl border-2 border-[#3d472f] z-[100] flex flex-col rounded-none">
+            <div className="bg-[#3d472f] p-3 flex justify-between items-center border-b-2 border-[#2d3721]">
+                <h4 className="text-[#f5f3e8] text-xs font-bold flex items-center gap-2"><CalculatorIcon size={14} /> 계산기</h4>
+                <button onClick={onClose} className="text-[#b8c4a0] hover:text-[#f5f3e8]"><X size={16} /></button>
+            </div>
+            <div className="p-4 bg-[#4a4535]">
+                <div className="bg-[#f5f3e8] p-3 mb-3 text-right h-20 flex flex-col justify-center border-2 border-[#3d472f]">
+                    <div className="text-[#7a7565] text-xs h-4 font-mono">{input}</div>
+                    <div className="text-[#3d472f] text-2xl font-black truncate font-mono">{result || (input || '0')}</div>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                    {buttons.map((btn, i) => (
+                        <button key={i} onClick={() => handleClick(btn)} className={`h-10 text-sm font-bold transition rounded-none ${btn === '=' ? 'row-span-2 h-full bg-[#5d6c4a] hover:bg-[#6b7b54] text-[#f5f3e8]' : ''} ${btn === '0' ? 'col-span-2' : ''} ${['C', 'DEL', '÷', 'x', '-', '+'].includes(btn) ? 'bg-[#5a5545] text-[#b8c4a0] hover:bg-[#6a6555]' : 'bg-[#5a5545] text-[#f5f3e8] hover:bg-[#6a6555]'}`}>{btn}</button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+===== src\components\ui\Icons.jsx =====
+// src/components/ui/Icons.jsx
+import React from 'react';
+
+export const WonSign = ({ className, size = 24 }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M4 6l6 14 2-5 2 5 6-14" /><path d="M4 10h16" /><path d="M4 14h16" />
+    </svg>
+);
+
+
+===== src\components\ui\InfoRow.jsx =====
+// src/components/ui/InfoRow.jsx
+import React from 'react';
+
+export default function InfoRow({ icon, label, value }) {
+    return (
+        <div className="flex items-center gap-3 py-1">
+            <div className="text-[#9a9585] min-w-[16px]">{icon}</div>
+            <div className="flex-1 border-b border-[#ebe8db] pb-1">
+                <span className="text-[10px] text-[#9a9585] font-bold uppercase mr-2">{label}</span>
+                <span className="text-sm font-medium text-[#4a4535]">{value || '-'}</span>
+            </div>
+        </div>
+    );
+}
+
+
+===== src\components\ui\StatCard.jsx =====
+// src/components/ui/StatCard.jsx
+import React from 'react';
+
+export default function StatCard({ title, value, sub, icon, color = "bg-[#f5f3e8]", onClick, active }) {
+    return (
+        <div onClick={onClick} className={`${color} relative p-5 border-2 transition-all duration-200 cursor-pointer rounded-none group ${active ? 'border-[#5d6c4a] ring-2 ring-[#5d6c4a] shadow-md transform -translate-y-0.5 bg-[#e8ebd8]' : 'border-[#c5c0b0] hover:border-[#5d6c4a] hover:bg-[#e8e4d4]'}`}>
+            <div className="flex justify-between items-start">
+                <div>
+                    <p className="text-[10px] font-bold text-[#6b7b54] uppercase tracking-wider mb-1">{title}</p>
+                    <h3 className="text-2xl font-black text-[#3d472f]">{value}</h3>
+                    {sub && <p className="text-[10px] text-[#7a7565] mt-1">{sub}</p>}
+                </div>
+                <div className={`p-2 rounded-none border ${active ? 'bg-[#5d6c4a] text-[#f5f3e8] border-[#3d472f]' : 'bg-[#e8e4d4] text-[#5d6c4a] border-[#c5c0b0] group-hover:bg-[#d4dcc0]'}`}>{icon}</div>
+            </div>
+        </div>
+    );
+}
+
+
+===== src\components\modals\CalendarModal.jsx =====
+import React, { useState, useRef } from 'react';
+import { Calendar, Upload, Download, X, ChevronLeft, ChevronRight, Edit, AlertTriangle } from 'lucide-react';
+
+export default function CalendarModal({ user, onClose, attendance, onSave, calculateWage, onFileUpload }) {
+    const [viewDate, setViewDate] = useState(() => {
+        const dates = Object.keys(attendance);
+        if (dates.length > 0) {
+            dates.sort();
+            const lastDate = new Date(dates[dates.length - 1]);
+            if (!isNaN(lastDate.getTime())) return new Date(lastDate.getFullYear(), lastDate.getMonth(), 1);
+        }
+        return new Date();
+    });
+    const [activeDate, setActiveDate] = useState(null);
+    const [editMode, setEditMode] = useState(false);
+    const [form, setForm] = useState({ checkIn: user.checkIn, checkOut: user.checkOut, overtime: 0, reason: '' });
+    const [calendarViewMode, setCalendarViewMode] = useState('TIME');
+    const modalFileInputRef = useRef(null);
+
+    const viewYear = viewDate.getFullYear();
+    const viewMonth = viewDate.getMonth();
+    const daysInMonthCount = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const daysInMonth = Array.from({ length: daysInMonthCount }, (_, i) => i + 1);
+
+    const moveMonth = (offset) => {
+        setViewDate(new Date(viewYear, viewMonth + offset, 1));
+        setEditMode(false);
+        setActiveDate(null);
+    };
+
+    const normalizeForInput = (timeStr) => {
+        if (!timeStr) return '';
+        if (/^\d{1,2}:\d{2}$/.test(timeStr)) { const [h, m] = timeStr.split(':'); return `${h.padStart(2, '0')}:${m}`; }
+        if (timeStr.includes('시')) { const clean = timeStr.replace(/[^0-9]/g, ''); return `${clean.padStart(2, '0')}:00`; }
+        return timeStr;
+    };
+
+    const handleDayClick = (day) => {
+        const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        setActiveDate(dateStr);
+        const existing = attendance[dateStr] || { checkIn: user.checkIn, checkOut: user.checkOut, overtime: 0, reason: '' };
+        setForm({ ...existing, checkIn: normalizeForInput(existing.checkIn), checkOut: normalizeForInput(existing.checkOut) });
+        setEditMode(true);
+    };
+
+    const handleSave = () => { onSave(activeDate, form); setEditMode(false); };
+
+    const handleDownloadPersonal = () => {
+        const headers = ["이름", "날짜", "출근", "퇴근", "연장", "사유"];
+        const rows = Object.entries(attendance).map(([date, record]) => [user.name, date, record.checkIn, record.checkOut, record.overtime, record.reason]);
+        const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+        const link = document.createElement("a");
+        link.setAttribute("href", encodeURI(csvContent));
+        link.setAttribute("download", `${user.name}_근태기록.csv`);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    };
+
+    const estimatedDaily = calculateWage(user.wage, form.checkIn, form.checkOut, form.overtime);
+    const totalDailyPay = estimatedDaily.basePay + estimatedDaily.overtimePay;
+    const isEarlyLeave = form.checkOut < user.checkOut;
+    const today = new Date();
+    const isCurrentMonth = today.getFullYear() === viewYear && today.getMonth() === viewMonth;
+
+    return (
+        <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+            <div className="bg-[#f5f3e8] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border-2 border-[#3d472f]">
+                <div className="p-4 bg-[#5d6c4a] text-[#f5f3e8] flex justify-between items-center border-b-2 border-[#3d472f]">
+                    <div>
+                        <h3 className="text-lg font-bold flex items-center gap-2"><Calendar size={20} /> ▶ {user.name} 근태 캘린더</h3>
+                        <p className="text-[#d4dcc0] text-xs mt-0.5">[ 계약: {user.checkIn}~{user.checkOut} (휴게 1H 공제) ]</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <input type="file" ref={modalFileInputRef} onChange={onFileUpload} accept=".csv, .xlsx, .xls" className="hidden" />
+                        <button onClick={() => modalFileInputRef.current.click()} className="bg-[#f5f3e8] hover:bg-[#e8e4d4] px-3 py-1.5 flex items-center gap-1 text-xs border-2 border-[#3d472f] text-[#3d472f] font-bold"><Upload size={14} /> 업로드</button>
+                        <button onClick={handleDownloadPersonal} className="bg-[#f5f3e8] hover:bg-[#e8e4d4] px-3 py-1.5 flex items-center gap-1 text-xs border-2 border-[#3d472f] text-[#3d472f] font-bold"><Download size={14} /> 다운로드</button>
+                        <button onClick={onClose} className="bg-[#f5f3e8] hover:bg-[#e8e4d4] p-1.5 border-2 border-[#3d472f] text-[#3d472f]"><X size={18} /></button>
+                    </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 bg-[#e8e4d4]">
+                    <div className="md:col-span-2 bg-[#f5f3e8] p-4 border-2 border-[#c5c0b0]">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => moveMonth(-1)} className="p-1 hover:bg-[#e8e4d4] text-[#5a5545] border border-[#c5c0b0]"><ChevronLeft size={20} /></button>
+                                <h2 className="text-lg font-black text-[#3d472f] tracking-tight">{viewYear}.{String(viewMonth + 1).padStart(2, '0')}</h2>
+                                <button onClick={() => moveMonth(1)} className="p-1 hover:bg-[#e8e4d4] text-[#5a5545] border border-[#c5c0b0]"><ChevronRight size={20} /></button>
+                            </div>
+                            <div className="flex bg-[#e8e4d4] p-1 border-2 border-[#c5c0b0]">
+                                <button onClick={() => setCalendarViewMode('TIME')} className={`px-3 py-1 text-xs font-bold ${calendarViewMode === 'TIME' ? 'bg-[#f5f3e8] text-[#5d6c4a]' : 'text-[#7a7565]'}`}>시간</button>
+                                <button onClick={() => setCalendarViewMode('MONEY')} className={`px-3 py-1 text-xs font-bold ${calendarViewMode === 'MONEY' ? 'bg-[#f5f3e8] text-[#5d6c4a]' : 'text-[#7a7565]'}`}>금액</button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-7 gap-px bg-[#c5c0b0] border-2 border-[#c5c0b0]">
+                            {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => <div key={d} className={`text-center py-2 text-xs font-bold bg-[#e8e4d4] ${i === 0 ? 'text-[#a65d57]' : i === 6 ? 'text-[#4a6070]' : 'text-[#5a5545]'}`}>{d}</div>)}
+                            {Array.from({ length: new Date(viewYear, viewMonth, 1).getDay() }).map((_, i) => (<div key={`empty-${i}`} className="h-24 bg-[#faf8f0]"></div>))}
+                            {daysInMonth.map(day => {
+                                const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                const hasData = attendance[dateStr];
+                                const dayOfWeek = new Date(viewYear, viewMonth, day).getDay();
+                                const isToday = isCurrentMonth && today.getDate() === day;
+                                const displayCheckIn = hasData ? hasData.checkIn : '';
+                                const displayCheckOut = hasData ? hasData.checkOut : '';
+                                const displayOvertime = hasData?.overtime || 0;
+                                let totalDailyHours = 0, regularHours = 0, dailyWageAmount = 0;
+                                if (displayCheckIn && displayCheckOut) {
+                                    let currentDailyWage = user.wage;
+                                    if (user.wageIncreaseDate && user.previousWage && new Date(dateStr) < new Date(user.wageIncreaseDate)) {
+                                        currentDailyWage = user.previousWage;
+                                    }
+
+                                    const dailyCalc = calculateWage(currentDailyWage, displayCheckIn, displayCheckOut, displayOvertime);
+                                    totalDailyHours = dailyCalc.hours; regularHours = dailyCalc.regularHours;
+                                    dailyWageAmount = dailyCalc.basePay + dailyCalc.overtimePay;
+                                }
+                                return (
+                                    <button key={day} onClick={() => handleDayClick(day)} className={`h-24 p-1.5 text-left transition relative flex flex-col justify-between bg-[#f5f3e8] hover:bg-[#e8ebd8] ${isToday ? 'ring-2 ring-inset ring-[#5d6c4a]' : ''} ${hasData ? 'bg-[#f4f5eb]' : ''} ${activeDate === dateStr ? 'bg-[#e8ebd8] ring-2 ring-inset ring-[#5d6c4a]' : ''}`}>
+                                        <div className="flex justify-between items-start w-full">
+                                            <span className={`text-xs font-bold ${dayOfWeek === 0 ? 'text-[#a65d57]' : (dayOfWeek === 6 ? 'text-[#4a6070]' : 'text-[#7a7565]')} ${isToday ? '!text-[#5d6c4a]' : ''}`}>{day}</span>
+                                            {hasData?.reason && <span className="w-1.5 h-1.5 bg-[#a65d57] block"></span>}
+                                        </div>
+                                        <div className="w-full flex flex-col gap-0.5 mt-auto">
+                                            {(displayCheckIn && displayCheckOut) && (
+                                                calendarViewMode === 'TIME' ? (
+                                                    <div className="text-[10px] font-medium text-[#5a5545] space-y-0.5 leading-tight">
+                                                        <div className="flex justify-between"><span>IN</span> <span className="font-bold">{displayCheckIn}</span></div>
+                                                        <div className="flex justify-between"><span>OUT</span> <span className="font-bold">{displayCheckOut}</span></div>
+                                                        {totalDailyHours > 0 && (<div className="text-right text-[#5d6c4a] font-bold border-t border-[#ebe8db] pt-0.5 mt-0.5">{regularHours}h {displayOvertime > 0 && <span className="text-[#a65d57]">+{displayOvertime}</span>}</div>)}
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-full text-right">
+                                                        <div className="text-sm font-black text-[#5d6c4a] -tracking-wide">₩{dailyWageAmount.toLocaleString()}</div>
+                                                        {displayOvertime > 0 && <div className="text-[8px] text-[#a65d57] font-bold">특근포함</div>}
+                                                    </div>
+                                                )
+                                            )}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="bg-[#f5f3e8] p-5 border-2 border-[#c5c0b0] flex flex-col h-full">
+                        <h4 className="font-bold text-[#3d472f] mb-4 flex items-center gap-2 pb-2 border-b-2 border-[#e8e4d4]"><Edit size={16} className="text-[#5d6c4a]" /> 상세 기록 관리</h4>
+                        {editMode ? (
+                            <div className="space-y-4 flex-1 flex flex-col">
+                                <div className="bg-[#e8e4d4] p-3 border-2 border-[#c5c0b0]">
+                                    <p className="text-sm font-bold text-[#5d6c4a] flex justify-between items-center mb-2"><span>{activeDate}</span><span className="text-[10px] bg-[#d4dcc0] px-2 py-0.5">Editing</span></p>
+                                    <div className="grid grid-cols-2 gap-2 mb-2">
+                                        <div><label className="text-[10px] font-bold text-[#7a7565]">출근</label><input type="time" className="w-full p-1.5 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" value={form.checkIn} onChange={e => setForm({ ...form, checkIn: e.target.value })} /></div>
+                                        <div><label className="text-[10px] font-bold text-[#7a7565]">퇴근</label><input type="time" className="w-full p-1.5 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" value={form.checkOut} onChange={e => setForm({ ...form, checkOut: e.target.value })} /></div>
+                                    </div>
+                                    {isEarlyLeave && <p className="text-[10px] text-[#a65d57] font-medium flex items-center gap-1 mb-2"><AlertTriangle size={10} /> 조기 퇴근</p>}
+                                    <div className="mb-2">
+                                        <label className="text-[10px] font-bold text-[#7a7565]">연장근무 (시간)</label>
+                                        <div className="flex items-center gap-2">
+                                            <input type="number" step="0.5" className="flex-1 p-1.5 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" value={isNaN(form.overtime) ? '' : form.overtime} onChange={e => setForm({ ...form, overtime: e.target.value === '' ? 0 : parseFloat(e.target.value) })} />
+                                            <span className="text-[10px] text-[#7a7565]">x1.5</span>
+                                        </div>
+                                    </div>
+                                    <div><label className="text-[10px] font-bold text-[#7a7565]">메모/사유</label><textarea className="w-full p-1.5 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm h-16 resize-none focus:border-[#5d6c4a] outline-none" placeholder="특이사항 입력" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} /></div>
+                                </div>
+                                <div className="mt-auto pt-4 space-y-2 border-t-2 border-[#e8e4d4]">
+                                    <div className="flex justify-between text-xs text-[#7a7565]"><span>기본급 ({estimatedDaily.regularHours}h)</span><span>₩{estimatedDaily.basePay.toLocaleString()}</span></div>
+                                    {form.overtime > 0 && (<div className="flex justify-between text-xs text-[#5d6c4a] font-bold"><span>특근수당 ({estimatedDaily.actualOvertime}h)</span><span>+ ₩{estimatedDaily.overtimePay.toLocaleString()}</span></div>)}
+                                    <div className="flex justify-between text-base font-black pt-2 border-t-2 border-[#c5c0b0]"><span>합계</span><span className="text-[#5d6c4a]">₩{totalDailyPay.toLocaleString()}</span></div>
+                                    <button onClick={handleSave} className="w-full bg-[#5d6c4a] text-[#f5f3e8] py-3 font-bold hover:bg-[#4a5639] border-2 border-[#3d472f] mt-2">저장하기</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-20 text-[#9a9585] text-sm flex flex-col items-center justify-center h-full"><Calendar size={48} className="mb-4 text-[#c5c0b0]" /><p>날짜를 클릭하여<br />근무 기록을 수정하세요.</p></div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+===== src\components\modals\LeaveCalendarModal.jsx =====
+import React, { useState } from 'react';
+import { Sun, X, ChevronLeft, ChevronRight, Edit } from 'lucide-react';
+
+export default function LeaveCalendarModal({ users, leaveRecords, onClose, onAddLeave, onDeleteLeave }) {
+    const [viewDate, setViewDate] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [selectedUser, setSelectedUser] = useState('');
+    const [leaveType, setLeaveType] = useState('연차');
+
+    const viewYear = viewDate.getFullYear();
+    const viewMonth = viewDate.getMonth();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(viewYear, viewMonth, 1).getDay();
+
+    const moveMonth = (offset) => { setViewDate(new Date(viewYear, viewMonth + offset, 1)); setSelectedDate(null); };
+    const handleDayClick = (day) => { setSelectedDate(`${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`); };
+    const handleAddLeave = () => { if (selectedDate && selectedUser) { onAddLeave(selectedUser, selectedDate, leaveType); setSelectedUser(''); } };
+
+    const getLeavesForDate = (dateStr) => {
+        return Object.entries(leaveRecords).flatMap(([userId, records]) => {
+            const user = users.find(u => u.id === parseInt(userId));
+            return Object.entries(records).filter(([date]) => date === dateStr).map(([date, type]) => ({ userId: parseInt(userId), userName: user?.name || '알수없음', type, date }));
+        });
+    };
+
+    const today = new Date();
+    const isCurrentMonth = today.getFullYear() === viewYear && today.getMonth() === viewMonth;
+
+    return (
+        <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+            <div className="bg-[#f5f3e8] shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col border-2 border-[#3d472f]">
+                <div className="p-4 bg-[#5d6c4a] text-[#f5f3e8] flex justify-between items-center border-b-2 border-[#3d472f]">
+                    <div><h3 className="text-lg font-bold flex items-center gap-2"><Sun size={20} /> ▶ 연차 사용 캘린더</h3><p className="text-[#d4dcc0] text-xs mt-0.5">[ 연차 사용 현황을 한눈에 확인하세요 ]</p></div>
+                    <button onClick={onClose} className="bg-[#f5f3e8] hover:bg-[#e8e4d4] p-1.5 border-2 border-[#3d472f] text-[#3d472f]"><X size={18} /></button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 bg-[#e8e4d4]">
+                    <div className="md:col-span-2 bg-[#f5f3e8] p-4 border-2 border-[#c5c0b0]">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => moveMonth(-1)} className="p-1 hover:bg-[#e8e4d4] text-[#5a5545] border border-[#c5c0b0]"><ChevronLeft size={20} /></button>
+                                <h2 className="text-lg font-black text-[#3d472f] tracking-tight">{viewYear}.{String(viewMonth + 1).padStart(2, '0')}</h2>
+                                <button onClick={() => moveMonth(1)} className="p-1 hover:bg-[#e8e4d4] text-[#5a5545] border border-[#c5c0b0]"><ChevronRight size={20} /></button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-7 gap-px bg-[#c5c0b0] border-2 border-[#c5c0b0]">
+                            {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (<div key={d} className={`text-center py-2 text-xs font-bold bg-[#e8e4d4] ${i === 0 ? 'text-[#a65d57]' : i === 6 ? 'text-[#4a6070]' : 'text-[#5a5545]'}`}>{d}</div>))}
+                            {Array.from({ length: firstDayOfMonth }).map((_, i) => (<div key={`empty-${i}`} className="h-20 bg-[#faf8f0]"></div>))}
+                            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                                const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                const dayOfWeek = new Date(viewYear, viewMonth, day).getDay();
+                                const isToday = isCurrentMonth && today.getDate() === day;
+                                const leavesOnDay = getLeavesForDate(dateStr);
+                                return (
+                                    <button key={day} onClick={() => handleDayClick(day)} className={`h-20 p-1 text-left transition relative flex flex-col bg-[#f5f3e8] hover:bg-[#e8ebd8] ${isToday ? 'ring-2 ring-inset ring-[#5d6c4a]' : ''} ${selectedDate === dateStr ? 'bg-[#e8ebd8] ring-2 ring-inset ring-[#5d6c4a]' : ''}`}>
+                                        <span className={`text-xs font-bold ${dayOfWeek === 0 ? 'text-[#a65d57]' : (dayOfWeek === 6 ? 'text-[#4a6070]' : 'text-[#7a7565]')} ${isToday ? '!text-[#5d6c4a]' : ''}`}>{day}</span>
+                                        <div className="flex-1 overflow-y-auto mt-1 space-y-0.5">
+                                            {leavesOnDay.slice(0, 3).map((leave, idx) => (<div key={idx} className={`text-[9px] px-1 py-0.5 truncate font-bold ${leave.type === '연차' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'bg-[#a65d57] text-[#f5f3e8]'}`}>{leave.userName}</div>))}
+                                            {leavesOnDay.length > 3 && <div className="text-[9px] text-[#7a7565] font-bold">+{leavesOnDay.length - 3}명</div>}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="bg-[#f5f3e8] p-5 border-2 border-[#c5c0b0] flex flex-col">
+                        <h4 className="font-bold text-[#3d472f] mb-4 flex items-center gap-2 pb-2 border-b-2 border-[#e8e4d4]"><Edit size={16} className="text-[#5d6c4a]" /> 연차 등록</h4>
+                        {selectedDate ? (
+                            <div className="space-y-4 flex-1 flex flex-col">
+                                <div className="bg-[#e8e4d4] p-3 border-2 border-[#c5c0b0]"><p className="text-sm font-bold text-[#5d6c4a]">{selectedDate}</p></div>
+                                <div><label className="text-[10px] font-bold text-[#7a7565] block mb-1">직원 선택</label>
+                                    <select value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none">
+                                        <option value="">선택하세요</option>
+                                        {users.filter(u => !u.resignDate).map(user => (<option key={user.id} value={user.id}>{user.name} ({user.team})</option>))}
+                                    </select>
+                                </div>
+                                <div><label className="text-[10px] font-bold text-[#7a7565] block mb-1">유형</label>
+                                    <select value={leaveType} onChange={(e) => setLeaveType(e.target.value)} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none">
+                                        <option value="연차">연차</option><option value="결근">결근</option>
+                                    </select>
+                                </div>
+                                <button onClick={handleAddLeave} disabled={!selectedUser} className="w-full bg-[#5d6c4a] text-[#f5f3e8] py-3 font-bold hover:bg-[#4a5639] disabled:bg-[#c5c0b0] disabled:cursor-not-allowed border-2 border-[#3d472f]">등록하기</button>
+                                <div className="mt-4 flex-1 overflow-y-auto">
+                                    <p className="text-[10px] font-bold text-[#7a7565] mb-2">해당일 연차/결근 현황</p>
+                                    <div className="space-y-1">
+                                        {getLeavesForDate(selectedDate).map((leave, idx) => (
+                                            <div key={idx} className="flex items-center justify-between p-2 bg-[#e8e4d4] border border-[#c5c0b0]">
+                                                <div><span className="text-sm font-bold text-[#3d472f]">{leave.userName}</span><span className={`ml-2 text-[10px] px-1.5 py-0.5 ${leave.type === '연차' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'bg-[#a65d57] text-[#f5f3e8]'}`}>{leave.type}</span></div>
+                                                <button onClick={() => onDeleteLeave(leave.userId, leave.date)} className="text-[#a65d57] hover:bg-[#f8f0ef] p-1"><X size={14} /></button>
+                                            </div>
+                                        ))}
+                                        {getLeavesForDate(selectedDate).length === 0 && <p className="text-xs text-[#9a9585] text-center py-4">등록된 연차/결근이 없습니다.</p>}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-10 text-[#9a9585] text-sm flex flex-col items-center justify-center flex-1"><Sun size={48} className="mb-4 text-[#c5c0b0]" /><p>날짜를 선택하여<br />연차를 등록하세요.</p></div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+===== src\components\modals\UserFormModal.jsx =====
+import React, { useState } from 'react';
+import { Edit, UserPlus, X } from 'lucide-react';
+
+export default function UserFormModal({ user, onClose, onSave }) {
+    const [formData, setFormData] = useState(user || {
+        name: '', team: '', gender: '남', bank: '', account: '',
+        startDate: new Date().toISOString().split('T')[0],
+        insuranceDate: '', insuranceStatus: false, renewalDate: '',
+        checkIn: '09:00', checkOut: '18:00', workHours: 8, workDays: '5일',
+        wage: 0, wageIncreaseDate: '', previousWage: 0,
+        phone: '', rrn: '', address: '', email: '', position: '아르바이트',
+        resignDate: '', resignReason: ''
+    });
+
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        if (name === 'wage' || name === 'previousWage') {
+            const numericValue = value.replace(/,/g, '');
+            if (!isNaN(numericValue)) setFormData(prev => ({ ...prev, [name]: numericValue === '' ? 0 : Number(numericValue) }));
+            return;
+        }
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    };
+
+    const handleSubmit = (e) => { e.preventDefault(); onSave(formData); };
+
+    return (
+        <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+            <div className="bg-[#f5f3e8] shadow-lg w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] border-2 border-[#3d472f]">
+                <div className="p-5 border-b-2 border-[#3d472f] flex justify-between items-center bg-[#5d6c4a]">
+                    <h3 className="font-bold text-[#f5f3e8] flex items-center gap-2">{user ? <Edit size={20} /> : <UserPlus size={20} />} {user ? '▶ 정보 수정' : '▶ 신규 인원 등록'}</h3>
+                    <button onClick={onClose} className="text-[#d4dcc0] hover:text-[#f5f3e8]"><X size={20} /></button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6 overflow-y-auto grid grid-cols-2 gap-4 bg-[#e8e4d4]">
+                    <div className="col-span-2 text-xs font-bold text-[#5d6c4a] uppercase tracking-wider mb-1">기본 정보</div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">이름</label><input name="name" value={formData.name} onChange={handleChange} required className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">성별</label><select name="gender" value={formData.gender} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none"><option value="남">남</option><option value="여">여</option></select></div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">주민등록번호</label><input name="rrn" value={formData.rrn} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">연락처</label><input name="phone" value={formData.phone} onChange={handleChange} required className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div className="col-span-2"><label className="text-xs font-bold text-[#7a7565] block mb-1">주소</label><input name="address" value={formData.address} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div className="col-span-2"><label className="text-xs font-bold text-[#7a7565] block mb-1">이메일</label><input name="email" type="email" value={formData.email} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div className="col-span-2 text-xs font-bold text-[#5d6c4a] uppercase tracking-wider mb-1 mt-2">근무 정보</div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">팀</label><input name="team" value={formData.team} onChange={handleChange} required className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">입사일</label><input name="startDate" type="date" value={formData.startDate} onChange={handleChange} required className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">출근 시간</label><input name="checkIn" type="time" value={formData.checkIn} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">퇴근 시간</label><input name="checkOut" type="time" value={formData.checkOut} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">일 근무(h)</label><input name="workHours" type="number" value={formData.workHours} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">주 근무일수</label><input name="workDays" value={formData.workDays} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div className="col-span-2 text-xs font-bold text-[#5d6c4a] uppercase tracking-wider mb-1 mt-2">급여 및 계약</div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">현재 시급</label><input name="wage" type="text" value={Number(formData.wage).toLocaleString()} onChange={handleChange} required className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">시급 인상일</label><input name="wageIncreaseDate" type="date" value={formData.wageIncreaseDate} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div className="col-span-2"><label className="text-xs font-bold text-[#7a7565] block mb-1">종전 시급 (인상 전)</label><input name="previousWage" type="text" value={Number(formData.previousWage || 0).toLocaleString()} onChange={handleChange} placeholder="시급 인상일 이전 기록에 적용됩니다" className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">은행</label><input name="bank" value={formData.bank} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">계좌번호</label><input name="account" value={formData.account} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">4대보험 신고일</label><input name="insuranceDate" type="date" value={formData.insuranceDate} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    <div className="flex items-center gap-2 mt-6">
+                        <input type="checkbox" name="insuranceStatus" checked={formData.insuranceStatus} onChange={handleChange} id="insStatus" className="w-4 h-4" />
+                        <label htmlFor="insStatus" className="text-xs font-bold text-[#7a7565]">4대보험 가입 (체크 시 노무사 산정)</label>
+                    </div>
+                    <div><label className="text-xs font-bold text-[#7a7565] block mb-1">계약 갱신일</label><input name="renewalDate" type="date" value={formData.renewalDate} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" /></div>
+                    {formData.resignDate && (
+                        <>
+                            <div className="col-span-2 text-xs font-bold text-[#a65d57] uppercase tracking-wider mb-1 mt-2">퇴사 정보</div>
+                            <div><label className="text-xs font-bold text-[#7a7565] block mb-1">퇴사 일자</label><input name="resignDate" type="date" value={formData.resignDate || ''} onChange={handleChange} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#a65d57] outline-none" /></div>
+                            <div><label className="text-xs font-bold text-[#7a7565] block mb-1">퇴사 사유</label><input name="resignReason" value={formData.resignReason || ''} onChange={handleChange} placeholder="퇴사 사유" className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#a65d57] outline-none" /></div>
+                        </>
+                    )}
+                    <div className="col-span-2 pt-4 border-t-2 border-[#c5c0b0] flex justify-end gap-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 bg-[#f5f3e8] text-[#5a5545] font-bold text-sm hover:bg-[#e0ddd0] border-2 border-[#c5c0b0]">취소</button>
+                        <button type="submit" className="px-6 py-2 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border-2 border-[#3d472f]">저장</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+
+===== src\components\modals\AdjustLeaveModal.jsx =====
+import React, { useState } from 'react';
+import { Edit, X } from 'lucide-react';
+
+export default function AdjustLeaveModal({ user, onClose, onSave, currentAdjustment }) {
+    const [adjustment, setAdjustment] = useState(currentAdjustment || 0);
+    const [reason, setReason] = useState('');
+
+    const handleSubmit = (e) => { e.preventDefault(); onSave(user.id, parseFloat(adjustment), reason); };
+
+    return (
+        <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+            <div className="bg-[#f5f3e8] shadow-lg w-full max-w-sm overflow-hidden border-2 border-[#3d472f]">
+                <div className="p-4 border-b-2 border-[#3d472f] flex justify-between items-center bg-[#5d6c4a]">
+                    <h3 className="font-bold text-[#f5f3e8] flex items-center gap-2"><Edit size={18} /> ▶ 연차 조정</h3>
+                    <button onClick={onClose} className="text-[#d4dcc0] hover:text-[#f5f3e8]"><X size={20} /></button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4 bg-[#e8e4d4]">
+                    <div className="bg-[#f5f3e8] p-3 border-2 border-[#c5c0b0]"><p className="text-sm font-bold text-[#3d472f]">{user.name}</p><p className="text-xs text-[#7a7565]">{user.team}</p></div>
+                    <div><label className="text-xs font-bold text-[#5d6c4a] block mb-1">조정 일수</label><input type="number" step="0.5" value={adjustment} onChange={(e) => setAdjustment(e.target.value)} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" placeholder="양수: 추가, 음수: 차감" /></div>
+                    <div><label className="text-xs font-bold text-[#5d6c4a] block mb-1">사유</label><textarea value={reason} onChange={(e) => setReason(e.target.value)} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm h-20 resize-none focus:border-[#5d6c4a] outline-none" placeholder="조정 사유를 입력하세요" /></div>
+                    <div className="pt-4 border-t-2 border-[#c5c0b0] flex justify-end gap-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 bg-[#f5f3e8] text-[#5a5545] font-bold text-sm hover:bg-[#e0ddd0] border-2 border-[#c5c0b0]">취소</button>
+                        <button type="submit" className="px-6 py-2 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border-2 border-[#3d472f]">저장</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+
+
