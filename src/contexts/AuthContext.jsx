@@ -51,9 +51,38 @@ export function AuthProvider({ children }) {
         return unsub;
     }, []);
 
-    // 로그인
+    // 로그인 (status 체크 포함)
     const login = async (email, password) => {
-        return signInWithEmailAndPassword(auth, email, password);
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        // Firestore에서 status 확인
+        try {
+            const userSnap = await getDoc(doc(db, 'users', cred.user.uid));
+            if (userSnap.exists()) {
+                const status = userSnap.data().status;
+                if (status === 'PENDING') {
+                    await signOut(auth);
+                    const err = new Error('PENDING: 아직 관리자 승인 대기 중입니다.');
+                    err.code = 'auth/pending';
+                    throw err;
+                }
+                if (status === 'REJECTED') {
+                    await signOut(auth);
+                    const err = new Error('REJECTED: 가입이 거절되었습니다. 관리자에게 문의하세요.');
+                    err.code = 'auth/rejected';
+                    throw err;
+                }
+                if (status === 'SUSPENDED') {
+                    await signOut(auth);
+                    const err = new Error('SUSPENDED: 계정이 정지되었습니다. 관리자에게 문의하세요.');
+                    err.code = 'auth/suspended';
+                    throw err;
+                }
+            }
+        } catch (e) {
+            if (e.code?.startsWith('auth/')) throw e; // 위에서 throw한 상태 오류
+            console.warn('status 확인 실패 (하위 호환):', e);
+        }
+        return cred;
     };
 
     // 로그아웃
@@ -70,6 +99,60 @@ export function AuthProvider({ children }) {
         // Firestore에서 is_temp_password = false
         await updateDoc(doc(db, 'users', currentUser.uid), { is_temp_password: false });
         setUserProfile(prev => ({ ...prev, is_temp_password: false }));
+    };
+
+    // 자가등록 (PENDING 상태, 역할/팀 없음)
+    const selfRegister = async ({ name, email, password }) => {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = cred.user.uid;
+        const now = new Date().toISOString();
+        await setDoc(doc(db, 'users', uid), {
+            uid,
+            name,
+            email,
+            role: null,
+            team_id: null,
+            status: 'PENDING',
+            is_temp_password: false,
+            created_at: now,
+            updated_at: now,
+        });
+        // 등록 후 바로 로그아웃 (로그인 불가 상태)
+        await signOut(auth);
+    };
+
+    // ─── FINAL_APPROVER 계정 관리 ────────────────────────────────
+
+    // PENDING 사용자 목록
+    const getPendingUsers = async () => {
+        const q = query(collection(db, 'users'), where('status', '==', 'PENDING'));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ uid: d.id, ...d.data() }))
+            .sort((a, b) => a.created_at?.localeCompare(b.created_at));
+    };
+
+    // 가입 승인
+    const approveUser = async (uid, { role, team_id }) => {
+        await updateDoc(doc(db, 'users', uid), {
+            status: 'ACTIVE', role, team_id,
+            updated_at: new Date().toISOString(),
+        });
+    };
+
+    // 가입 거절
+    const rejectUser = async (uid) => {
+        await updateDoc(doc(db, 'users', uid), {
+            status: 'REJECTED',
+            updated_at: new Date().toISOString(),
+        });
+    };
+
+    // 계정 정지 / 정지 해제
+    const suspendUser = async (uid, suspend = true) => {
+        await updateDoc(doc(db, 'users', uid), {
+            status: suspend ? 'SUSPENDED' : 'ACTIVE',
+            updated_at: new Date().toISOString(),
+        });
     };
 
     // 계정 생성 (FINAL_APPROVER만 호출 가능 — secondary app 트릭으로 세션 유지)
@@ -602,6 +685,8 @@ export function AuthProvider({ children }) {
         getMyDelegationsGiven, getMyActiveReceivedDelegation,
         proxyTeamApprove, proxyTeamReject,
         getAllSubmittedRequests, getTeamLeaveRequestsForDelegatee,
+        // Phase 1 Enhanced: Self-Registration + Status Management
+        selfRegister, getPendingUsers, approveUser, rejectUser, suspendUser,
     };
 
     return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;

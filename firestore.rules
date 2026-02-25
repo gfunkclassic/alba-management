@@ -27,9 +27,18 @@ service cloud.firestore {
       allow list: if isAuthed() && (
         myRole() == 'TEAM_APPROVER' || myRole() == 'FINAL_APPROVER'
       );
+      // 자가등록: 본인 UID로 PENDING 상태 문서 생성
+      allow create: if isAuthed() && request.auth.uid == uid && (
+        myRole() == 'FINAL_APPROVER' ||
+        (request.resource.data.status == 'PENDING' &&
+         !('role' in request.resource.data || request.resource.data.role == null) ||
+         request.resource.data.get('role', null) == null)
+      );
+      // 본인 is_temp_password 업데이트
       allow update: if isAuthed() && request.auth.uid == uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_temp_password']);
-      allow create: if isAuthed() && myRole() == 'FINAL_APPROVER';
+      // FINAL_APPROVER: 계정 관리 (status, role, team_id 등)
+      allow update: if isAuthed() && myRole() == 'FINAL_APPROVER';
       allow delete: if false;
     }
 

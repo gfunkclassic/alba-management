@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx-js-style';
 // Auth
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/auth/LoginPage';
+import RegisterPage from './components/auth/RegisterPage';
 import ChangePasswordPage from './components/auth/ChangePasswordPage';
 import AlbaView from './components/views/AlbaView';
 import TeamApproverView from './components/views/TeamApproverView';
@@ -1199,6 +1200,8 @@ export default function App() {
     const { currentUser, userProfile, loading, logout } = useAuth();
     const [showHRSystem, setShowHRSystem] = React.useState(false);
 
+    const [showRegister, setShowRegister] = React.useState(false);
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[#e8e4d4] flex items-center justify-center">
@@ -1210,7 +1213,10 @@ export default function App() {
         );
     }
 
-    if (!currentUser || !userProfile) return <LoginPage />;
+    if (!currentUser || !userProfile) {
+        if (showRegister) return <RegisterPage onGoToLogin={() => setShowRegister(false)} />;
+        return <LoginPage onGoToRegister={() => setShowRegister(true)} />;
+    }
 
     // Auth 됐지만 Firestore 문서가 없는 경우
     if (userProfile._noProfile) {

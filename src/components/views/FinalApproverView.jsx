@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw, CheckCircle, Clock, ShieldOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { TEAMS, ROLES, ROLE_LABELS } from '../../firebase';
 import LeaveBalanceManager from '../leave/LeaveBalanceManager';
 import FinalApprovalInbox from '../leave/FinalApprovalInbox';
 import NotificationBell from '../notifications/NotificationBell';
+
 
 function CreateUserPanel({ onCreated }) {
     const { createUser } = useAuth();
@@ -78,8 +79,88 @@ function CreateUserPanel({ onCreated }) {
     );
 }
 
+function PendingUsersPanel({ onApproved }) {
+    const { getPendingUsers, approveUser, rejectUser } = useAuth();
+    const [pending, setPending] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [approving, setApproving] = useState({});
+    const [selections, setSelections] = useState({}); // uid -> { role, team_id }
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        try { setPending(await getPendingUsers()); } catch (e) { console.error(e); }
+        finally { setLoading(false); }
+    }, [getPendingUsers]);
+
+    useEffect(() => { load(); }, [load]);
+
+    const sel = (uid) => selections[uid] || { role: 'ALBA', team_id: '커페' };
+    const setSel = (uid, key, val) => setSelections(s => ({ ...s, [uid]: { ...sel(uid), [key]: val } }));
+
+    const handleApprove = async (uid) => {
+        setApproving(a => ({ ...a, [uid]: 'approving' }));
+        try {
+            await approveUser(uid, sel(uid));
+            onApproved?.();
+            await load();
+        } catch (e) { alert('승인 실패: ' + e.message); }
+        finally { setApproving(a => ({ ...a, [uid]: null })); }
+    };
+
+    const handleReject = async (uid) => {
+        if (!window.confirm('가입을 거절하시가습니까?')) return;
+        setApproving(a => ({ ...a, [uid]: 'rejecting' }));
+        try { await rejectUser(uid); await load(); }
+        catch (e) { alert('거절 실패: ' + e.message); }
+        finally { setApproving(a => ({ ...a, [uid]: null })); }
+    };
+
+    if (!loading && pending.length === 0) return null;
+
+    return (
+        <div className="bg-[#fdf6e3] border-2 border-[#d8973c]">
+            <div className="p-4 border-b-2 border-[#d8973c] flex items-center gap-2">
+                <Clock size={16} className="text-[#d8973c]" />
+                <span className="font-bold text-[#7a5a1a] text-sm">가입 요청 관리</span>
+                <span className="bg-[#d8973c] text-white text-[10px] font-black px-2 py-0.5">{pending.length}명 대기</span>
+            </div>
+            <div className="divide-y divide-[#e8d8a0]">
+                {loading ? (
+                    <div className="p-4 text-xs text-center text-[#9a9585]">조회 중...</div>
+                ) : pending.map(u => (
+                    <div key={u.uid} className="p-4 flex flex-wrap gap-3 items-center">
+                        <div className="flex-1 min-w-[140px]">
+                            <p className="font-bold text-[#3d472f] text-sm">{u.name}</p>
+                            <p className="text-[10px] text-[#9a9585] font-mono">{u.email}</p>
+                            <p className="text-[10px] text-[#9a9585]">신청일: {u.created_at?.slice(0, 10)}</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <select value={sel(u.uid).role} onChange={e => setSel(u.uid, 'role', e.target.value)}
+                                className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#d8973c]">
+                                {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                            </select>
+                            <select value={sel(u.uid).team_id} onChange={e => setSel(u.uid, 'team_id', e.target.value)}
+                                className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#d8973c]">
+                                {TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                            <button onClick={() => handleApprove(u.uid)} disabled={!!approving[u.uid]}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-[#5d6c4a] border-2 border-[#3d472f] text-[#f5f3e8] text-[10px] font-bold hover:bg-[#4a5639] disabled:opacity-50">
+                                <Check size={11} /> 승인
+                            </button>
+                            <button onClick={() => handleReject(u.uid)} disabled={!!approving[u.uid]}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-[#a65d57] border-2 border-[#7a3f3a] text-white text-[10px] font-bold hover:bg-[#7a3f3a] disabled:opacity-50">
+                                <X size={11} /> 거절
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 export default function FinalApproverView({ onSwitchToHRSystem }) {
-    const { userProfile, logout, getAllUsers } = useAuth();
+    const { userProfile, logout, getAllUsers, suspendUser } = useAuth();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -151,6 +232,9 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
 
                 {/* ── 계정 관리 ───────────────── */}
                 {activeTab === 'ACCOUNTS' && (<>
+                    {/* 가입 요청 */}
+                    <PendingUsersPanel onApproved={loadUsers} />
+
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
                             { label: '전체 계정', value: `${users.length}명` },
@@ -196,12 +280,13 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                                         <th className="p-3 text-center">역할</th>
                                         <th className="p-3 text-center">비밀번호</th>
                                         <th className="p-3 text-center">등록일</th>
+                                        <th className="p-3 text-center">정지</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#ebe8db]">
-                                    {loading ? <tr><td colSpan={6} className="p-8 text-center text-[#9a9585] text-xs">불러오는 중...</td></tr>
+                                    {loading ? <tr><td colSpan={7} className="p-8 text-center text-[#9a9585] text-xs">불러오는 중...</td></tr>
                                         : filtered.map(u => (
-                                            <tr key={u.uid} className="hover:bg-[#f4f5eb]">
+                                            <tr key={u.uid} className={`hover:bg-[#f4f5eb] ${u.status === 'SUSPENDED' ? 'opacity-60' : ''}`}>
                                                 <td className="p-3 pl-4 font-bold text-[#3d472f]">{u.name}</td>
                                                 <td className="p-3 text-[#5a5545] text-xs font-mono">{u.email}</td>
                                                 <td className="p-3 text-center"><span className="text-xs bg-[#e8e4d4] px-2 py-0.5 font-bold text-[#5a5545]">{u.team_id}</span></td>
@@ -212,9 +297,22 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                                                         : <span className="text-xs text-[#5d6c4a] font-bold flex items-center justify-center gap-1"><Check size={11} />변경 완료</span>}
                                                 </td>
                                                 <td className="p-3 text-center text-xs text-[#7a7565]">{u.created_at?.slice(0, 10)}</td>
+                                                <td className="p-3 text-center">
+                                                    {u.status === 'SUSPENDED' ? (
+                                                        <button onClick={() => suspendUser(u.uid, false).then(loadUsers)}
+                                                            className="text-[9px] font-bold px-2 py-1 border border-[#5d6c4a] text-[#5d6c4a] hover:bg-[#e8ebd8]">
+                                                            정지해제
+                                                        </button>
+                                                    ) : u.role !== 'FINAL_APPROVER' ? (
+                                                        <button onClick={() => { if (window.confirm(`${u.name} 계정을 정지하시걌습니까?`)) suspendUser(u.uid, true).then(loadUsers); }}
+                                                            className="text-[9px] font-bold px-2 py-1 border border-[#a65d57] text-[#a65d57] hover:bg-[#f8f0ef] flex items-center gap-1 mx-auto">
+                                                            <ShieldOff size={10} /> 정지
+                                                        </button>
+                                                    ) : <span className="text-[10px] text-[#c5c0b0]">-</span>}
+                                                </td>
                                             </tr>
                                         ))}
-                                    {!loading && filtered.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-[#9a9585] text-xs">해당하는 계정이 없습니다.</td></tr>}
+                                    {!loading && filtered.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-[#9a9585] text-xs">해당하는 계정이 없습니다.</td></tr>}
                                 </tbody>
                             </table>
                         </div>

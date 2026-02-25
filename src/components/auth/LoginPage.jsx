@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-export default function LoginPage() {
+export default function LoginPage({ onGoToRegister }) {
     const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -17,7 +17,13 @@ export default function LoginPage() {
         try {
             await login(email, password);
         } catch (err) {
-            if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+            if (err.code === 'auth/pending') {
+                setError('⏳ 관리자 승인 대기 중입니다. 승인 후 로그인 가능합니다.');
+            } else if (err.code === 'auth/rejected') {
+                setError('❌ 가입이 거절되었습니다. 관리자에게 문의하세요.');
+            } else if (err.code === 'auth/suspended') {
+                setError('🚫 계정이 정지되었습니다. 관리자에게 문의하세요.');
+            } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
                 setError('이메일 또는 비밀번호가 올바르지 않습니다.');
             } else if (err.code === 'auth/too-many-requests') {
                 setError('로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.');
@@ -105,7 +111,9 @@ export default function LoginPage() {
                 </div>
 
                 <p className="text-center text-xs text-[#9a9585] mt-4">
-                    계정이 없으신가요? 관리자에게 문의하세요.
+                    계정이 없으신가요?{' '}
+                    <button onClick={onGoToRegister} className="text-[#5d6c4a] font-bold hover:underline">회원가입</button>
+                    {' '}하거나 관리자에게 문의하세요.
                 </p>
             </div>
         </div>
