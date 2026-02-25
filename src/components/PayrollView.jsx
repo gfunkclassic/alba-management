@@ -1,9 +1,26 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Building, Wallet, Search, Download, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Building, Wallet, Search, Download, AlertCircle, Lock, Unlock, ChevronDown, CheckCircle, AlertTriangle, RotateCcw, Eye } from 'lucide-react';
 
-export default function PayrollView({ users, calculateMonthlyWage, onDownloadInsured, onDownloadFreelancer, onDownloadTemplate, payrollMonth, onMonthChange }) {
+const STATUS_CONFIG = {
+    DRAFT: { label: '작성중', color: 'bg-[#9a9585] ', text: 'text-[#f5f3e8]', border: 'border-[#7a7565]', dot: 'bg-[#f5f3e8]' },
+    REVIEW: { label: '검토중', color: 'bg-[#d8973c]', text: 'text-[#f5f3e8]', border: 'border-[#b87a2c]', dot: 'bg-[#f5f3e8]' },
+    CONFIRMED: { label: '확정', color: 'bg-[#5d6c4a]', text: 'text-[#f5f3e8]', border: 'border-[#3d472f]', dot: 'bg-[#d4dcc0]' },
+    AMENDING: { label: '정정중', color: 'bg-[#a65d57]', text: 'text-[#f5f3e8]', border: 'border-[#7a3d37]', dot: 'bg-[#f5f3e8]' },
+};
+
+const STATUS_FLOW = ['DRAFT', 'REVIEW', 'CONFIRMED'];
+
+export default function PayrollView({
+    users, calculateMonthlyWage, onDownloadInsured, onDownloadFreelancer, onDownloadTemplate,
+    payrollMonth, onMonthChange, payrollStatus, onStatusChange, onOpenDetail
+}) {
     const [mode, setMode] = useState('INSURED'); // 'INSURED' or 'FREELANCER'
     const [searchTerm, setSearchTerm] = useState('');
+    const [showStatusMenu, setShowStatusMenu] = useState(false);
+
+    const currentStatus = payrollStatus?.[payrollMonth] || 'DRAFT';
+    const statusCfg = STATUS_CONFIG[currentStatus];
+    const isLocked = currentStatus === 'CONFIRMED';
 
     const filteredUsers = useMemo(() => {
         return users.filter(u => {
@@ -32,16 +49,77 @@ export default function PayrollView({ users, calculateMonthlyWage, onDownloadIns
         return { totalCount, recordCount, totalAmount, totalDeduction };
     }, [filteredUsers, calculateMonthlyWage, mode, payrollMonth]);
 
+    const handleStatusChange = (newStatus) => {
+        onStatusChange?.(payrollMonth, newStatus);
+        setShowStatusMenu(false);
+    };
+
     return (
         <div className="space-y-4">
-            <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] p-4 flex items-center justify-between">
+            {/* ── 월 선택 + 마감 상태 배너 ── */}
+            <div className={`border-2 p-4 flex items-center justify-between gap-4 ${statusCfg.border} ${statusCfg.color}`}>
                 <div className="flex items-center gap-3">
-                    <button onClick={() => onMonthChange(-1)} className="p-1.5 hover:bg-[#e8e4d4] text-[#5a5545] border border-[#c5c0b0]"><ChevronLeft size={20} /></button>
-                    <h2 className="text-xl font-black text-[#3d472f] tracking-tight min-w-[120px] text-center">{payrollMonth.replace('-', '.')}</h2>
-                    <button onClick={() => onMonthChange(1)} className="p-1.5 hover:bg-[#e8e4d4] text-[#5a5545] border border-[#c5c0b0]"><ChevronRight size={20} /></button>
+                    <button onClick={() => onMonthChange(-1)} className={`p-1.5 hover:opacity-80 ${statusCfg.text} border ${statusCfg.border}`} disabled={isLocked}>
+                        <ChevronLeft size={20} />
+                    </button>
+                    <h2 className={`text-xl font-black tracking-tight min-w-[120px] text-center ${statusCfg.text}`}>
+                        {payrollMonth.replace('-', '.')}
+                    </h2>
+                    <button onClick={() => onMonthChange(1)} className={`p-1.5 hover:opacity-80 ${statusCfg.text} border ${statusCfg.border}`} disabled={isLocked}>
+                        <ChevronRight size={20} />
+                    </button>
                 </div>
-                <p className="text-xs text-[#7a7565] font-bold">급여 정산 기준월</p>
+
+                {/* Status badge + menu */}
+                <div className="flex items-center gap-3 relative">
+                    {isLocked && (
+                        <div className={`flex items-center gap-1.5 text-xs font-bold ${statusCfg.text} opacity-80`}>
+                            <Lock size={14} />
+                            <span>근태 수정 잠금</span>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => setShowStatusMenu(v => !v)}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-xs font-bold border-2 ${statusCfg.border} ${statusCfg.text} bg-white/10 hover:bg-white/20`}
+                    >
+                        <span className={`w-2 h-2 rounded-full ${statusCfg.dot}`} />
+                        {statusCfg.label}
+                        <ChevronDown size={12} className={showStatusMenu ? 'rotate-180' : ''} />
+                    </button>
+                    {showStatusMenu && (
+                        <div className="absolute right-0 top-full mt-1 w-52 bg-[#f5f3e8] border-2 border-[#3d472f] shadow-xl z-50">
+                            {[
+                                { key: 'DRAFT', icon: <AlertCircle size={14} />, desc: '입력 진행 중' },
+                                { key: 'REVIEW', icon: <Eye size={14} />, desc: '검토 요청 상태' },
+                                { key: 'CONFIRMED', icon: <CheckCircle size={14} />, desc: '확정 — 수정 잠금' },
+                                { key: 'AMENDING', icon: <RotateCcw size={14} />, desc: '정정 진행 중' },
+                            ].map(({ key, icon, desc }) => (
+                                <button
+                                    key={key}
+                                    onClick={() => handleStatusChange(key)}
+                                    className={`w-full text-left px-3 py-2.5 text-xs flex items-start gap-2 hover:bg-[#e8e4d4] transition-colors border-b border-[#e8e4d4] last:border-0 ${currentStatus === key ? 'bg-[#e8ebd8] font-black' : 'font-bold'}`}
+                                >
+                                    <span className={Object.entries(STATUS_CONFIG).find(([k]) => k === key)?.[1].color.replace('bg-', 'text-').split(' ')[0]}>
+                                        {icon}
+                                    </span>
+                                    <span>
+                                        <span className="text-[#3d472f]">{STATUS_CONFIG[key].label}</span>
+                                        <span className="block text-[#9a9585] font-normal">{desc}</span>
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {/* 확정 잠금 안내 배너 */}
+            {isLocked && (
+                <div className="bg-[#e8ebd8] border-2 border-[#b8c4a0] p-3 flex items-center gap-2 text-xs text-[#5d6c4a] font-bold">
+                    <Lock size={14} className="shrink-0" />
+                    <span>{payrollMonth} 급여가 <strong>확정</strong>되었습니다. 수정이 필요하면 상태를 <strong>정정중</strong>으로 변경하세요.</span>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2 bg-[#f5f3e8] border-2 border-[#3d472f] p-1 flex">
@@ -96,13 +174,13 @@ export default function PayrollView({ users, calculateMonthlyWage, onDownloadIns
                                         <th className="p-3 text-center">근무일수</th>
                                         <th className="p-3 text-right">실 근무시간</th>
                                         <th className="p-3 text-right">연장시간</th>
-                                        <th className="p-3 text-right pr-4">실적 급여(세전)</th>
+                                        <th className="p-3 text-right pr-4">실적 급여(세전) <span className="opacity-50 normal-case font-normal">클릭↗</span></th>
                                     </>
                                 ) : (
                                     <>
                                         <th className="p-3 text-right">실적 총액</th>
                                         <th className="p-3 text-right text-[#a65d57]">3.3% 공제</th>
-                                        <th className="p-3 text-right pr-4">실지급액</th>
+                                        <th className="p-3 text-right pr-4">실지급액 <span className="opacity-50 normal-case font-normal">클릭↗</span></th>
                                     </>
                                 )}
                             </tr>
@@ -127,20 +205,40 @@ export default function PayrollView({ users, calculateMonthlyWage, onDownloadIns
                                                 <td className="p-3 text-center text-[#5a5545]">{user.workDays}</td>
                                                 <td className="p-3 text-right text-[#5a5545]">{wage.hasRecord ? `${wage.totalActualHours}h` : '-'}</td>
                                                 <td className="p-3 text-right text-[#a65d57] font-bold">{wage.hasRecord && wage.totalActualOvertime > 0 ? `+${wage.totalActualOvertime}h` : '-'}</td>
-                                                <td className="p-3 text-right pr-4 font-bold text-[#5d6c4a]">{wage.hasRecord ? `₩${wage.actual.toLocaleString()}` : '-'}</td>
+                                                <td className="p-3 text-right pr-4">
+                                                    {wage.hasRecord ? (
+                                                        <button
+                                                            onClick={() => onOpenDetail?.(user)}
+                                                            className="font-bold text-[#5d6c4a] hover:text-[#3d472f] hover:underline underline-offset-2 flex items-center gap-1 ml-auto"
+                                                        >
+                                                            ₩{wage.actual.toLocaleString()}
+                                                            <Eye size={12} className="opacity-50" />
+                                                        </button>
+                                                    ) : '-'}
+                                                </td>
                                             </>
                                         ) : (
                                             <>
                                                 <td className="p-3 text-right text-[#5a5545]">{wage.hasRecord ? `₩${wage.actual.toLocaleString()}` : '-'}</td>
                                                 <td className="p-3 text-right text-[#a65d57]">{wage.hasRecord ? `₩${wage.strictDeduction.toLocaleString()}` : '-'}</td>
-                                                <td className="p-3 text-right pr-4 font-black text-[#3d472f]">{wage.hasRecord ? `₩${wage.strictFinalPayout.toLocaleString()}` : '-'}</td>
+                                                <td className="p-3 text-right pr-4">
+                                                    {wage.hasRecord ? (
+                                                        <button
+                                                            onClick={() => onOpenDetail?.(user)}
+                                                            className="font-black text-[#3d472f] hover:text-[#5d6c4a] hover:underline underline-offset-2 flex items-center gap-1 ml-auto"
+                                                        >
+                                                            ₩{wage.strictFinalPayout.toLocaleString()}
+                                                            <Eye size={12} className="opacity-50" />
+                                                        </button>
+                                                    ) : '-'}
+                                                </td>
                                             </>
                                         )}
                                     </tr>
                                 );
                             })}
                             {filteredUsers.length === 0 && (
-                                <tr><td colSpan={6} className="p-10 text-center text-[#9a9585] text-sm">해당 유형의 대상자가 없습니다.</td></tr>
+                                <tr><td colSpan={mode === 'INSURED' ? 6 : 5} className="p-10 text-center text-[#9a9585] text-sm">해당 유형의 대상자가 없습니다.</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -150,9 +248,9 @@ export default function PayrollView({ users, calculateMonthlyWage, onDownloadIns
             <div className="bg-[#e8ebd8] p-4 border-2 border-[#b8c4a0] text-xs text-[#5d6c4a] flex items-start gap-2">
                 <AlertCircle size={16} className="mt-0.5 shrink-0" />
                 {mode === 'INSURED' ? (
-                    <p><strong>노무사 전달 안내:</strong> 4대보험 가입자는 위 <strong>실제 근무 기록</strong>을 바탕으로 산출된 급여 내역입니다. 상단의 '엑셀 다운로드'를 통해 근무 기록을 노무사에게 전달하여 <strong>최종 확정 급여</strong>를 산출받으세요.</p>
+                    <p><strong>노무사 전달 안내:</strong> 4대보험 가입자는 위 <strong>실제 근무 기록</strong>을 바탕으로 산출된 급여 내역입니다. 급여 금액을 클릭하면 날짜별 상세 산출 근거를 확인할 수 있습니다.</p>
                 ) : (
-                    <p><strong>본사 지급 안내:</strong> 3.3% 공제 대상자는 <strong>실제 근무 기록</strong>을 기준으로 산출된 <strong>실지급액</strong>입니다. 근무 기록이 없는 경우 0원으로 표시됩니다. '지급 요청용 엑셀'을 다운로드하여 재무팀에 전달하세요.</p>
+                    <p><strong>본사 지급 안내:</strong> 3.3% 공제 대상자는 <strong>실제 근무 기록</strong>을 기준으로 산출된 <strong>실지급액</strong>입니다. 실지급액을 클릭하면 날짜별 내역을 확인할 수 있습니다.</p>
                 )}
             </div>
         </div>

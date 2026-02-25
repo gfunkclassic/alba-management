@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthed() { return request.auth != null; }
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function myRole() { return myProfile().role; }
+    function myTeam() { return myProfile().team_id; }
+
+    // ─── users ─────────────────────────────────────────────
+    match /users/{uid} {
+      allow get: if isAuthed() && (
+        request.auth.uid == uid ||
+        (myRole() == 'TEAM_APPROVER' && resource.data.team_id == myTeam()) ||
+        myRole() == 'FINAL_APPROVER'
+      );
+      allow list: if isAuthed() && (
+        myRole() == 'TEAM_APPROVER' || myRole() == 'FINAL_APPROVER'
+      );
+      allow update: if isAuthed() && request.auth.uid == uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_temp_password']);
+      allow create: if isAuthed() && myRole() == 'FINAL_APPROVER';
+      allow delete: if false;
+    }
+
+    // ─── leave_balance ──────────────────────────────────────
+    match /leave_balance/{docId} {
+      allow read: if isAuthed() && (
+        resource.data.user_id == request.auth.uid ||
+        myRole() == 'FINAL_APPROVER'
+      );
+      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+    }
+
+    // ─── leave_requests ─────────────────────────────────────
+    match /leave_requests/{reqId} {
+      allow read: if isAuthed() && (
+        resource.data.user_id == request.auth.uid ||
+        (myRole() == 'TEAM_APPROVER' && resource.data.team_id == myTeam()) ||
+        myRole() == 'FINAL_APPROVER'
+      );
+      // 생성: 본인, SUBMITTED만
+      allow create: if isAuthed() &&
+        request.resource.data.user_id == request.auth.uid &&
+        request.resource.data.status == 'SUBMITTED';
+      // ALBA 취소: SUBMITTED → CANCELLED
+      allow update: if isAuthed() && (
+        // ALBA 취소
+        (resource.data.user_id == request.auth.uid &&
+         resource.data.status == 'SUBMITTED' &&
+         request.resource.data.status == 'CANCELLED' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']))
+        ||
+        // TEAM_APPROVER 승인/반려: 본인 팀 SUBMITTED → TEAM_APPROVED or REJECTED
+        (myRole() == 'TEAM_APPROVER' &&
+         resource.data.team_id == myTeam() &&
+         resource.data.status == 'SUBMITTED' &&
+         (request.resource.data.status == 'TEAM_APPROVED' || request.resource.data.status == 'REJECTED') &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']))
+        ||
+        // FINAL_APPROVER: 모든 수정 허용
+        myRole() == 'FINAL_APPROVER'
+      );
+      allow delete: if false;
+    }
+
+    // ─── approvals 로그 ─────────────────────────────────────
+    match /approvals/{docId} {
+      // TEAM_APPROVER / FINAL_APPROVER 생성 가능
+      allow create: if isAuthed() && (
+        myRole() == 'TEAM_APPROVER' || myRole() == 'FINAL_APPROVER'
+      );
+      // 본인이 처리한 로그 또는 FINAL_APPROVER 조회
+      allow read: if isAuthed() && (
+        resource.data.actor_user_id == request.auth.uid ||
+        myRole() == 'FINAL_APPROVER'
+      );
+      allow update, delete: if false;
+    }
+
+    // ─── notifications ──────────────────────────────────────
+    match /notifications/{docId} {
+      // 누구나 생성 가능 (알림 발송)
+      allow create: if isAuthed();
+      // 본인에게 온 알림만 조회/수정 (is_read 업데이트)
+      allow read: if isAuthed() && resource.data.to_user_id == request.auth.uid;
+      allow update: if isAuthed() &&
+        resource.data.to_user_id == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
+      allow delete: if false;
+    }
+  }
+}

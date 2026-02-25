@@ -49,7 +49,7 @@ export default function LeaveView({
                                         </td>
                                         <td className="p-3 text-center text-[#5a5545]"><span className="font-mono bg-[#e8e4d4] px-1">{leave.yearsWorked}년</span></td>
                                         <td className="p-3 text-center text-[#5a5545] font-bold">{leave.totalEarned}일</td>
-                                        <td className="p-3 text-center text-[#5a5545] font-bold">{leave.usedLeave}일</td>
+                                        <td className="p-3 text-center text-[#5a5545] font-bold">{Number.isInteger(leave.usedLeave) ? leave.usedLeave : leave.usedLeave.toFixed(1)}일</td>
                                         <td className="p-3 text-center"><span className={`font-bold ${leave.adjustment >= 0 ? 'text-[#5d6c4a]' : 'text-[#a65d57]'}`}>{leave.adjustment >= 0 ? '+' : ''}{leave.adjustment}일</span></td>
                                         <td className="p-3 text-center"><span className={`px-2 py-1 text-xs font-bold ${leave.remaining <= 3 ? 'bg-[#f8f0ef] text-[#a65d57] border border-[#dcc0bc]' : 'bg-[#e8ebd8] text-[#5d6c4a] border border-[#b8c4a0]'}`}>{leave.remaining}일</span></td>
                                         <td className="p-3 pr-4 text-right">
@@ -88,7 +88,7 @@ export default function LeaveView({
                                         <InfoRow label="이월 연차 반영" value={`${leave.carryover + leave.firstYearCarryover}일`} />
                                         <InfoRow label="임의 조정" value={`${leave.adjustment > 0 ? '+' : ''}${leave.adjustment}일`} />
                                         <div className="border-t border-[#e8e4d4] my-2 pt-2"></div>
-                                        <InfoRow label="총 사용 연차" value={`${leave.usedLeave}일`} />
+                                        <InfoRow label="총 사용 연차" value={`${Number.isInteger(leave.usedLeave) ? leave.usedLeave : leave.usedLeave.toFixed(1)}일`} />
                                         {leave.absenceCount > 0 && (<InfoRow icon={<AlertTriangle size={14} />} label="결근" value={`${leave.absenceCount}일`} />)}
                                     </>);
                                 })()}

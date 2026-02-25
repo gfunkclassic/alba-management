@@ -13,7 +13,8 @@ export default function HRView({
     filteredData,
     selectedUser, handleSelectUser,
     calculateMonthlyWage, payrollMonth,
-    openModal, openUserForm, openResignModal
+    openModal, openUserForm, openResignModal,
+    maskPII = false, roleMode = 'ADMIN'
 }) {
     return (
         <>
@@ -106,8 +107,8 @@ export default function HRView({
                                             </td>
                                             <td className="p-3 pr-4 text-right">
                                                 <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={(e) => openUserForm(user, e)} className="p-1.5 bg-[#e8e4d4] text-[#5d6c4a] hover:bg-[#d4dcc0] title='정보 수정'"><Edit size={14} /></button>
-                                                    {!user.resignDate && (
+                                                    {roleMode !== 'VIEWER' && <button onClick={(e) => openUserForm(user, e)} className="p-1.5 bg-[#e8e4d4] text-[#5d6c4a] hover:bg-[#d4dcc0] title='정보 수정'"><Edit size={14} /></button>}
+                                                    {!user.resignDate && roleMode === 'ADMIN' && (
                                                         <button onClick={(e) => openResignModal(user, e)} className="p-1.5 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#f0e5e4] title='퇴사 처리'"><UserMinus size={14} /></button>
                                                     )}
                                                 </div>
@@ -141,9 +142,9 @@ export default function HRView({
                             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                                 <div><h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">Contact & Info</h3>
                                     <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
-                                        <InfoRow label="연락처" value={selectedUser.phone} />
-                                        <InfoRow label="주민가명" value={`${selectedUser.rrn?.substring(0, 8)}******`} />
-                                        <InfoRow label="계좌" value={`${selectedUser.bank} ${selectedUser.account}`} />
+                                        <InfoRow label="연락처" value={maskPII ? '***-****-****' : selectedUser.phone} />
+                                        <InfoRow label="주민가명" value={maskPII ? '******-*******' : `${selectedUser.rrn?.substring(0, 8)}******`} />
+                                        <InfoRow label="계좌" value={maskPII ? `${selectedUser.bank} ***-***-******` : `${selectedUser.bank} ${selectedUser.account}`} />
                                     </div>
                                 </div>
                                 <div><h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">Employment</h3>

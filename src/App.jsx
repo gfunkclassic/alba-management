@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Layers, ChevronDown, Download, RotateCcw, X, UserMinus, Calendar, AlertTriangle, Check, Users } from 'lucide-react';
+import { Layers, ChevronDown, Download, RotateCcw, X, UserMinus, Calendar, AlertTriangle, Check, Users, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
+
+// Auth
+import { useAuth } from './contexts/AuthContext';
+import LoginPage from './components/auth/LoginPage';
+import ChangePasswordPage from './components/auth/ChangePasswordPage';
+import AlbaView from './components/views/AlbaView';
+import TeamApproverView from './components/views/TeamApproverView';
+import FinalApproverView from './components/views/FinalApproverView';
 
 // Data
 import { INITIAL_USERS } from './data/initialUsers';
@@ -21,8 +29,10 @@ import CalendarModal from './components/modals/CalendarModal';
 import LeaveCalendarModal from './components/modals/LeaveCalendarModal';
 import UserFormModal from './components/modals/UserFormModal';
 import AdjustLeaveModal from './components/modals/AdjustLeaveModal';
+import PayrollDetailModal from './components/modals/PayrollDetailModal';
 
-export default function App() {
+// ── 인사급여 시스템 (기존) ──────────────────────────────────
+function HRPayrollApp() {
     const [users, setUsers] = useState(() => {
         try {
             const saved = localStorage.getItem('alba_users');
@@ -37,8 +47,10 @@ export default function App() {
     const [leaveRecords, setLeaveRecords] = useState(() => { try { const saved = localStorage.getItem('leave_records'); return saved ? JSON.parse(saved) : {}; } catch (e) { return {}; } });
     const [adjustments, setAdjustments] = useState(() => { try { const saved = localStorage.getItem('leave_adjustments'); return saved ? JSON.parse(saved) : {}; } catch (e) { return {}; } });
     const [carryovers, setCarryovers] = useState(() => { try { const saved = localStorage.getItem('leave_carryovers'); return saved ? JSON.parse(saved) : {}; } catch (e) { return {}; } });
+    // 월 마감 상태: { 'YYYY-MM': 'DRAFT' | 'REVIEW' | 'CONFIRMED' | 'AMENDING' }
+    const [payrollStatus, setPayrollStatus] = useState(() => { try { const saved = localStorage.getItem('alba_payroll_status'); return saved ? JSON.parse(saved) : {}; } catch (e) { return {}; } });
 
-    const stateRef = useRef({ users, attendance, leaveRecords, adjustments, carryovers });
+    const stateRef = useRef({ users, attendance, leaveRecords, adjustments, carryovers, payrollStatus });
 
     useEffect(() => {
         // Removed xlsx script loading as we use sheetjs-style npm package directly
@@ -46,13 +58,14 @@ export default function App() {
 
     useEffect(() => {
         const handleBeforeUnload = () => {
-            const { users, attendance, leaveRecords, adjustments, carryovers } = stateRef.current;
+            const { users, attendance, leaveRecords, adjustments, carryovers, payrollStatus } = stateRef.current;
             try {
                 localStorage.setItem('alba_users', JSON.stringify(users));
                 localStorage.setItem('alba_attendance', JSON.stringify(attendance));
                 localStorage.setItem('leave_records', JSON.stringify(leaveRecords));
                 localStorage.setItem('leave_adjustments', JSON.stringify(adjustments));
                 localStorage.setItem('leave_carryovers', JSON.stringify(carryovers));
+                localStorage.setItem('alba_payroll_status', JSON.stringify(payrollStatus));
             } catch (e) {
                 console.error("종료 전 저장 실패:", e);
             }
@@ -65,7 +78,7 @@ export default function App() {
     const isInitialMount = useRef(true);
 
     useEffect(() => {
-        stateRef.current = { users, attendance, leaveRecords, adjustments, carryovers };
+        stateRef.current = { users, attendance, leaveRecords, adjustments, carryovers, payrollStatus };
         if (isInitialMount.current) {
             isInitialMount.current = false;
             return;
@@ -78,6 +91,7 @@ export default function App() {
                 localStorage.setItem('leave_records', JSON.stringify(leaveRecords));
                 localStorage.setItem('leave_adjustments', JSON.stringify(adjustments));
                 localStorage.setItem('leave_carryovers', JSON.stringify(carryovers));
+                localStorage.setItem('alba_payroll_status', JSON.stringify(payrollStatus));
             } catch (e) {
                 console.error('localStorage 저장 실패:', e);
                 if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
@@ -88,7 +102,7 @@ export default function App() {
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         };
-    }, [users, attendance, leaveRecords, adjustments, carryovers]);
+    }, [users, attendance, leaveRecords, adjustments, carryovers, payrollStatus]);
 
     const [activeTab, setActiveTab] = useState('HR');
     const [searchTerm, setSearchTerm] = useState('');
@@ -108,6 +122,13 @@ export default function App() {
         localStorage.setItem('alba_payrollMonth', payrollMonth);
     }, [payrollMonth]);
 
+    // 역할 모드: 'ADMIN' | 'STAFF' | 'VIEWER'
+    const [roleMode, setRoleMode] = useState(() => {
+        return localStorage.getItem('alba_role_mode') || 'ADMIN';
+    });
+    useEffect(() => { localStorage.setItem('alba_role_mode', roleMode); }, [roleMode]);
+    const maskPII = roleMode === 'VIEWER';
+
     const movePayrollMonth = useCallback((offset) => {
         setPayrollMonth(prev => {
             const [y, m] = prev.split('-').map(Number);
@@ -123,8 +144,9 @@ export default function App() {
     const [modalState, setModalState] = useState({
         calculator: false, calendar: false, leaveCalendar: false,
         resign: false, userForm: false, adjust: false,
-        dataMenu: false, resetConfirm: false
+        dataMenu: false, resetConfirm: false, payrollDetail: false
     });
+    const [payrollDetailUser, setPayrollDetailUser] = useState(null);
 
     const openModal = useCallback((modalName) => setModalState(prev => ({ ...prev, [modalName]: true })), []);
     const closeModal = useCallback((modalName) => setModalState(prev => ({ ...prev, [modalName]: false })), []);
@@ -367,6 +389,27 @@ export default function App() {
         const deduction = !user.insuranceStatus ? Math.floor((displayTotal * 0.033) / 10) * 10 : 0;
         const finalPayout = displayTotal - deduction;
 
+        // build dailyBreakdown for drilldown modal
+        const dailyBreakdown = Object.entries(dailyRecords)
+            .filter(([, rec]) => rec.isTargetMonth)
+            .sort()
+            .map(([dateStr, rec]) => {
+                const dw = getWageForDate(dateStr);
+                const d = calculateDailyWage(dw, rec.checkIn, rec.checkOut, rec.overtime);
+                return {
+                    date: dateStr,
+                    checkIn: rec.checkIn || '',
+                    checkOut: rec.checkOut || '',
+                    overtime: rec.overtime || 0,
+                    reason: rec.reason || '',
+                    hours: Math.round(d.hours * 100) / 100,
+                    overtimeHours: Math.round(d.actualOvertime * 100) / 100,
+                    basePay: Math.round(d.basePay + d.overtimePay),
+                    isRecorded: rec.isRecorded,
+                    wage: dw
+                };
+            });
+
         return {
             estimated: estimatedTotalPay, actual: Math.round(actualTotalPay),
             displayTotal, deduction, finalPayout, totalActualHours,
@@ -374,7 +417,7 @@ export default function App() {
             hasRecord: !!hasMonthRecord,
             actualBasePayOnly: Math.round(actualBaseOvertimePay),
             actualHolidayPay: Math.round(actualHolidayPay),
-            weeklyLogsList
+            weeklyLogsList, dailyBreakdown
         };
     };
 
@@ -394,7 +437,16 @@ export default function App() {
         const yearsWorked = getDaysBetween(startDate, endDate) / 365;
         const monthsWorked = getMonthsBetween(startDate, endDate);
         const absences = Object.entries(userRecords).filter(([_, type]) => type === '결근').reduce((acc, [date, type]) => ({ ...acc, [date]: type }), {});
-        const usedLeave = Object.entries(userRecords).filter(([_, type]) => type === '연차').length;
+        // 연차 유형별 일수 환산 (연차=1, 반차=0.5, 시간차=÷8, 결근=0 (별도 처리))
+        const usedLeave = Object.entries(userRecords).reduce((sum, [_, type]) => {
+            if (type === '연차') return sum + 1;
+            if (type === '반차(오전)' || type === '반차(오후)') return sum + 0.5;
+            if (type?.startsWith('시간차')) {
+                const match = type.match(/(\d+\.?\d*)h/);
+                return sum + (match ? parseFloat(match[1]) / 8 : 0);
+            }
+            return sum; // 결근은 usedLeave에 포함 안 함 (absences로 별도 관리)
+        }, 0);
         let firstYearLeave = 0, firstYearCarryover = 0, annualLeave = 0, carryover = userCarryover;
         if (yearsWorked < 1) {
             firstYearLeave = getFirstYearLeave(user.startDate, endDate, absences);
@@ -972,7 +1024,7 @@ export default function App() {
             XLSX.utils.book_append_sheet(wb, wsDetail, sheetName);
         });
 
-        XLSX.writeFile(wb, `[노무사전달용]4대보험가입자_${payrollMonth}.xlsx`);
+        XLSX.writeFile(wb, `${payrollMonth}_4대보험가입자_노무사전달용.xlsx`);
     };
 
     const downloadFreelancerCSV = () => {
@@ -985,7 +1037,7 @@ export default function App() {
         const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement("a"); link.setAttribute("href", url); link.setAttribute("download", `[본사지급요청]3.3%공제자_${new Date().toISOString().slice(0, 10)}.csv`);
+        const link = document.createElement("a"); link.setAttribute("href", url); link.setAttribute("download", `${payrollMonth}_3.3공제자_본사지급요청.csv`);
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
     };
 
@@ -1011,6 +1063,25 @@ export default function App() {
                             <button onClick={() => setActiveTab('HR')} className={`px-4 py-2 text-xs font-bold transition ${activeTab === 'HR' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>HR관리</button>
                             <button onClick={() => setActiveTab('PAYROLL')} className={`px-4 py-2 text-xs font-bold border-x-2 border-[#2d3721] transition ${activeTab === 'PAYROLL' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>급여정산</button>
                             <button onClick={() => setActiveTab('LEAVE')} className={`px-4 py-2 text-xs font-bold transition ${activeTab === 'LEAVE' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>연차관리</button>
+                        </div>
+
+                        {/* 역할 모드 선택기 */}
+                        <div className="flex items-center border-2 border-[#2d3721] bg-[#3d472f] mr-2">
+                            {[
+                                { key: 'ADMIN', label: '관리자', icon: <ShieldCheck size={11} /> },
+                                { key: 'STAFF', label: '실무자', icon: <Eye size={11} /> },
+                                { key: 'VIEWER', label: '조회전용', icon: <EyeOff size={11} /> },
+                            ].map(({ key, label, icon }) => (
+                                <button
+                                    key={key}
+                                    onClick={() => setRoleMode(key)}
+                                    title={key === 'VIEWER' ? '개인정보 마스킹 적용' : ''}
+                                    className={`flex items-center gap-1 px-3 py-2 text-[10px] font-bold border-r border-[#2d3721] last:border-0 transition ${roleMode === key ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'
+                                        }`}
+                                >
+                                    {icon}{label}
+                                </button>
+                            ))}
                         </div>
 
                         <div className="relative" ref={dataMenuRef}>
@@ -1049,6 +1120,7 @@ export default function App() {
                         filterStatus={filterStatus} setFilterStatus={setFilterStatus} filteredData={filteredData}
                         selectedUser={selectedUser} handleSelectUser={handleSelectUser} calculateMonthlyWage={calculateMonthlyWage}
                         payrollMonth={payrollMonth} openModal={openModal} openUserForm={openUserForm} openResignModal={openResignModal}
+                        maskPII={maskPII} roleMode={roleMode}
                     />
                 )}
 
@@ -1058,6 +1130,10 @@ export default function App() {
                         onDownloadInsured={downloadInsuredCSV} onDownloadFreelancer={downloadFreelancerCSV}
                         onDownloadTemplate={downloadAttendanceTemplate}
                         payrollMonth={payrollMonth} onMonthChange={movePayrollMonth}
+                        payrollStatus={payrollStatus} onStatusChange={(month, status) => {
+                            setPayrollStatus(prev => ({ ...prev, [month]: status }));
+                        }}
+                        onOpenDetail={(user) => { setPayrollDetailUser(user); openModal('payrollDetail'); }}
                     />
                 )}
 
@@ -1109,9 +1185,90 @@ export default function App() {
             )}
 
             {showUserForm && <UserFormModal user={formUser} onClose={() => closeModal('userForm')} onSave={handleUserSave} />}
-            {showCalendar && selectedUser && <CalendarModal user={selectedUser} attendance={attendance[selectedUser.id] || {}} onSave={(date, form) => saveAttendance(selectedUser.id, date, form)} calculateWage={calculateDailyWage} onFileUpload={handleAttendanceUpload} onClose={() => closeModal('calendar')} />}
-            {showLeaveCalendar && selectedUser && <LeaveCalendarModal user={selectedUser} leaveRecords={leaveRecords} adjustments={adjustments} carryovers={carryovers} stats={calculateLeave(selectedUser)} teamCounts={teamCounts} filteredData={filteredData} activeTab={activeTab} searchOptions={{ searchTerm, filterTeam, viewMode }} onSelectUser={handleSelectUser} onAddLeave={handleAddLeave} onDeleteLeave={handleDeleteLeave} onSaveAdjustment={handleSaveAdjustment} onClose={() => closeModal('leaveCalendar')} />}
+            {showCalendar && selectedUser && <CalendarModal user={selectedUser} attendance={attendance[selectedUser.id] || {}} onSave={(date, form) => saveAttendance(selectedUser.id, date, form)} calculateWage={calculateDailyWage} onFileUpload={handleAttendanceUpload} onClose={() => closeModal('calendar')} isLocked={payrollStatus[payrollMonth] === 'CONFIRMED'} />}
+            {showLeaveCalendar && selectedUser && <LeaveCalendarModal users={filteredData} leaveRecords={leaveRecords} onAddLeave={handleAddLeave} onDeleteLeave={handleDeleteLeave} onClose={() => closeModal('leaveCalendar')} />}
             {showAdjustModal && adjustUser && <AdjustLeaveModal user={adjustUser} onClose={() => { closeModal('adjust'); setAdjustUser(null); }} onSave={handleSaveAdjustment} currentAdjustment={adjustments[adjustUser.id] || 0} />}
+            {modalState.payrollDetail && payrollDetailUser && <PayrollDetailModal user={payrollDetailUser} wage={calculateMonthlyWage(payrollDetailUser, payrollMonth)} payrollMonth={payrollMonth} onClose={() => { closeModal('payrollDetail'); setPayrollDetailUser(null); }} />}
         </div>
     );
 }
+
+
+// ── 최상위 앱 — Auth 라우팅 ───────────────────────────────
+export default function App() {
+    const { currentUser, userProfile, loading, logout } = useAuth();
+    const [showHRSystem, setShowHRSystem] = React.useState(false);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[#e8e4d4] flex items-center justify-center">
+                <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-[#5d6c4a] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <p className="text-[#5d6c4a] font-bold text-sm">로딩 중...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!currentUser || !userProfile) return <LoginPage />;
+
+    // Auth 됐지만 Firestore 문서가 없는 경우
+    if (userProfile._noProfile) {
+        return (
+            <div className="min-h-screen bg-[#e8e4d4] flex items-center justify-center p-4">
+                <div className="bg-[#f5f3e8] border-2 border-[#a65d57] p-8 max-w-sm w-full text-center">
+                    <p className="font-bold text-[#a65d57] text-sm mb-2">⚠ 프로필 정보 없음</p>
+                    <p className="text-xs text-[#7a7565] mb-4">Firebase Console → Firestore → users 컬렉션에<br />이 계정의 문서(role 포함)를 추가 후 새로고침하세요.<br /><span className="font-mono text-[10px] break-all">{currentUser.email}</span></p>
+                    <button onClick={() => window.location.reload()} className="text-xs bg-[#5d6c4a] text-[#f5f3e8] px-4 py-2 font-bold">새로고침</button>
+                </div>
+            </div>
+        );
+    }
+
+    if (userProfile.is_temp_password) return <ChangePasswordPage />;
+
+    const { role } = userProfile;
+    if (role === 'FINAL_APPROVER') {
+        if (showHRSystem) {
+            return (
+                <div className="min-h-screen flex flex-col">
+                    {/* 관리자 상단 바 */}
+                    <div className="bg-[#2d3721] border-b-2 border-[#1e2516] px-4 py-2 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setShowHRSystem(false)}
+                                className="text-[10px] bg-[#5d6c4a] border border-[#3d472f] text-[#f5f3e8] px-3 py-1.5 font-bold hover:bg-[#4a5639] flex items-center gap-1"
+                            >
+                                ← 계정 관리
+                            </button>
+                            <span className="text-[#b8c4a0] text-xs">인사 급여관리 시스템</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[10px] bg-[#a65d57] text-white font-bold px-2 py-0.5">최종 관리자</span>
+                            <span className="text-[#b8c4a0] text-xs">{userProfile.name}</span>
+                            <button
+                                onClick={logout}
+                                className="text-[10px] text-[#b8c4a0] hover:text-[#f5f3e8] font-bold"
+                            >
+                                로그아웃
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex-1">
+                        <HRPayrollApp />
+                    </div>
+                </div>
+            );
+        }
+        return <FinalApproverView onSwitchToHRSystem={() => setShowHRSystem(true)} />;
+    }
+    if (role === 'TEAM_APPROVER') return <TeamApproverView />;
+    if (role === 'ALBA') return <AlbaView />;
+
+    return (
+        <div className="min-h-screen bg-[#e8e4d4] flex items-center justify-center">
+            <p className="text-[#a65d57] font-bold">알 수 없는 역할: {role}</p>
+        </div>
+    );
+}
+
