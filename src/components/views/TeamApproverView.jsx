@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Sun, Clock, LogOut, List } from 'lucide-react';
+import { Users, Clock, UserCheck, LogOut, Loader } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 import NotificationBell from '../notifications/NotificationBell';
 import LeaveApprovalInbox from '../leave/LeaveApprovalInbox';
+import DelegationManager from '../leave/DelegationManager';
 
 const TABS = [
     { key: 'INBOX', label: '승인함', icon: <Clock size={15} /> },
+    { key: 'DELEGATION', label: '위임 관리', icon: <UserCheck size={15} /> },
     { key: 'MEMBERS', label: '팀원 목록', icon: <Users size={15} /> },
 ];
 
@@ -18,7 +20,6 @@ export default function TeamApproverView() {
     const [members, setMembers] = useState([]);
     const [membersLoading, setMembersLoading] = useState(true);
 
-    // 실시간 프로필
     useEffect(() => {
         if (!userProfile?.uid) return;
         const unsub = onSnapshot(doc(db, 'users', userProfile.uid), snap => {
@@ -27,7 +28,6 @@ export default function TeamApproverView() {
         return unsub;
     }, [userProfile?.uid]);
 
-    // 팀원 로드
     const loadMembers = useCallback(async () => {
         if (!profile?.team_id) return;
         setMembersLoading(true);
@@ -44,7 +44,6 @@ export default function TeamApproverView() {
 
     return (
         <div className="min-h-screen bg-[#e8e4d4]">
-            {/* 헤더 */}
             <header className="bg-[#3d472f] border-b-2 border-[#2d3721] px-6 py-3 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-[#5d6c4a] border-2 border-[#f5f3e8] flex items-center justify-center text-[#f5f3e8] font-black text-sm">A</div>
@@ -58,7 +57,6 @@ export default function TeamApproverView() {
                 </div>
             </header>
 
-            {/* 탭 바 */}
             <div className="bg-[#f5f3e8] border-b-2 border-[#c5c0b0] flex">
                 {TABS.map(t => (
                     <button key={t.key} onClick={() => setTab(t.key)}
@@ -69,10 +67,8 @@ export default function TeamApproverView() {
             </div>
 
             <main className="max-w-5xl mx-auto p-5 space-y-4">
-                {/* 승인함 */}
                 {tab === 'INBOX' && <LeaveApprovalInbox />}
-
-                {/* 팀원 목록 */}
+                {tab === 'DELEGATION' && <DelegationManager />}
                 {tab === 'MEMBERS' && (
                     <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">
                         <div className="p-4 border-b-2 border-[#c5c0b0] flex items-center gap-2">
@@ -82,7 +78,7 @@ export default function TeamApproverView() {
                         </div>
                         <div className="divide-y divide-[#ebe8db]">
                             {membersLoading ? (
-                                <p className="p-6 text-center text-xs text-[#9a9585]">로딩 중...</p>
+                                <div className="p-6 text-center"><Loader size={14} className="animate-spin mx-auto text-[#9a9585]" /></div>
                             ) : members.length === 0 ? (
                                 <p className="p-6 text-center text-xs text-[#9a9585]">팀원이 없습니다.</p>
                             ) : members.map(m => (

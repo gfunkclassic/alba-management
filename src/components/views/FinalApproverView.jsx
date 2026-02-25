@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw } from 'lucide-react';
+import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { TEAMS, ROLES, ROLE_LABELS } from '../../firebase';
 import LeaveBalanceManager from '../leave/LeaveBalanceManager';
+import FinalApprovalInbox from '../leave/FinalApprovalInbox';
+import NotificationBell from '../notifications/NotificationBell';
 
 function CreateUserPanel({ onCreated }) {
     const { createUser } = useAuth();
@@ -108,6 +110,7 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
 
     const TABS = [
         { key: 'ACCOUNTS', label: '계정 관리', icon: <Users size={15} /> },
+        { key: 'FINAL', label: '최종 승인함', icon: <CheckCircle size={15} /> },
         { key: 'LEAVE', label: '연차 잔여 관리', icon: <Sun size={15} /> },
     ];
 
@@ -121,12 +124,13 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                     <span className="text-[10px] bg-[#a65d57] text-white font-bold px-2 py-0.5">최종 관리자</span>
                 </div>
                 <div className="flex items-center gap-3">
+                    <NotificationBell userId={userProfile?.uid} />
                     <span className="text-[#b8c4a0] text-xs">{userProfile?.name}</span>
                     <button onClick={logout} className="flex items-center gap-1 text-[#b8c4a0] hover:text-[#f5f3e8] text-xs"><LogOut size={14} /> 로그아웃</button>
                 </div>
             </header>
 
-            {/* 탭 바 — 헤더 바로 아래 전체 너비 */}
+            {/* 탭 바 */}
             <div className="bg-[#f5f3e8] border-b-2 border-[#c5c0b0] flex items-center">
                 <div className="flex flex-1">
                     {TABS.map(t => (
@@ -143,12 +147,10 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                 )}
             </div>
 
-            {/* 메인 콘텐츠 */}
             <main className="max-w-6xl mx-auto p-6 space-y-6">
 
-                {/* ── 계정 관리 탭 ───────────────────────────── */}
+                {/* ── 계정 관리 ───────────────── */}
                 {activeTab === 'ACCOUNTS' && (<>
-                    {/* 통계 카드 */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
                             { label: '전체 계정', value: `${users.length}명` },
@@ -162,11 +164,7 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                             </div>
                         ))}
                     </div>
-
-                    {/* 계정 생성 */}
                     <CreateUserPanel onCreated={loadUsers} />
-
-                    {/* 전체 사용자 목록 */}
                     <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">
                         <div className="p-4 border-b-2 border-[#c5c0b0] flex flex-wrap gap-3 items-center justify-between">
                             <h3 className="font-bold text-[#3d472f] flex items-center gap-2"><Users size={18} className="text-[#5d6c4a]" /> 전체 계정 목록</h3>
@@ -223,7 +221,10 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                     </div>
                 </>)}
 
-                {/* ── 연차 잔여 관리 탭 ────────────────────────── */}
+                {/* ── 최종 승인함 ─────────────── */}
+                {activeTab === 'FINAL' && <FinalApprovalInbox />}
+
+                {/* ── 연차 잔여 관리 ──────────── */}
                 {activeTab === 'LEAVE' && (
                     <LeaveBalanceManager users={users.filter(u => u.role === 'ALBA')} />
                 )}

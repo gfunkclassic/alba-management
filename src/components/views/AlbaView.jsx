@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Calendar, Clock, Sun, List, LogOut } from 'lucide-react';
+import { User, Calendar, Clock, Sun, List, LogOut, UserCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -7,20 +7,16 @@ import LeaveBalanceCard from '../leave/LeaveBalanceCard';
 import LeaveRequestForm from '../leave/LeaveRequestForm';
 import LeaveHistoryList from '../leave/LeaveHistoryList';
 import NotificationBell from '../notifications/NotificationBell';
-
-const TABS = [
-    { key: 'INFO', label: '내 정보', icon: <User size={15} /> },
-    { key: 'REQUEST', label: '연차 신청', icon: <Calendar size={15} /> },
-    { key: 'HISTORY', label: '신청 내역', icon: <List size={15} /> },
-];
+import DelegateApprovalInbox from '../leave/DelegateApprovalInbox';
 
 export default function AlbaView() {
-    const { userProfile, logout, getMyLeaveBalance } = useAuth();
+    const { userProfile, logout, getMyLeaveBalance, getMyActiveReceivedDelegation } = useAuth();
     const [profile, setProfile] = useState(userProfile);
     const [tab, setTab] = useState('INFO');
     const [balance, setBalance] = useState(null);
     const [balanceLoading, setBalanceLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [activeDelegation, setActiveDelegation] = useState(null);
 
     // 실시간 프로필
     useEffect(() => {
@@ -30,6 +26,11 @@ export default function AlbaView() {
         });
         return unsub;
     }, [userProfile?.uid]);
+
+    // 활성 수임 위임 조회
+    useEffect(() => {
+        getMyActiveReceivedDelegation().then(setActiveDelegation).catch(() => setActiveDelegation(null));
+    }, []);
 
     // 잔여 연차 로드
     const loadBalance = useCallback(async () => {
@@ -43,13 +44,23 @@ export default function AlbaView() {
 
     const teamColor = { '카페': 'bg-[#d8973c]', '생산기획': 'bg-[#5d6c4a]', 'QC': 'bg-[#4a6070]', 'ER': 'bg-[#a65d57]', 'LM': 'bg-[#7a7565]' };
 
+    const TABS = [
+        { key: 'INFO', label: '내 정보', icon: <User size={15} /> },
+        { key: 'REQUEST', label: '연차 신청', icon: <Calendar size={15} /> },
+        { key: 'HISTORY', label: '신청 내역', icon: <List size={15} /> },
+        // 활성 위임이 있으면 탭 추가
+        ...(activeDelegation ? [{ key: 'DELEGATE', label: '위임 승인함', icon: <UserCheck size={15} />, badge: true }] : []),
+    ];
+
     return (
         <div className="min-h-screen bg-[#e8e4d4]">
-            {/* 헤더 */}
             <header className="bg-[#3d472f] border-b-2 border-[#2d3721] px-6 py-3 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-[#5d6c4a] border-2 border-[#f5f3e8] flex items-center justify-center text-[#f5f3e8] font-black text-sm">A</div>
                     <span className="text-[#f5f3e8] font-bold text-sm">아르바이트 관리</span>
+                    {activeDelegation && (
+                        <span className="text-[10px] bg-[#d8973c] text-white font-bold px-2 py-0.5">위임 승인 중</span>
+                    )}
                 </div>
                 <div className="flex items-center gap-3">
                     <NotificationBell userId={profile?.uid} />
@@ -62,8 +73,9 @@ export default function AlbaView() {
             <div className="bg-[#f5f3e8] border-b-2 border-[#c5c0b0] flex">
                 {TABS.map(t => (
                     <button key={t.key} onClick={() => setTab(t.key)}
-                        className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-3 text-xs font-bold border-b-2 transition-colors ${tab === t.key ? 'border-[#5d6c4a] text-[#5d6c4a] bg-[#f5f3e8]' : 'border-transparent text-[#7a7565] hover:text-[#5a5545]'}`}>
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-3 text-xs font-bold border-b-2 transition-colors relative ${tab === t.key ? 'border-[#5d6c4a] text-[#5d6c4a] bg-[#f5f3e8]' : 'border-transparent text-[#7a7565] hover:text-[#5a5545]'}`}>
                         {t.icon} {t.label}
+                        {t.badge && <span className="absolute top-1 right-1 w-2 h-2 bg-[#d8973c] rounded-full" />}
                     </button>
                 ))}
             </div>
@@ -95,6 +107,12 @@ export default function AlbaView() {
                                         <span className="text-sm font-bold text-[#3d472f]">{row.value}</span>
                                     </div>
                                 ))}
+                                {activeDelegation && (
+                                    <div className="mt-2 p-3 bg-[#fdf6e3] border border-[#d8973c] text-xs">
+                                        <p className="font-bold text-[#a06820]">🔑 현재 승인 위임 중</p>
+                                        <p className="text-[#7a5a1a] mt-0.5">{activeDelegation._fromName} 관리자 위임 · {activeDelegation.start_date} ~ {activeDelegation.end_date}</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <LeaveBalanceCard balance={balance} loading={balanceLoading} />
@@ -110,8 +128,11 @@ export default function AlbaView() {
                 )}
 
                 {/* 신청 내역 */}
-                {tab === 'HISTORY' && (
-                    <LeaveHistoryList refreshKey={refreshKey} />
+                {tab === 'HISTORY' && <LeaveHistoryList refreshKey={refreshKey} />}
+
+                {/* 위임 승인함 */}
+                {tab === 'DELEGATE' && activeDelegation && (
+                    <DelegateApprovalInbox delegation={activeDelegation} />
                 )}
             </main>
         </div>

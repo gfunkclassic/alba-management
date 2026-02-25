@@ -6,11 +6,13 @@ import { db } from '../../firebase';
 const TYPE_LABEL = {
     LEAVE_SUBMITTED: '📋 연차 신청 접수',
     LEAVE_TEAM_APPROVED: '✅ 연차 팀 승인',
+    LEAVE_FINAL_APPROVED: '🌟 연차 최종 승인',
     LEAVE_REJECTED: '❌ 연차 반려',
 };
 const TYPE_COLOR = {
     LEAVE_SUBMITTED: 'border-l-[#d8973c]',
     LEAVE_TEAM_APPROVED: 'border-l-[#5d6c4a]',
+    LEAVE_FINAL_APPROVED: 'border-l-[#3d6b5e]',
     LEAVE_REJECTED: 'border-l-[#a65d57]',
 };
 
