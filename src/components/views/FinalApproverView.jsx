@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw, CheckCircle, Clock, ShieldOff } from 'lucide-react';
+import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw, CheckCircle, Clock, ShieldOff, Edit2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ROLES, ROLE_LABELS } from '../../firebase';
 import LeaveBalanceManager from '../leave/LeaveBalanceManager';
@@ -212,6 +212,60 @@ function TeamsManagementPanel() {
     );
 }
 
+function EditUserModal({ user, onClose, onSaved }) {
+    const { updateUserRoleAndTeam, teams } = useAuth();
+    const [role, setRole] = useState(user?.role || 'ALBA');
+    const [team, setTeam] = useState(user?.team_id || '');
+    const [saving, setSaving] = useState(false);
+
+    if (!user) return null;
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await updateUserRoleAndTeam(user.uid, role, team);
+            onSaved?.();
+        } catch (e) { alert('수정 실패: ' + e.message); }
+        finally { setSaving(false); }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#f5f3e8] border-2 border-[#3d472f] w-full max-w-sm shadow-xl">
+                <div className="p-4 border-b-2 border-[#c5c0b0] flex justify-between items-center bg-[#e8e4d4]">
+                    <h3 className="font-bold text-[#3d472f] text-sm">계정 정보 수정</h3>
+                    <button onClick={onClose} className="text-[#7a7565] hover:text-[#3d472f]"><X size={18} /></button>
+                </div>
+                <div className="p-5 space-y-4">
+                    <div>
+                        <p className="text-xs font-bold text-[#7a7565] mb-1">대상자</p>
+                        <p className="text-sm font-bold text-[#3d472f]">{user.name} <span className="text-xs font-normal text-[#9a9585]">({user.email})</span></p>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-[#7a7565] block mb-1">역할 변경</label>
+                        <select value={role} onChange={e => setRole(e.target.value)}
+                            className="w-full border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm p-2 outline-none focus:border-[#5d6c4a]">
+                            {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-[#7a7565] block mb-1">팀 변경</label>
+                        <select value={team} onChange={e => setTeam(e.target.value)}
+                            className="w-full border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm p-2 outline-none focus:border-[#5d6c4a]">
+                            <option value="" disabled>팀 선택</option>
+                            {teams.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                    </div>
+                </div>
+                <div className="p-4 border-t-2 border-[#c5c0b0] flex gap-2">
+                    <button onClick={onClose} className="flex-1 py-2 text-sm font-bold border-2 border-[#c5c0b0] text-[#7a7565] hover:bg-[#e8e4d4]">취소</button>
+                    <button onClick={handleSave} disabled={saving} className="flex-1 py-2 text-sm font-bold border-2 border-[#3d472f] bg-[#5d6c4a] text-[#f5f3e8] hover:bg-[#4a5639] disabled:opacity-50">저장</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function FinalApproverView({ onSwitchToHRSystem }) {
     const { userProfile, logout, getAllUsers, suspendUser, teams, updateUserRoleAndTeam, addTeam, removeTeam } = useAuth();
     const [users, setUsers] = useState([]);
@@ -220,6 +274,7 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
     const [filterTeam, setFilterTeam] = useState('전체');
     const [filterRole, setFilterRole] = useState('전체');
     const [activeTab, setActiveTab] = useState('ACCOUNTS');
+    const [editingUser, setEditingUser] = useState(null);
 
     const loadUsers = async () => {
         setLoading(true);
@@ -289,6 +344,10 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                     {/* 가입 요청 */}
                     <PendingUsersPanel onApproved={loadUsers} />
 
+                    {editingUser && (
+                        <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} onSaved={() => { setEditingUser(null); loadUsers(); }} />
+                    )}
+
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
                             { label: '전체 계정', value: `${users.length}명` },
@@ -334,7 +393,7 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                                         <th className="p-3 text-center">역할</th>
                                         <th className="p-3 text-center">비밀번호</th>
                                         <th className="p-3 text-center">등록일</th>
-                                        <th className="p-3 text-center">정지</th>
+                                        <th className="p-3 text-center">관리</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#ebe8db]">
@@ -343,36 +402,27 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                                             <tr key={u.uid} className={`hover:bg-[#f4f5eb] ${u.status === 'SUSPENDED' ? 'opacity-60' : ''}`}>
                                                 <td className="p-3 pl-4 font-bold text-[#3d472f]">{u.name}</td>
                                                 <td className="p-3 text-[#5a5545] text-xs font-mono">{u.email}</td>
-                                                <td className="p-3 text-center">
-                                                    <select value={u.team_id || ''} onChange={(e) => { updateUserRoleAndTeam(u.uid, u.role, e.target.value); loadUsers(); }}
-                                                        disabled={u.status === 'SUSPENDED'}
-                                                        className="text-xs border border-transparent hover:border-[#c5c0b0] bg-transparent outline-none focus:bg-white focus:border-[#5d6c4a] px-1 py-0.5 rounded transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                                                        <option value="" disabled>팀 선택</option>
-                                                        {teams.map(t => <option key={t} value={t}>{t}</option>)}
-                                                    </select>
-                                                </td>
-                                                <td className="p-3 text-center">
-                                                    <select value={u.role || ''} onChange={(e) => { updateUserRoleAndTeam(u.uid, e.target.value, u.team_id); loadUsers(); }}
-                                                        disabled={u.status === 'SUSPENDED'}
-                                                        className={`text-xs font-bold px-1 py-0.5 outline-none border border-transparent hover:border-[#c5c0b0] focus:bg-white focus:border-[#5d6c4a] rounded transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${roleBadge[u.role] || ''}`}>
-                                                        {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                                                    </select>
-                                                </td>
+                                                <td className="p-3 text-center"><span className="text-xs bg-[#e8e4d4] px-2 py-0.5 font-bold text-[#5a5545]">{u.team_id || '-'}</span></td>
+                                                <td className="p-3 text-center"><span className={`text-xs font-bold px-2 py-0.5 ${roleBadge[u.role]}`}>{roleLabel[u.role] || '-'}</span></td>
                                                 <td className="p-3 text-center">
                                                     {u.is_temp_password
                                                         ? <span className="text-xs font-bold text-[#d8973c] flex items-center justify-center gap-1"><AlertCircle size={11} />변경 필요</span>
                                                         : <span className="text-xs text-[#5d6c4a] font-bold flex items-center justify-center gap-1"><Check size={11} />변경 완료</span>}
                                                 </td>
                                                 <td className="p-3 text-center text-xs text-[#7a7565]">{u.created_at?.slice(0, 10)}</td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-3 text-center flex items-center justify-center gap-1.5">
+                                                    <button onClick={() => setEditingUser(u)} disabled={u.status === 'SUSPENDED' || u.role === 'FINAL_APPROVER'}
+                                                        className="text-[9px] font-bold px-2 py-1 border border-[#5d6c4a] text-[#5d6c4a] hover:bg-[#e8ebd8] flex items-center gap-0.5 disabled:opacity-50">
+                                                        <Edit2 size={10} /> 수정
+                                                    </button>
                                                     {u.status === 'SUSPENDED' ? (
                                                         <button onClick={() => suspendUser(u.uid, false).then(loadUsers)}
-                                                            className="text-[9px] font-bold px-2 py-1 border border-[#5d6c4a] text-[#5d6c4a] hover:bg-[#e8ebd8]">
+                                                            className="text-[9px] font-bold px-2 py-1 border border-[#d8973c] text-[#d8973c] hover:bg-[#fdf6e3]">
                                                             정지해제
                                                         </button>
                                                     ) : u.role !== 'FINAL_APPROVER' ? (
-                                                        <button onClick={() => { if (window.confirm(`${u.name} 계정을 정지하시걌습니까?`)) suspendUser(u.uid, true).then(loadUsers); }}
-                                                            className="text-[9px] font-bold px-2 py-1 border border-[#a65d57] text-[#a65d57] hover:bg-[#f8f0ef] flex items-center gap-1 mx-auto">
+                                                        <button onClick={() => { if (window.confirm(`${u.name} 계정을 정지하시겠습니까?`)) suspendUser(u.uid, true).then(loadUsers); }}
+                                                            className="text-[9px] font-bold px-2 py-1 border border-[#a65d57] text-[#a65d57] hover:bg-[#f8f0ef] flex items-center gap-1">
                                                             <ShieldOff size={10} /> 정지
                                                         </button>
                                                     ) : <span className="text-[10px] text-[#c5c0b0]">-</span>}
