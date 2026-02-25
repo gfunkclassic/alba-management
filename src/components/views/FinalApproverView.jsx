@@ -94,7 +94,7 @@ function PendingUsersPanel({ onApproved }) {
 
     useEffect(() => { load(); }, [load]);
 
-    const sel = (uid) => selections[uid] || { role: 'ALBA', team_id: '커페' };
+    const sel = (uid) => selections[uid] || { role: 'ALBA', team_id: '카페' };
     const setSel = (uid, key, val) => setSelections(s => ({ ...s, [uid]: { ...sel(uid), [key]: val } }));
 
     const handleApprove = async (uid) => {

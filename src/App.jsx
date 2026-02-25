@@ -1226,10 +1226,32 @@ export default function App() {
                     <p className="font-bold text-[#a65d57] text-sm mb-2">⚠ 프로필 정보 없음</p>
                     <p className="text-xs text-[#7a7565] mb-4">Firebase Console → Firestore → users 컬렉션에<br />이 계정의 문서(role 포함)를 추가 후 새로고침하세요.<br /><span className="font-mono text-[10px] break-all">{currentUser.email}</span></p>
                     <button onClick={() => window.location.reload()} className="text-xs bg-[#5d6c4a] text-[#f5f3e8] px-4 py-2 font-bold">새로고침</button>
+                    <button onClick={logout} className="text-xs bg-transparent text-[#7a7565] underline mt-4 block mx-auto">로그아웃</button>
                 </div>
             </div>
         );
     }
+
+    // ACTIVE 상태가 아닌 경우 (PENDING, REJECTED, SUSPENDED 등) 접근 차단
+    if (userProfile.status && userProfile.status !== 'ACTIVE') {
+        const statusMsg = userProfile.status === 'PENDING' ? '관리자 승인 대기 중'
+            : userProfile.status === 'REJECTED' ? '가입 거절됨'
+                : userProfile.status === 'SUSPENDED' ? '계정 정지됨'
+                    : '비활성';
+        return (
+            <div className="min-h-screen bg-[#e8e4d4] flex items-center justify-center p-4">
+                <div className="bg-[#f5f3e8] border-2 border-[#a65d57] p-8 max-w-sm w-full text-center shadow-lg">
+                    <AlertTriangle size={32} className="text-[#a65d57] mx-auto mb-3" />
+                    <p className="font-bold text-[#3d472f] text-sm mb-2">로그인 제한</p>
+                    <p className="text-xs text-[#7a7565] mb-6">현재 계정은 <span className="font-bold text-[#a65d57]">{statusMsg}</span> 상태입니다.<br />관리자에게 문의하세요.</p>
+                    <button onClick={logout} className="w-full text-xs bg-[#5d6c4a] border-2 border-[#3d472f] text-[#f5f3e8] px-4 py-2.5 font-bold hover:bg-[#4a5639]">
+                        확인 (로그아웃)
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
 
     if (userProfile.is_temp_password) return <ChangePasswordPage />;
 
