@@ -3,8 +3,8 @@ import { UserPlus, AlertCircle, Eye, EyeOff, Check, LogIn } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function RegisterPage({ onGoToLogin }) {
-    const { selfRegister } = useAuth();
-    const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
+    const { selfRegister, teams } = useAuth();
+    const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '', team_id: '' });
     const [showPw, setShowPw] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -18,9 +18,10 @@ export default function RegisterPage({ onGoToLogin }) {
         if (!form.name.trim()) { setError('이름을 입력해주세요.'); return; }
         if (form.password.length < 6) { setError('비밀번호는 6자 이상이어야 합니다.'); return; }
         if (form.password !== form.confirm) { setError('비밀번호가 일치하지 않습니다.'); return; }
+        if (!form.team_id) { setError('소속 팀을 선택해주세요.'); return; }
         setLoading(true);
         try {
-            await selfRegister({ name: form.name.trim(), email: form.email, password: form.password });
+            await selfRegister({ name: form.name.trim(), email: form.email, password: form.password, team_id: form.team_id });
             setDone(true);
         } catch (err) {
             if (err.code === 'auth/email-already-in-use') {
@@ -78,6 +79,14 @@ export default function RegisterPage({ onGoToLogin }) {
                             <label className="block text-xs font-bold text-[#7a7565] mb-1.5 uppercase tracking-wide">이메일 *</label>
                             <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                                 placeholder="example@company.com" required className={inputCls} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-[#7a7565] mb-1.5 uppercase tracking-wide">소속 팀 *</label>
+                            <select value={form.team_id} onChange={e => setForm(f => ({ ...f, team_id: e.target.value }))}
+                                required className={inputCls}>
+                                <option value="" disabled>팀을 선택하세요</option>
+                                {teams.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-[#7a7565] mb-1.5 uppercase tracking-wide">비밀번호 * (6자 이상)</label>

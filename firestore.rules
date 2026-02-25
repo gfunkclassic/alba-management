@@ -17,6 +17,12 @@ service cloud.firestore {
         get(ref).data.team_id == teamId;
     }
 
+    // ─── settings ──────────────────────────────────────────
+    match /settings/{docId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+    }
+
     // ─── users ─────────────────────────────────────────────
     match /users/{uid} {
       allow get: if isAuthed() && (

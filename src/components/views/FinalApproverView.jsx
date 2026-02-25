@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw, CheckCircle, Clock, ShieldOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { TEAMS, ROLES, ROLE_LABELS } from '../../firebase';
+import { ROLES, ROLE_LABELS } from '../../firebase';
 import LeaveBalanceManager from '../leave/LeaveBalanceManager';
 import FinalApprovalInbox from '../leave/FinalApprovalInbox';
 import NotificationBell from '../notifications/NotificationBell';
 
 
 function CreateUserPanel({ onCreated }) {
-    const { createUser } = useAuth();
-    const [form, setForm] = useState({ name: '', email: '', role: 'ALBA', team_id: '카페' });
+    const { createUser, teams } = useAuth();
+    const [form, setForm] = useState({ name: '', email: '', role: 'ALBA', team_id: '' });
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
 
@@ -59,8 +59,9 @@ function CreateUserPanel({ onCreated }) {
                 </div>
                 <div>
                     <label className="text-[10px] font-bold text-[#7a7565] block mb-1">팀 *</label>
-                    <select value={form.team_id} onChange={e => setForm(f => ({ ...f, team_id: e.target.value }))} className={inputCls}>
-                        {TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
+                    <select value={form.team_id} onChange={e => setForm(f => ({ ...f, team_id: e.target.value }))} className={inputCls} required>
+                        <option value="" disabled>팀 선택</option>
+                        {teams.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                 </div>
                 <div className="md:col-span-2">
@@ -80,7 +81,7 @@ function CreateUserPanel({ onCreated }) {
 }
 
 function PendingUsersPanel({ onApproved }) {
-    const { getPendingUsers, approveUser, rejectUser } = useAuth();
+    const { getPendingUsers, approveUser, rejectUser, teams } = useAuth();
     const [pending, setPending] = useState([]);
     const [loading, setLoading] = useState(true);
     const [approving, setApproving] = useState({});
@@ -94,7 +95,7 @@ function PendingUsersPanel({ onApproved }) {
 
     useEffect(() => { load(); }, [load]);
 
-    const sel = (uid) => selections[uid] || { role: 'ALBA', team_id: '카페' };
+    const sel = (uid) => selections[uid] || { role: 'ALBA', team_id: teams[0] || '' };
     const setSel = (uid, key, val) => setSelections(s => ({ ...s, [uid]: { ...sel(uid), [key]: val } }));
 
     const handleApprove = async (uid) => {
@@ -141,7 +142,8 @@ function PendingUsersPanel({ onApproved }) {
                             </select>
                             <select value={sel(u.uid).team_id} onChange={e => setSel(u.uid, 'team_id', e.target.value)}
                                 className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#d8973c]">
-                                {TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
+                                <option value="" disabled>팀 선택</option>
+                                {teams.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                             <button onClick={() => handleApprove(u.uid)} disabled={!!approving[u.uid]}
                                 className="flex items-center gap-1 px-3 py-1.5 bg-[#5d6c4a] border-2 border-[#3d472f] text-[#f5f3e8] text-[10px] font-bold hover:bg-[#4a5639] disabled:opacity-50">
@@ -159,8 +161,59 @@ function PendingUsersPanel({ onApproved }) {
     );
 }
 
+function TeamsManagementPanel() {
+    const { teams, addTeam, removeTeam } = useAuth();
+    const [newTeam, setNewTeam] = useState('');
+    const [adding, setAdding] = useState(false);
+
+    const handleAdd = async (e) => {
+        e.preventDefault();
+        const t = newTeam.trim();
+        if (!t || teams.includes(t)) { alert('유효하지 않거나 이미 존재하는 팀명입니다.'); return; }
+        setAdding(true);
+        try { await addTeam(t); setNewTeam(''); }
+        catch (err) { alert('팀 추가 실패: ' + err.message); }
+        finally { setAdding(false); }
+    };
+
+    const handleRemove = async (t) => {
+        if (!window.confirm(`'${t}' 팀을 삭제하시겠습니까? (기존 계정들의 소속 정보는 남지만, 선택 옵션에서는 사라집니다)`)) return;
+        try { await removeTeam(t); } catch (err) { alert('팀 삭제 실패: ' + err.message); }
+    };
+
+    return (
+        <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] p-6 max-w-2xl mx-auto mt-6">
+            <h3 className="font-bold text-[#3d472f] mb-6 flex items-center gap-2">
+                <AlertCircle size={18} className="text-[#5d6c4a]" /> 부서 / 팀 목록 관리
+            </h3>
+
+            <form onSubmit={handleAdd} className="flex gap-2 mb-8">
+                <input value={newTeam} onChange={e => setNewTeam(e.target.value)} placeholder="새로운 팀(부서) 이름 입력"
+                    className="flex-1 px-3 py-2.5 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none" maxLength={20} />
+                <button type="submit" disabled={adding || !newTeam.trim()}
+                    className="bg-[#5d6c4a] text-[#f5f3e8] px-6 font-bold text-sm border-2 border-[#3d472f] hover:bg-[#4a5639] disabled:opacity-50 transition-colors">
+                    추가
+                </button>
+            </form>
+
+            <div className="space-y-2">
+                <p className="text-xs font-bold text-[#7a7565] mb-2 uppercase tracking-wide">현재 등록된 팀 ({teams.length}개)</p>
+                {teams.length === 0 && <p className="text-sm text-[#9a9585]">등록된 팀이 없습니다.</p>}
+                {teams.map(t => (
+                    <div key={t} className="flex items-center justify-between p-3 bg-white border border-[#e8e4d4] hover:border-[#c5c0b0] transition-colors">
+                        <span className="font-bold text-[#3d472f] text-sm">{t}</span>
+                        <button onClick={() => handleRemove(t)} className="text-[#a65d57] hover:bg-[#f8f0ef] p-1.5 rounded transition-colors" title="삭제">
+                            <X size={15} />
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 export default function FinalApproverView({ onSwitchToHRSystem }) {
-    const { userProfile, logout, getAllUsers, suspendUser } = useAuth();
+    const { userProfile, logout, getAllUsers, suspendUser, teams, updateUserRoleAndTeam, addTeam, removeTeam } = useAuth();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -191,6 +244,7 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
 
     const TABS = [
         { key: 'ACCOUNTS', label: '계정 관리', icon: <Users size={15} /> },
+        { key: 'TEAMS', label: '시스템 팀 관리', icon: <AlertCircle size={15} /> },
         { key: 'FINAL', label: '최종 승인함', icon: <CheckCircle size={15} /> },
         { key: 'LEAVE', label: '연차 잔여 관리', icon: <Sun size={15} /> },
     ];
@@ -259,7 +313,7 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                                 </div>
                                 <select value={filterTeam} onChange={e => setFilterTeam(e.target.value)} className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
                                     <option value="전체">전체 팀</option>
-                                    {TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
+                                    {teams.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
                                 <select value={filterRole} onChange={e => setFilterRole(e.target.value)} className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
                                     <option value="전체">전체 역할</option>
@@ -289,8 +343,21 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                                             <tr key={u.uid} className={`hover:bg-[#f4f5eb] ${u.status === 'SUSPENDED' ? 'opacity-60' : ''}`}>
                                                 <td className="p-3 pl-4 font-bold text-[#3d472f]">{u.name}</td>
                                                 <td className="p-3 text-[#5a5545] text-xs font-mono">{u.email}</td>
-                                                <td className="p-3 text-center"><span className="text-xs bg-[#e8e4d4] px-2 py-0.5 font-bold text-[#5a5545]">{u.team_id}</span></td>
-                                                <td className="p-3 text-center"><span className={`text-xs font-bold px-2 py-0.5 ${roleBadge[u.role]}`}>{roleLabel[u.role]}</span></td>
+                                                <td className="p-3 text-center">
+                                                    <select value={u.team_id || ''} onChange={(e) => { updateUserRoleAndTeam(u.uid, u.role, e.target.value); loadUsers(); }}
+                                                        disabled={u.status === 'SUSPENDED'}
+                                                        className="text-xs border border-transparent hover:border-[#c5c0b0] bg-transparent outline-none focus:bg-white focus:border-[#5d6c4a] px-1 py-0.5 rounded transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                                                        <option value="" disabled>팀 선택</option>
+                                                        {teams.map(t => <option key={t} value={t}>{t}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    <select value={u.role || ''} onChange={(e) => { updateUserRoleAndTeam(u.uid, e.target.value, u.team_id); loadUsers(); }}
+                                                        disabled={u.status === 'SUSPENDED'}
+                                                        className={`text-xs font-bold px-1 py-0.5 outline-none border border-transparent hover:border-[#c5c0b0] focus:bg-white focus:border-[#5d6c4a] rounded transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${roleBadge[u.role] || ''}`}>
+                                                        {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                                                    </select>
+                                                </td>
                                                 <td className="p-3 text-center">
                                                     {u.is_temp_password
                                                         ? <span className="text-xs font-bold text-[#d8973c] flex items-center justify-center gap-1"><AlertCircle size={11} />변경 필요</span>
@@ -318,6 +385,9 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                         </div>
                     </div>
                 </>)}
+
+                {/* ── 시스템 팀 관리 ───────────── */}
+                {activeTab === 'TEAMS' && <TeamsManagementPanel />}
 
                 {/* ── 최종 승인함 ─────────────── */}
                 {activeTab === 'FINAL' && <FinalApprovalInbox />}

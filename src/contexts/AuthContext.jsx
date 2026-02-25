@@ -10,7 +10,7 @@ import {
     createUserWithEmailAndPassword,
     getAuth,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, orderBy, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, orderBy, runTransaction, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 const AuthContext = createContext(null);
@@ -25,6 +25,25 @@ export function AuthProvider({ children }) {
     const [currentUser, setCurrentUser] = useState(null);
     const [userProfile, setUserProfile] = useState(null); // Firestore 프로필
     const [loading, setLoading] = useState(true);
+    const [teams, setTeams] = useState([]); // 동적 팀 목록
+
+    // 팀 목록 실시간 동기화
+    useEffect(() => {
+        const unsub = onSnapshot(doc(db, 'settings', 'teams'), async (docSnap) => {
+            if (docSnap.exists()) {
+                setTeams(docSnap.data().list || []);
+            } else {
+                const initial = ['카페', '생산기획', 'QC', 'ER', 'LM'];
+                setTeams(initial);
+                try {
+                    await setDoc(doc(db, 'settings', 'teams'), { list: initial });
+                } catch (e) {
+                    // 권한 없는 사용자의 경우 무시
+                }
+            }
+        });
+        return unsub;
+    }, []);
 
     // Firebase Auth 상태 감지
     useEffect(() => {
@@ -102,7 +121,7 @@ export function AuthProvider({ children }) {
     };
 
     // 자가등록 (PENDING 상태, 역할/팀 없음)
-    const selfRegister = async ({ name, email, password }) => {
+    const selfRegister = async ({ name, email, password, team_id }) => {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         const uid = cred.user.uid;
         const now = new Date().toISOString();
@@ -111,7 +130,7 @@ export function AuthProvider({ children }) {
             name,
             email,
             role: null,
-            team_id: null,
+            team_id: team_id || null, // 팀 배정 받음
             status: 'PENDING',
             is_temp_password: false,
             created_at: now,
@@ -153,6 +172,24 @@ export function AuthProvider({ children }) {
             status: suspend ? 'SUSPENDED' : 'ACTIVE',
             updated_at: new Date().toISOString(),
         });
+    };
+
+    // 계정 역할/팀 즉시 수정 (ACTIVE 유저 대상)
+    const updateUserRoleAndTeam = async (uid, role, team_id) => {
+        await updateDoc(doc(db, 'users', uid), {
+            role, team_id,
+            updated_at: new Date().toISOString()
+        });
+    };
+
+    // 팀 관리 로직 (추가/삭제)
+    const addTeam = async (teamName) => {
+        if (!teamName || teams.includes(teamName)) return;
+        await updateDoc(doc(db, 'settings', 'teams'), { list: [...teams, teamName] });
+    };
+
+    const removeTeam = async (teamName) => {
+        await updateDoc(doc(db, 'settings', 'teams'), { list: teams.filter(t => t !== teamName) });
     };
 
     // 계정 생성 (FINAL_APPROVER만 호출 가능 — secondary app 트릭으로 세션 유지)
@@ -687,6 +724,8 @@ export function AuthProvider({ children }) {
         getAllSubmittedRequests, getTeamLeaveRequestsForDelegatee,
         // Phase 1 Enhanced: Self-Registration + Status Management
         selfRegister, getPendingUsers, approveUser, rejectUser, suspendUser,
+        // Phase 1.5: Dynamic Teams + Quick Edit
+        teams, addTeam, removeTeam, updateUserRoleAndTeam,
     };
 
     return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
