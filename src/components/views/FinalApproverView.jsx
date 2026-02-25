@@ -191,9 +191,12 @@ function PendingUsersPanel({ onApproved }) {
 }
 
 function TeamsManagementPanel() {
-    const { teams, addTeam, removeTeam } = useAuth();
+    const { teams, addTeam, removeTeam, updateTeamName } = useAuth();
     const [newTeam, setNewTeam] = useState('');
     const [adding, setAdding] = useState(false);
+    const [editingTeam, setEditingTeam] = useState(null);
+    const [editName, setEditName] = useState('');
+    const [saving, setSaving] = useState(false);
 
     const handleAdd = async (e) => {
         e.preventDefault();
@@ -206,8 +209,23 @@ function TeamsManagementPanel() {
     };
 
     const handleRemove = async (t) => {
-        if (!window.confirm(`'${t}' 팀을 삭제하시겠습니까? (기존 계정들의 소속 정보는 남지만, 선택 옵션에서는 사라집니다)`)) return;
+        if (!window.confirm(`'${t}' 팀을 삭제하시겠습니까? (기존 계정들의 소속 정보는 유지되지만 선택 옵션에서는 사라집니다)`)) return;
         try { await removeTeam(t); } catch (err) { alert('팀 삭제 실패: ' + err.message); }
+    };
+
+    const handleRenameTeam = async (e, oldName) => {
+        e.preventDefault();
+        const t = editName.trim();
+        if (t === oldName) { setEditingTeam(null); return; }
+        if (!t || teams.includes(t)) { alert('유효하지 않거나 이미 존재하는 팀명입니다.'); return; }
+        if (!window.confirm(`정말 '${oldName}'을(를) '${t}'(으)로 변경하시겠습니까?\n이 팀에 소속된 모든 유저의 정보도 함께 업데이트됩니다.`)) return;
+
+        setSaving(true);
+        try {
+            await updateTeamName(oldName, t);
+            setEditingTeam(null);
+        } catch (err) { alert('팀 이름 변경 실패: ' + err.message); }
+        finally { setSaving(false); }
     };
 
     return (
@@ -230,10 +248,25 @@ function TeamsManagementPanel() {
                 {teams.length === 0 && <p className="text-sm text-[#9a9585]">등록된 팀이 없습니다.</p>}
                 {teams.map(t => (
                     <div key={t} className="flex items-center justify-between p-3 bg-white border border-[#e8e4d4] hover:border-[#c5c0b0] transition-colors">
-                        <span className="font-bold text-[#3d472f] text-sm">{t}</span>
-                        <button onClick={() => handleRemove(t)} className="text-[#a65d57] hover:bg-[#f8f0ef] p-1.5 rounded transition-colors" title="삭제">
-                            <X size={15} />
-                        </button>
+                        {editingTeam === t ? (
+                            <form onSubmit={(e) => handleRenameTeam(e, t)} className="flex-1 flex gap-2 mr-2">
+                                <input value={editName} onChange={e => setEditName(e.target.value)} className="flex-1 min-w-0 border-2 border-[#5d6c4a] bg-[#faf8f0] px-2 py-1 text-sm outline-none" autoFocus />
+                                <button type="submit" disabled={saving || !editName.trim()} className="text-[10px] font-bold px-3 py-1 bg-[#5d6c4a] text-[#f5f3e8] border-2 border-[#3d472f] hover:bg-[#4a5639] disabled:opacity-50">저장</button>
+                                <button type="button" onClick={() => setEditingTeam(null)} className="text-[10px] font-bold px-3 py-1 bg-[#e8e4d4] text-[#7a7565] border-2 border-[#c5c0b0] hover:bg-[#d5d0c0]">취소</button>
+                            </form>
+                        ) : (
+                            <>
+                                <span className="font-bold text-[#3d472f] text-sm">{t}</span>
+                                <div className="flex items-center gap-1.5">
+                                    <button onClick={() => { setEditingTeam(t); setEditName(t); }} className="text-[#5d6c4a] border border-[#5d6c4a] hover:bg-[#e8ebd8] px-2 py-1 text-[10px] font-bold transition-colors">
+                                        수정
+                                    </button>
+                                    <button onClick={() => handleRemove(t)} className="text-[#a65d57] border border-[#a65d57] hover:bg-[#f8f0ef] px-2 py-1 text-[10px] font-bold transition-colors" title="삭제">
+                                        삭제
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 ))}
             </div>

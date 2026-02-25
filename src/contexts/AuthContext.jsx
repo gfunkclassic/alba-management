@@ -192,6 +192,23 @@ export function AuthProvider({ children }) {
         await updateDoc(doc(db, 'settings', 'teams'), { list: teams.filter(t => t !== teamName) });
     };
 
+    const updateTeamName = async (oldName, newName) => {
+        if (!newName || teams.includes(newName)) throw new Error('유효하지 않거나 이미 존재하는 팀명입니다.');
+
+        // 1. Update settings/teams list
+        const newList = teams.map(t => t === oldName ? newName : t);
+        await updateDoc(doc(db, 'settings', 'teams'), { list: newList });
+
+        // 2. Update existing users with this team_id
+        const q = query(collection(db, 'users'), where('team_id', '==', oldName));
+        const snap = await getDocs(q);
+        const batch = writeBatch(db);
+        snap.forEach(d => {
+            batch.update(d.ref, { team_id: newName, updated_at: new Date().toISOString() });
+        });
+        await batch.commit();
+    };
+
     // 계정 생성 (FINAL_APPROVER만 호출 가능 — secondary app 트릭으로 세션 유지)
     const createUser = async ({ name, email, role, team_id }) => {
         const adminUser = auth.currentUser;
@@ -725,7 +742,7 @@ export function AuthProvider({ children }) {
         // Phase 1 Enhanced: Self-Registration + Status Management
         selfRegister, getPendingUsers, approveUser, rejectUser, suspendUser,
         // Phase 1.5: Dynamic Teams + Quick Edit
-        teams, addTeam, removeTeam, updateUserRoleAndTeam,
+        teams, addTeam, removeTeam, updateTeamName, updateUserRoleAndTeam,
     };
 
     return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
