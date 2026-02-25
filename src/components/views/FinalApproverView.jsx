@@ -3,8 +3,6 @@ import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw,
 import { useAuth } from '../../contexts/AuthContext';
 import { ROLES, ROLE_LABELS } from '../../firebase';
 import LeaveBalanceManager from '../leave/LeaveBalanceManager';
-import FinalApprovalInbox from '../leave/FinalApprovalInbox';
-import NotificationBell from '../notifications/NotificationBell';
 
 
 function CreateUserPanel({ onCreated }) {
@@ -391,7 +389,6 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
     const TABS = [
         { key: 'ACCOUNTS', label: '계정 관리', icon: <Users size={15} /> },
         { key: 'TEAMS', label: '시스템 팀 관리', icon: <AlertCircle size={15} /> },
-        { key: 'FINAL', label: '최종 승인함', icon: <CheckCircle size={15} /> },
         { key: 'LEAVE', label: '연차 잔여 관리', icon: <Sun size={15} /> },
     ];
 
@@ -405,7 +402,6 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                     <span className="text-[10px] bg-[#a65d57] text-white font-bold px-2 py-0.5">최종 관리자</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <NotificationBell userId={userProfile?.uid} />
                     <span className="text-[#b8c4a0] text-xs">{userProfile?.name}</span>
                     <button onClick={logout} className="flex items-center gap-1 text-[#b8c4a0] hover:text-[#f5f3e8] text-xs"><LogOut size={14} /> 로그아웃</button>
                 </div>
@@ -529,9 +525,6 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
 
                 {/* ── 시스템 팀 관리 ───────────── */}
                 {activeTab === 'TEAMS' && <TeamsManagementPanel />}
-
-                {/* ── 최종 승인함 ─────────────── */}
-                {activeTab === 'FINAL' && <FinalApprovalInbox />}
 
                 {/* ── 연차 잔여 관리 ──────────── */}
                 {activeTab === 'LEAVE' && (

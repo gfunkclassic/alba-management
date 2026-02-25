@@ -19,7 +19,7 @@ service cloud.firestore {
 
     // ─── settings ──────────────────────────────────────────
     match /settings/{docId} {
-      allow read: if isAuthed();
+      allow read: if true;  // Allow unauthenticated read so login/register page can list teams
       allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
     }
 

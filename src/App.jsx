@@ -23,6 +23,8 @@ import { escapeCsvField, readFileData } from './utils/csvUtils';
 import HRView from './components/HRView';
 import PayrollView from './components/PayrollView';
 import LeaveView from './components/LeaveView';
+import FinalApprovalInbox from './components/leave/FinalApprovalInbox';
+import NotificationBell from './components/notifications/NotificationBell';
 
 // Components & Modals
 import CalculatorWidget from './components/CalculatorWidget';
@@ -34,6 +36,7 @@ import PayrollDetailModal from './components/modals/PayrollDetailModal';
 
 // ── 인사급여 시스템 (기존) ──────────────────────────────────
 function HRPayrollApp() {
+    const { userProfile } = useAuth();
     const [users, setUsers] = useState(() => {
         try {
             const saved = localStorage.getItem('alba_users');
@@ -1064,6 +1067,14 @@ function HRPayrollApp() {
                             <button onClick={() => setActiveTab('HR')} className={`px-4 py-2 text-xs font-bold transition ${activeTab === 'HR' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>HR관리</button>
                             <button onClick={() => setActiveTab('PAYROLL')} className={`px-4 py-2 text-xs font-bold border-x-2 border-[#2d3721] transition ${activeTab === 'PAYROLL' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>급여정산</button>
                             <button onClick={() => setActiveTab('LEAVE')} className={`px-4 py-2 text-xs font-bold transition ${activeTab === 'LEAVE' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>연차관리</button>
+                            {userProfile?.role === 'FINAL_APPROVER' && (
+                                <button onClick={() => setActiveTab('APPROVALS')} className={`px-4 py-2 text-xs font-bold border-l-2 border-[#2d3721] transition ${activeTab === 'APPROVALS' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>연차결재</button>
+                            )}
+                        </div>
+
+                        {/* 알림 벨 아이콘 */}
+                        <div className="mr-3 flex items-center justify-center">
+                            <NotificationBell userId={userProfile?.uid} />
                         </div>
 
                         {/* 역할 모드 선택기 */}
@@ -1144,6 +1155,12 @@ function HRPayrollApp() {
                         selectedUser={selectedUser} handleSelectUser={handleSelectUser} calculateLeave={calculateLeave}
                         openModal={openModal} setAdjustUser={setAdjustUser}
                     />
+                )}
+
+                {activeTab === 'APPROVALS' && userProfile?.role === 'FINAL_APPROVER' && (
+                    <div className="max-w-5xl mx-auto w-full pt-4">
+                        <FinalApprovalInbox />
+                    </div>
                 )}
             </div>
 
