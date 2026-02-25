@@ -26,18 +26,30 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
             await submitLeaveRequest({ date, type, reason });
             setResult({ success: true, message: `${date} ${LEAVE_TYPES.find(t => t.value === type)?.label} 신청이 완료되었습니다.` });
 
-            // 해당 팀 TEAM_APPROVER에게 알림 발송
+            // 팀 승인자 조회
             if (userProfile?.team_id) {
                 try {
                     const allUsers = await getAllUsers();
-                    const approvers = allUsers.filter(u => u.team_id === userProfile.team_id && u.role === 'TEAM_APPROVER');
-                    await Promise.all(approvers.map(ap =>
-                        sendNotification(ap.uid, 'LEAVE_SUBMITTED', {
-                            user_name: userProfile.name,
-                            date,
-                            type,
-                        })
-                    ));
+                    const teamApprovers = allUsers.filter(u => u.team_id === userProfile.team_id && u.role === 'TEAM_APPROVER');
+
+                    if (teamApprovers.length > 0) {
+                        // 해당 팀 TEAM_APPROVER에게 알림 발송
+                        await Promise.all(teamApprovers.map(ap =>
+                            sendNotification(ap.uid, 'LEAVE_SUBMITTED', {
+                                user_name: userProfile.name,
+                                date, type,
+                            })
+                        ));
+                    } else {
+                        // 관리자(FINAL_APPROVER)에게 대행 처리 요청 알림 발송
+                        const finalApprovers = allUsers.filter(u => u.role === 'FINAL_APPROVER');
+                        await Promise.all(finalApprovers.map(ap =>
+                            sendNotification(ap.uid, 'LEAVE_SUBMITTED', {
+                                user_name: userProfile.name,
+                                date, type,
+                            })
+                        ));
+                    }
                 } catch (ne) { console.warn('알림 발송 실패:', ne); }
             }
 
