@@ -8,10 +8,12 @@ import NotificationBell from '../notifications/NotificationBell';
 
 
 function CreateUserPanel({ onCreated }) {
-    const { createUser, teams } = useAuth();
+    const { createUser, teams, addTeam } = useAuth();
     const [form, setForm] = useState({ name: '', email: '', role: 'ALBA', team_id: '' });
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
+    const [isAddingNewTeam, setIsAddingNewTeam] = useState(false);
+    const [newTeamName, setNewTeamName] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -30,6 +32,19 @@ function CreateUserPanel({ onCreated }) {
             }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleAddNewTeam = async () => {
+        const t = newTeamName.trim();
+        if (!t || teams.includes(t)) { alert('유효하지 않거나 이미 존재하는 팀명입니다.'); return; }
+        try {
+            await addTeam(t);
+            setForm(f => ({ ...f, team_id: t }));
+            setIsAddingNewTeam(false);
+            setNewTeamName('');
+        } catch (e) {
+            alert('팀 추가 실패: ' + e.message);
         }
     };
 
@@ -58,11 +73,25 @@ function CreateUserPanel({ onCreated }) {
                     </select>
                 </div>
                 <div>
-                    <label className="text-[10px] font-bold text-[#7a7565] block mb-1">팀 *</label>
-                    <select value={form.team_id} onChange={e => setForm(f => ({ ...f, team_id: e.target.value }))} className={inputCls} required>
-                        <option value="" disabled>팀 선택</option>
-                        {teams.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                    <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-bold text-[#7a7565]">팀 *</label>
+                        {!isAddingNewTeam && (
+                            <button type="button" onClick={() => setIsAddingNewTeam(true)} className="text-[10px] text-[#5d6c4a] font-bold hover:underline">+ 새 팀 추가</button>
+                        )}
+                    </div>
+                    {isAddingNewTeam ? (
+                        <div className="flex gap-2">
+                            <input value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder="새 팀 이름"
+                                className="flex-1 min-w-0 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm p-1.5 outline-none focus:border-[#5d6c4a]" autoFocus />
+                            <button type="button" onClick={handleAddNewTeam} disabled={!newTeamName.trim()} className="bg-[#5d6c4a] shrink-0 text-[#f5f3e8] px-3 font-bold text-xs border-2 border-[#3d472f] hover:bg-[#4a5639] disabled:opacity-50">추가</button>
+                            <button type="button" onClick={() => { setIsAddingNewTeam(false); setNewTeamName(''); }} className="bg-[#e8e4d4] shrink-0 text-[#7a7565] px-3 font-bold text-xs border-2 border-[#c5c0b0] hover:bg-[#d5d0c0]">취소</button>
+                        </div>
+                    ) : (
+                        <select value={form.team_id} onChange={e => setForm(f => ({ ...f, team_id: e.target.value }))} className={inputCls} required>
+                            <option value="" disabled>팀 선택</option>
+                            {teams.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                    )}
                 </div>
                 <div className="md:col-span-2">
                     {result && (
@@ -213,10 +242,12 @@ function TeamsManagementPanel() {
 }
 
 function EditUserModal({ user, onClose, onSaved }) {
-    const { updateUserRoleAndTeam, teams } = useAuth();
+    const { updateUserRoleAndTeam, teams, addTeam } = useAuth();
     const [role, setRole] = useState(user?.role || 'ALBA');
     const [team, setTeam] = useState(user?.team_id || '');
     const [saving, setSaving] = useState(false);
+    const [isAddingNewTeam, setIsAddingNewTeam] = useState(false);
+    const [newTeamName, setNewTeamName] = useState('');
 
     if (!user) return null;
 
@@ -227,6 +258,19 @@ function EditUserModal({ user, onClose, onSaved }) {
             onSaved?.();
         } catch (e) { alert('수정 실패: ' + e.message); }
         finally { setSaving(false); }
+    };
+
+    const handleAddNewTeam = async () => {
+        const t = newTeamName.trim();
+        if (!t || teams.includes(t)) { alert('유효하지 않거나 이미 존재하는 팀명입니다.'); return; }
+        try {
+            await addTeam(t);
+            setTeam(t);
+            setIsAddingNewTeam(false);
+            setNewTeamName('');
+        } catch (e) {
+            alert('팀 추가 실패: ' + e.message);
+        }
     };
 
     return (
@@ -249,12 +293,26 @@ function EditUserModal({ user, onClose, onSaved }) {
                         </select>
                     </div>
                     <div>
-                        <label className="text-xs font-bold text-[#7a7565] block mb-1">팀 변경</label>
-                        <select value={team} onChange={e => setTeam(e.target.value)}
-                            className="w-full border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm p-2 outline-none focus:border-[#5d6c4a]">
-                            <option value="" disabled>팀 선택</option>
-                            {teams.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
+                        <div className="flex items-center justify-between mb-1">
+                            <label className="text-xs font-bold text-[#7a7565]">팀 변경</label>
+                            {!isAddingNewTeam && (
+                                <button type="button" onClick={() => setIsAddingNewTeam(true)} className="text-[10px] text-[#5d6c4a] font-bold hover:underline">+ 새 팀 추가</button>
+                            )}
+                        </div>
+                        {isAddingNewTeam ? (
+                            <div className="flex gap-2">
+                                <input value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder="새 팀 이름"
+                                    className="flex-1 min-w-0 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm p-1.5 outline-none focus:border-[#5d6c4a]" autoFocus />
+                                <button type="button" onClick={handleAddNewTeam} disabled={!newTeamName.trim()} className="bg-[#5d6c4a] shrink-0 text-[#f5f3e8] px-3 font-bold text-xs border-2 border-[#3d472f] hover:bg-[#4a5639] disabled:opacity-50">추가</button>
+                                <button type="button" onClick={() => { setIsAddingNewTeam(false); setNewTeamName(''); }} className="bg-[#e8e4d4] shrink-0 text-[#7a7565] px-3 font-bold text-xs border-2 border-[#c5c0b0] hover:bg-[#d5d0c0]">취소</button>
+                            </div>
+                        ) : (
+                            <select value={team} onChange={e => setTeam(e.target.value)}
+                                className="w-full border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm p-2 outline-none focus:border-[#5d6c4a]">
+                                <option value="" disabled>팀 선택</option>
+                                {teams.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        )}
                     </div>
                 </div>
                 <div className="p-4 border-t-2 border-[#c5c0b0] flex gap-2">
