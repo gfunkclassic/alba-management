@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Edit, UserPlus, X } from 'lucide-react';
 
-export default function UserFormModal({ user, onClose, onSave }) {
+export default function UserFormModal({ user, onClose, onSave, onDelete }) {
     const [formData, setFormData] = useState(user || {
         name: '', team: '', gender: '남', bank: '', account: '',
         startDate: new Date().toISOString().split('T')[0],
@@ -65,9 +65,16 @@ export default function UserFormModal({ user, onClose, onSave }) {
                             <div><label className="text-xs font-bold text-[#7a7565] block mb-1">퇴사 사유</label><input name="resignReason" value={formData.resignReason || ''} onChange={handleChange} placeholder="퇴사 사유" className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#a65d57] outline-none" /></div>
                         </>
                     )}
-                    <div className="col-span-2 pt-4 border-t-2 border-[#c5c0b0] flex justify-end gap-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 bg-[#f5f3e8] text-[#5a5545] font-bold text-sm hover:bg-[#e0ddd0] border-2 border-[#c5c0b0]">취소</button>
-                        <button type="submit" className="px-6 py-2 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border-2 border-[#3d472f]">저장</button>
+                    <div className="col-span-2 pt-4 border-t-2 border-[#c5c0b0] flex justify-between items-center">
+                        <div>
+                            {user && onDelete && (
+                                <button type="button" onClick={() => { if (window.confirm('정말로 이 직원을 삭제하시겠습니까? 관련된 기록이 삭제될 수 있습니다.')) onDelete(user.id); }} className="px-4 py-2 bg-[#a65d57] text-[#f5f3e8] font-bold text-sm hover:bg-[#8a4d47] border-2 border-[#7a4540]">삭제</button>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                            <button type="button" onClick={onClose} className="px-4 py-2 bg-[#f5f3e8] text-[#5a5545] font-bold text-sm hover:bg-[#e0ddd0] border-2 border-[#c5c0b0]">취소</button>
+                            <button type="submit" className="px-6 py-2 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border-2 border-[#3d472f]">저장</button>
+                        </div>
                     </div>
                 </form>
             </div>

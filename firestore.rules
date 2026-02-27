@@ -17,23 +17,16 @@ service cloud.firestore {
         get(ref).data.team_id == teamId;
     }
 
-    // ─── settings ──────────────────────────────────────────
+    // ─── settings ──────────────────────────────────────────────
     match /settings/{docId} {
-      allow read: if true;  // Allow unauthenticated read so login/register page can list teams
+      allow read: if true;  // 로그인/가입 페이지에서 팀 목록을 읽기 위해 비인증 허용
       allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
     }
 
-    // ─── users ─────────────────────────────────────────────
+    // ─── users ─────────────────────────────────────────────────
     match /users/{uid} {
-      allow get: if isAuthed() && (
-        request.auth.uid == uid ||
-        (myRole() == 'TEAM_APPROVER' && resource.data.team_id == myTeam()) ||
-        myRole() == 'FINAL_APPROVER'
-      );
-      allow list: if isAuthed() && (
-        myRole() == 'TEAM_APPROVER' || myRole() == 'FINAL_APPROVER'
-      );
-      // 자가등록: 본인 UID로 PENDING 상태 문서 생성
+      allow read: if isAuthed();
+      // 가입등록: 본인 UID로 PENDING 상태 문서 생성
       allow create: if isAuthed() && request.auth.uid == uid && (
         myRole() == 'FINAL_APPROVER' ||
         (request.resource.data.status == 'PENDING' &&
@@ -48,16 +41,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ─── leave_balance ──────────────────────────────────────
+    // ─── leave_balance ─────────────────────────────────────────
+    // 클라이언트는 읽기만 허용. 차감은 Cloud Functions에서만.
     match /leave_balance/{docId} {
       allow read: if isAuthed() && (
         resource.data.user_id == request.auth.uid ||
         myRole() == 'FINAL_APPROVER'
       );
+      // 잔여 조정(수동)은 FINAL_APPROVER만 허용 (관리자 수동 조정 기능 보존)
       allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
     }
 
-    // ─── leave_requests ─────────────────────────────────────
+    // ─── leave_requests ────────────────────────────────────────
     match /leave_requests/{reqId} {
       allow read: if isAuthed() && (
         resource.data.user_id == request.auth.uid ||
@@ -65,70 +60,55 @@ service cloud.firestore {
         isActiveDelegatee(resource.data.team_id) ||
         myRole() == 'FINAL_APPROVER'
       );
-      // 생성: 본인, SUBMITTED만
+      // 생성: 본인이 본인 이름으로 SUBMITTED 상태로만 생성
       allow create: if isAuthed() &&
         request.resource.data.user_id == request.auth.uid &&
         request.resource.data.status == 'SUBMITTED';
-      allow update: if isAuthed() && (
-        // ALBA 취소: SUBMITTED → CANCELLED
-        (resource.data.user_id == request.auth.uid &&
-         resource.data.status == 'SUBMITTED' &&
-         request.resource.data.status == 'CANCELLED' &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']))
-        ||
-        // TEAM_APPROVER: 본인 팀 SUBMITTED → TEAM_APPROVED/REJECTED
-        (myRole() == 'TEAM_APPROVER' &&
-         resource.data.team_id == myTeam() &&
-         resource.data.status == 'SUBMITTED' &&
-         (request.resource.data.status == 'TEAM_APPROVED' || request.resource.data.status == 'REJECTED') &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']))
-        ||
-        // 수임자: 활성 위임 + 같은 팀 SUBMITTED → TEAM_APPROVED/REJECTED
-        (isActiveDelegatee(resource.data.team_id) &&
-         resource.data.status == 'SUBMITTED' &&
-         (request.resource.data.status == 'TEAM_APPROVED' || request.resource.data.status == 'REJECTED') &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']))
-        ||
-        // FINAL_APPROVER 팀 대행: SUBMITTED → TEAM_APPROVED/REJECTED
-        (myRole() == 'FINAL_APPROVER' &&
-         resource.data.status == 'SUBMITTED' &&
-         (request.resource.data.status == 'TEAM_APPROVED' || request.resource.data.status == 'REJECTED') &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']))
-        ||
-        // FINAL_APPROVER 최종 승인: TEAM_APPROVED → FINAL_APPROVED/REJECTED
-        (myRole() == 'FINAL_APPROVER' &&
-         resource.data.status == 'TEAM_APPROVED' &&
-         (request.resource.data.status == 'FINAL_APPROVED' || request.resource.data.status == 'REJECTED') &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']))
-      );
+      // 업데이트: 본인의 SUBMITTED → CANCELLED 취소만 허용
+      // 나머지 모든 상태 변경(TEAM_APPROVED, FINAL_APPROVED, REJECTED)은 Functions 전용
+      allow update: if isAuthed() &&
+        resource.data.user_id == request.auth.uid &&
+        resource.data.status == 'SUBMITTED' &&
+        request.resource.data.status == 'CANCELLED' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']);
+      // team_id 동기화: FINAL_APPROVER만 (시스템 팀명 변경 시)
+      allow update: if isAuthed() && myRole() == 'FINAL_APPROVER' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['team_id', 'updated_at']);
       allow delete: if false;
     }
 
-    // ─── approvals 로그 ─────────────────────────────────────
+    // ─── approvals 로그 ────────────────────────────────────────
+    // 클라이언트에서 create 완전 차단. Cloud Functions에서만 생성.
     match /approvals/{docId} {
-      allow create: if isAuthed() && (
-        myRole() == 'TEAM_APPROVER' ||
-        myRole() == 'FINAL_APPROVER' ||
-        isActiveDelegatee(request.resource.data.team_id)
-      );
       allow read: if isAuthed() && (
         resource.data.actor_user_id == request.auth.uid ||
         myRole() == 'FINAL_APPROVER'
       );
-      allow update, delete: if false;
+      allow create, update, delete: if false;
     }
 
-    // ─── delegations ───────────────────────────────────────
+    // ─── delegations ───────────────────────────────────────────
+    // 클라이언트 write 허용 (위임은 Functions 불필요 — 보안 위험 낮음)
     match /delegations/{toUserId} {
-      // 위임 생성/수정: TEAM_APPROVER가 본인을 from_user_id로 하는 위임만
+      // 위임 생성: TEAM_APPROVER가 본인 팀에만, 허용 필드 제한
       allow create: if isAuthed() &&
         myRole() == 'TEAM_APPROVER' &&
         request.resource.data.from_user_id == request.auth.uid &&
-        request.resource.data.team_id == myTeam();
-      allow update: if isAuthed() &&
-        myRole() == 'TEAM_APPROVER' &&
-        resource.data.from_user_id == request.auth.uid;
-      // 본인(위임자/수임자) 또는 FINAL_APPROVER
+        request.resource.data.team_id == myTeam() &&
+        request.resource.data.keys().hasOnly([
+          'from_user_id', 'to_user_id', 'team_id',
+          'is_active', 'start_date', 'end_date',
+          'created_at', 'updated_at'
+        ]);
+      // 업데이트: 위임자 본인이 활성/기간 필드만 수정 가능
+      allow update: if isAuthed() && (
+        (myRole() == 'TEAM_APPROVER' &&
+         resource.data.from_user_id == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_active', 'start_date', 'end_date', 'updated_at'])) ||
+        // FINAL_APPROVER 시스템 팀명 변경에 따른 연동 업데이트
+        (myRole() == 'FINAL_APPROVER' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['team_id', 'updated_at']))
+      );
       allow read: if isAuthed() && (
         resource.data.from_user_id == request.auth.uid ||
         resource.data.to_user_id == request.auth.uid ||
@@ -137,14 +117,15 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ─── notifications ──────────────────────────────────────
+    // ─── notifications ─────────────────────────────────────────
+    // create/delete 클라이언트 차단. Cloud Functions에서만 생성.
+    // 읽음 처리(is_read 업데이트)만 클라이언트 허용.
     match /notifications/{docId} {
-      allow create: if isAuthed();
       allow read: if isAuthed() && resource.data.to_user_id == request.auth.uid;
       allow update: if isAuthed() &&
         resource.data.to_user_id == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
-      allow delete: if false;
+      allow create, delete: if false;
     }
   }
 }

@@ -3,6 +3,8 @@ import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw,
 import { useAuth } from '../../contexts/AuthContext';
 import { ROLES, ROLE_LABELS } from '../../firebase';
 import LeaveBalanceManager from '../leave/LeaveBalanceManager';
+import { ConfirmModal, AlertModal } from '../modals/DialogModals';
+import NotificationBell from '../notifications/NotificationBell';
 
 
 function CreateUserPanel({ onCreated }) {
@@ -188,7 +190,7 @@ function PendingUsersPanel({ onApproved }) {
     );
 }
 
-function TeamsManagementPanel() {
+function TeamsManagementPanel({ onTeamUpdated }) {
     const { teams, addTeam, removeTeam, updateTeamName } = useAuth();
     const [newTeam, setNewTeam] = useState('');
     const [adding, setAdding] = useState(false);
@@ -196,34 +198,71 @@ function TeamsManagementPanel() {
     const [editName, setEditName] = useState('');
     const [saving, setSaving] = useState(false);
 
+    // Modal States
+    const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, team: null });
+    const [confirmRename, setConfirmRename] = useState({ isOpen: false, oldName: null, newName: null });
+    const [alertConfig, setAlertConfig] = useState({ isOpen: false, title: '', message: '', isSuccess: false });
+
+    const showAlert = (title, message, isSuccess = false) => {
+        setAlertConfig({ isOpen: true, title, message, isSuccess });
+    };
+
     const handleAdd = async (e) => {
         e.preventDefault();
         const t = newTeam.trim();
-        if (!t || teams.includes(t)) { alert('유효하지 않거나 이미 존재하는 팀명입니다.'); return; }
+        if (!t || teams.includes(t)) { showAlert('오류', '유효하지 않거나 이미 존재하는 팀명입니다.'); return; }
         setAdding(true);
-        try { await addTeam(t); setNewTeam(''); }
-        catch (err) { alert('팀 추가 실패: ' + err.message); }
+        try {
+            await addTeam(t);
+            setNewTeam('');
+            if (onTeamUpdated) onTeamUpdated();
+        }
+        catch (err) { showAlert('오류', '팀 추가 실패: ' + err.message); }
         finally { setAdding(false); }
     };
 
-    const handleRemove = async (t) => {
-        if (!window.confirm(`'${t}' 팀을 삭제하시겠습니까? (기존 계정들의 소속 정보는 유지되지만 선택 옵션에서는 사라집니다)`)) return;
-        try { await removeTeam(t); } catch (err) { alert('팀 삭제 실패: ' + err.message); }
+    const requestRemove = (t) => {
+        setConfirmDelete({ isOpen: true, team: t });
     };
 
-    const handleRenameTeam = async (e, oldName) => {
+    const executeRemove = async () => {
+        const t = confirmDelete.team;
+        if (!t) return;
+        try {
+            await removeTeam(t);
+            if (onTeamUpdated) onTeamUpdated();
+            showAlert('완료', '팀이 성공적으로 삭제되었습니다.', true);
+        } catch (err) {
+            console.error('팀 삭제 에러:', err);
+            showAlert('삭제 실패', err.message);
+        }
+    };
+
+    const requestRename = (e, oldName) => {
         e.preventDefault();
         const t = editName.trim();
         if (t === oldName) { setEditingTeam(null); return; }
-        if (!t || teams.includes(t)) { alert('유효하지 않거나 이미 존재하는 팀명입니다.'); return; }
-        if (!window.confirm(`정말 '${oldName}'을(를) '${t}'(으)로 변경하시겠습니까?\n이 팀에 소속된 모든 유저의 정보도 함께 업데이트됩니다.`)) return;
+        if (!t || teams.includes(t)) { showAlert('오류', '유효하지 않거나 이미 존재하는 팀명입니다.'); return; }
+
+        setConfirmRename({ isOpen: true, oldName, newName: t });
+    };
+
+    const executeRename = async () => {
+        const { oldName, newName } = confirmRename;
+        if (!oldName || !newName) return;
 
         setSaving(true);
         try {
-            await updateTeamName(oldName, t);
+            await updateTeamName(oldName, newName);
             setEditingTeam(null);
-        } catch (err) { alert('팀 이름 변경 실패: ' + err.message); }
-        finally { setSaving(false); }
+            if (onTeamUpdated) onTeamUpdated();
+            showAlert('완료', '성공적으로 팀 이름이 변경되었습니다.', true);
+        } catch (err) {
+            console.error('팀 이름 변경 에러:', err);
+            showAlert('변경 실패', `메시지: ${err.message}\n코드: ${err.code || '없음'}`);
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -245,29 +284,62 @@ function TeamsManagementPanel() {
                 <p className="text-xs font-bold text-[#7a7565] mb-2 uppercase tracking-wide">현재 등록된 팀 ({teams.length}개)</p>
                 {teams.length === 0 && <p className="text-sm text-[#9a9585]">등록된 팀이 없습니다.</p>}
                 {teams.map(t => (
-                    <div key={t} className="flex items-center justify-between p-3 bg-white border border-[#e8e4d4] hover:border-[#c5c0b0] transition-colors">
+                    <div className="flex justify-between items-center py-3 border-b border-[#e8d5b5] bg-white px-4">
                         {editingTeam === t ? (
-                            <form onSubmit={(e) => handleRenameTeam(e, t)} className="flex-1 flex gap-2 mr-2">
-                                <input value={editName} onChange={e => setEditName(e.target.value)} className="flex-1 min-w-0 border-2 border-[#5d6c4a] bg-[#faf8f0] px-2 py-1 text-sm outline-none" autoFocus />
-                                <button type="submit" disabled={saving || !editName.trim()} className="text-[10px] font-bold px-3 py-1 bg-[#5d6c4a] text-[#f5f3e8] border-2 border-[#3d472f] hover:bg-[#4a5639] disabled:opacity-50">저장</button>
-                                <button type="button" onClick={() => setEditingTeam(null)} className="text-[10px] font-bold px-3 py-1 bg-[#e8e4d4] text-[#7a7565] border-2 border-[#c5c0b0] hover:bg-[#d5d0c0]">취소</button>
+                            <form onSubmit={(e) => requestRename(e, t)} className="flex-1 flex gap-2">
+                                <input value={editName} onChange={e => setEditName(e.target.value)}
+                                    className="flex-1 border-2 border-[#5d6c4a] px-2 py-1 outline-none text-sm text-[#5a5545]"
+                                    autoFocus disabled={saving} />
+                                <button type="submit" disabled={saving}
+                                    className="px-3 bg-[#5d6c4a] text-white text-xs font-bold hover:bg-[#4a5839] disabled:opacity-50">
+                                    {saving ? '저장...' : '저장'}
+                                </button>
+                                <button type="button" onClick={() => setEditingTeam(null)} disabled={saving}
+                                    className="px-3 bg-[#e8e4d4] text-[#7a7565] text-xs font-bold hover:bg-[#d5d0bc]">
+                                    취소
+                                </button>
                             </form>
                         ) : (
                             <>
-                                <span className="font-bold text-[#3d472f] text-sm">{t}</span>
-                                <div className="flex items-center gap-1.5">
-                                    <button onClick={() => { setEditingTeam(t); setEditName(t); }} className="text-[#5d6c4a] border border-[#5d6c4a] hover:bg-[#e8ebd8] px-2 py-1 text-[10px] font-bold transition-colors">
-                                        수정
-                                    </button>
-                                    <button onClick={() => handleRemove(t)} className="text-[#a65d57] border border-[#a65d57] hover:bg-[#f8f0ef] px-2 py-1 text-[10px] font-bold transition-colors" title="삭제">
-                                        삭제
-                                    </button>
+                                <span className="font-bold text-[#3d472f]">{t}</span>
+                                <div className="flex gap-2">
+                                    <button onClick={() => { setEditingTeam(t); setEditName(t); }} className="text-xs px-2 py-1 border border-[#c5c0b0] text-[#7a7565] hover:bg-[#f5f3e8]">수정</button>
+                                    <button onClick={() => requestRemove(t)} className="text-xs px-2 py-1 border border-[#a65d57] text-[#a65d57] hover:bg-[#f8f0ef]">삭제</button>
                                 </div>
                             </>
                         )}
                     </div>
                 ))}
             </div>
+
+            <ConfirmModal
+                isOpen={confirmDelete.isOpen}
+                onClose={() => setConfirmDelete({ isOpen: false, team: null })}
+                onConfirm={executeRemove}
+                title="팀 삭제"
+                message={`'${confirmDelete.team}' 팀을 삭제하시겠습니까?\n\n기존 계정들의 소속 정보는 유지되지만,\n새로운 계정을 만들거나 부서를 지정할 때 목록에서 사라집니다.`}
+                confirmText="삭제하기"
+                cancelText="취소"
+                isDanger={true}
+            />
+
+            <ConfirmModal
+                isOpen={confirmRename.isOpen}
+                onClose={() => setConfirmRename({ isOpen: false, oldName: null, newName: null })}
+                onConfirm={executeRename}
+                title="팀 이름 변경"
+                message={`정말 '${confirmRename.oldName}'을(를) '${confirmRename.newName}'(으)로 변경하시겠습니까?\n\n이 팀에 소속된 모든 유저의 정보, 연차 내역, 그리고 위임 내역이 함께 안전하게 업데이트됩니다.`}
+                confirmText="변경하기"
+                cancelText="취소"
+            />
+
+            <AlertModal
+                isOpen={alertConfig.isOpen}
+                onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                isSuccess={alertConfig.isSuccess}
+            />
         </div>
     );
 }
@@ -362,8 +434,14 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
     const [search, setSearch] = useState('');
     const [filterTeam, setFilterTeam] = useState('전체');
     const [filterRole, setFilterRole] = useState('전체');
-    const [activeTab, setActiveTab] = useState('ACCOUNTS');
+    const [activeTab, setActiveTab] = useState(() => {
+        return localStorage.getItem('final_approver_active_tab') || 'ACCOUNTS';
+    });
     const [editingUser, setEditingUser] = useState(null);
+
+    useEffect(() => {
+        localStorage.setItem('final_approver_active_tab', activeTab);
+    }, [activeTab]);
 
     const loadUsers = async () => {
         setLoading(true);
@@ -401,8 +479,14 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                     <span className="text-[#f5f3e8] font-bold text-sm">아르바이트 관리</span>
                     <span className="text-[10px] bg-[#a65d57] text-white font-bold px-2 py-0.5">최종 관리자</span>
                 </div>
-                <div className="flex items-center gap-3">
-                    <span className="text-[#b8c4a0] text-xs">{userProfile?.name}</span>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <span className="text-[#b8c4a0] text-xs font-bold mr-1">{userProfile?.name}님</span>
+                        <div className="pt-1.5">
+                            <NotificationBell userId={userProfile?.uid} />
+                        </div>
+                    </div>
+                    <div className="w-px h-4 bg-[#5d6c4a]"></div>
                     <button onClick={logout} className="flex items-center gap-1 text-[#b8c4a0] hover:text-[#f5f3e8] text-xs"><LogOut size={14} /> 로그아웃</button>
                 </div>
             </header>
@@ -523,9 +607,10 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                     </div>
                 </>)}
 
-                {/* ── 시스템 팀 관리 ───────────── */}
-                {activeTab === 'TEAMS' && <TeamsManagementPanel />}
-
+                {/* 시스템 팀/부서 관리 탭 */}
+                {activeTab === 'TEAMS' && (
+                    <TeamsManagementPanel onTeamUpdated={loadUsers} />
+                )}
                 {/* ── 연차 잔여 관리 ──────────── */}
                 {activeTab === 'LEAVE' && (
                     <LeaveBalanceManager users={users.filter(u => u.role === 'ALBA')} />

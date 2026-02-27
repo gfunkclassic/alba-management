@@ -108,7 +108,13 @@ function HRPayrollApp() {
         };
     }, [users, attendance, leaveRecords, adjustments, carryovers, payrollStatus]);
 
-    const [activeTab, setActiveTab] = useState('HR');
+    const [activeTab, setActiveTab] = useState(() => {
+        return localStorage.getItem('app_active_tab') || 'HR';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('app_active_tab', activeTab);
+    }, [activeTab]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTeam, setFilterTeam] = useState('전체');
     const [filterStatus, setFilterStatus] = useState('ALL');
@@ -554,11 +560,18 @@ function HRPayrollApp() {
             setSelectedUser(prev => prev?.id === user.id ? user : prev);
             showNotificationMsg('정보가 수정되었습니다.');
         } else {
-            setUsers(prev => ({ ...user, id: Math.max(...prev.map(u => u.id), 0) + 1 }));
+            setUsers(prev => [...prev, { ...user, id: Math.max(...prev.map(u => u.id), 0) + 1 }]);
             showNotificationMsg('신규 인원이 등록되었습니다.');
         }
         closeModal('userForm');
     }, [formUser, closeModal, showNotificationMsg]);
+
+    const handleUserDelete = useCallback((userId) => {
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        if (selectedUser?.id === userId) setSelectedUser(null);
+        showNotificationMsg('직원이 삭제되었습니다.');
+        closeModal('userForm');
+    }, [selectedUser, showNotificationMsg, closeModal]);
 
     const saveAttendance = useCallback((userId, date, record) => {
         setAttendance(prev => ({ ...prev, [userId]: { ...(prev[userId] || {}), [date]: record } }));
@@ -1132,7 +1145,7 @@ function HRPayrollApp() {
                         filterStatus={filterStatus} setFilterStatus={setFilterStatus} filteredData={filteredData}
                         selectedUser={selectedUser} handleSelectUser={handleSelectUser} calculateMonthlyWage={calculateMonthlyWage}
                         payrollMonth={payrollMonth} openModal={openModal} openUserForm={openUserForm} openResignModal={openResignModal}
-                        maskPII={maskPII} roleMode={roleMode}
+                        maskPII={maskPII} roleMode={roleMode} onDeleteUser={handleUserDelete}
                     />
                 )}
 
@@ -1202,7 +1215,7 @@ function HRPayrollApp() {
                 </div>
             )}
 
-            {showUserForm && <UserFormModal user={formUser} onClose={() => closeModal('userForm')} onSave={handleUserSave} />}
+            {showUserForm && <UserFormModal user={formUser} onClose={() => closeModal('userForm')} onSave={handleUserSave} onDelete={handleUserDelete} />}
             {showCalendar && selectedUser && <CalendarModal user={selectedUser} attendance={attendance[selectedUser.id] || {}} onSave={(date, form) => saveAttendance(selectedUser.id, date, form)} calculateWage={calculateDailyWage} onFileUpload={handleAttendanceUpload} onClose={() => closeModal('calendar')} isLocked={payrollStatus[payrollMonth] === 'CONFIRMED'} />}
             {showLeaveCalendar && selectedUser && <LeaveCalendarModal users={filteredData} leaveRecords={leaveRecords} onAddLeave={handleAddLeave} onDeleteLeave={handleDeleteLeave} onClose={() => closeModal('leaveCalendar')} />}
             {showAdjustModal && adjustUser && <AdjustLeaveModal user={adjustUser} onClose={() => { closeModal('adjust'); setAdjustUser(null); }} onSave={handleSaveAdjustment} currentAdjustment={adjustments[adjustUser.id] || 0} />}
@@ -1215,7 +1228,13 @@ function HRPayrollApp() {
 // ── 최상위 앱 — Auth 라우팅 ───────────────────────────────
 export default function App() {
     const { currentUser, userProfile, loading, logout } = useAuth();
-    const [showHRSystem, setShowHRSystem] = React.useState(false);
+    const [showHRSystem, setShowHRSystem] = React.useState(() => {
+        return localStorage.getItem('app_show_hr_system') === 'true';
+    });
+
+    React.useEffect(() => {
+        localStorage.setItem('app_show_hr_system', showHRSystem);
+    }, [showHRSystem]);
 
     const [showRegister, setShowRegister] = React.useState(false);
 

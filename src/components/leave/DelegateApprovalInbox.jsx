@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, Loader, RefreshCw, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { ConfirmModal } from '../modals/DialogModals';
+import LeaveDetailModal from '../modals/LeaveDetailModal';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]', HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]' };
@@ -33,6 +35,8 @@ export default function DelegateApprovalInbox({ delegation }) {
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(null);
     const [rejectTarget, setRejectTarget] = useState(null);
+    const [confirmApproveTarget, setConfirmApproveTarget] = useState(null);
+    const [detailTarget, setDetailTarget] = useState(null);
     const [errors, setErrors] = useState({});
 
     const load = useCallback(async () => {
@@ -47,8 +51,13 @@ export default function DelegateApprovalInbox({ delegation }) {
 
     useEffect(() => { load(); }, [load]);
 
-    const handleApprove = async (req) => {
-        if (!window.confirm(`${req._userName}님의 ${req.date} 신청을 위임 승인하시겠습니까?`)) return;
+    const handleApprove = (req) => setConfirmApproveTarget(req);
+
+    const executeApprove = async () => {
+        const req = confirmApproveTarget;
+        setConfirmApproveTarget(null);
+        if (!req) return;
+
         setProcessing(req.id);
         try {
             await proxyTeamApprove(req.id, req.user_id, req.date, req.type, delegation.from_user_id, false);
@@ -72,6 +81,21 @@ export default function DelegateApprovalInbox({ delegation }) {
     return (
         <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">
             {rejectTarget && <RejectModal onConfirm={confirmReject} onCancel={() => setRejectTarget(null)} />}
+            <LeaveDetailModal isOpen={!!detailTarget} onClose={() => setDetailTarget(null)} request={detailTarget} />
+
+            <ConfirmModal
+                isOpen={!!confirmApproveTarget}
+                onClose={() => setConfirmApproveTarget(null)}
+                onConfirm={executeApprove}
+                title="위임 승인"
+                message={
+                    confirmApproveTarget
+                        ? `${confirmApproveTarget._userName}님의 ${confirmApproveTarget.date} 신청을 위임 승인하시겠습니까?`
+                        : ''
+                }
+                confirmText="승인하기"
+                cancelText="취소"
+            />
             <div className="p-4 border-b-2 border-[#c5c0b0] flex items-center justify-between">
                 <div>
                     <div className="flex items-center gap-2">
@@ -102,16 +126,16 @@ export default function DelegateApprovalInbox({ delegation }) {
                             <React.Fragment key={req.id}>
                                 <tr className="hover:bg-[#f4f5eb]">
                                     <td className="p-3 pl-4">
-                                        <div className="flex items-center gap-2">
+                                        <button onClick={() => setDetailTarget(req)} className="flex items-center gap-2 hover:bg-[#e8e4d4] p-1 rounded transition-colors group">
                                             <div className="w-6 h-6 bg-[#5d6c4a] text-[#f5f3e8] text-[10px] font-bold flex items-center justify-center shrink-0">{req._userName?.[0] || '?'}</div>
-                                            <span className="font-bold text-[#3d472f] text-xs">{req._userName}</span>
-                                        </div>
+                                            <span className="font-bold text-[#3d472f] text-xs group-hover:underline">{req._userName}</span>
+                                        </button>
                                     </td>
                                     <td className="p-3 text-center font-mono text-xs font-bold text-[#3d472f]">{req.date}</td>
                                     <td className="p-3 text-center">
                                         <span className={`text-[10px] font-bold px-2 py-0.5 ${TYPE_COLOR[req.type]}`}>{TYPE_LABEL[req.type]}</span>
                                     </td>
-                                    <td className="p-3 text-xs text-[#7a7565] max-w-[100px] truncate">{req.reason || '-'}</td>
+                                    <td className="p-3 text-xs text-[#7a7565] whitespace-pre-wrap word-break">{req.reason || '-'}</td>
                                     <td className="p-3 text-center">
                                         <div className="flex gap-1 justify-center">
                                             <button onClick={() => handleApprove(req)} disabled={!!processing}

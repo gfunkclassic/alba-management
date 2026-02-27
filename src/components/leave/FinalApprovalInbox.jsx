@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, Loader, RefreshCw, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { ConfirmModal } from '../modals/DialogModals';
+import AdminApprovalHistory from './AdminApprovalHistory';
+import LeaveDetailModal from '../modals/LeaveDetailModal';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]', HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]' };
@@ -37,6 +40,8 @@ export default function FinalApprovalInbox() {
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(null);
     const [rejectTarget, setRejectTarget] = useState(null);
+    const [confirmApproveTarget, setConfirmApproveTarget] = useState(null);
+    const [detailTarget, setDetailTarget] = useState(null);
     const [errors, setErrors] = useState({});
 
     const load = useCallback(async () => {
@@ -53,12 +58,14 @@ export default function FinalApprovalInbox() {
 
     useEffect(() => { load(); }, [load]);
 
-    const handleApprove = async (req) => {
+    const handleApprove = (req) => setConfirmApproveTarget(req);
+
+    const executeApprove = async () => {
+        const req = confirmApproveTarget;
+        setConfirmApproveTarget(null);
+        if (!req) return;
+
         const isFinal = mode === 'FINAL';
-        const confirmMsg = isFinal
-            ? `${req._userName}님의 ${req.date} 신청을 최종 승인하시겠습니까?\n잔여 연차 ${DEDUCTION[req.type]}일이 차감됩니다.`
-            : `${req._userName}님의 ${req.date} 신청을 팀 승인 대행 처리하시겠습니까?`;
-        if (!window.confirm(confirmMsg)) return;
         setProcessing(req.id);
         setErrors(e => ({ ...e, [req.id]: null }));
         try {
@@ -101,6 +108,23 @@ export default function FinalApprovalInbox() {
                     onCancel={() => setRejectTarget(null)}
                 />
             )}
+            <LeaveDetailModal isOpen={!!detailTarget} onClose={() => setDetailTarget(null)} request={detailTarget} />
+
+            <ConfirmModal
+                isOpen={!!confirmApproveTarget}
+                onClose={() => setConfirmApproveTarget(null)}
+                onConfirm={executeApprove}
+                title={isFinalMode ? '최종 승인' : '팀 대행 승인'}
+                message={
+                    confirmApproveTarget
+                        ? (isFinalMode
+                            ? `${confirmApproveTarget._userName}님의 ${confirmApproveTarget.date} 신청을 최종 승인하시겠습니까?\\n잔여 연차 ${DEDUCTION[confirmApproveTarget.type]}일이 차감됩니다.`
+                            : `${confirmApproveTarget._userName}님의 ${confirmApproveTarget.date} 신청을 팀 승인 대행 처리하시겠습니까?`)
+                        : ''
+                }
+                confirmText="승인하기"
+                cancelText="취소"
+            />
 
             {/* 헤더 + 모드 토글 */}
             <div className="p-4 border-b-2 border-[#c5c0b0] flex flex-wrap items-center justify-between gap-3">
@@ -166,12 +190,12 @@ export default function FinalApprovalInbox() {
                             <React.Fragment key={req.id}>
                                 <tr className="hover:bg-[#f4f5eb]">
                                     <td className="p-3 pl-4">
-                                        <div className="flex items-center gap-2">
+                                        <button onClick={() => setDetailTarget(req)} className="flex items-center gap-2 hover:bg-[#e8e4d4] p-1 rounded transition-colors group">
                                             <div className="w-6 h-6 bg-[#5d6c4a] text-[#f5f3e8] text-[10px] font-bold flex items-center justify-center shrink-0">
                                                 {req._userName?.[0] || '?'}
                                             </div>
-                                            <span className="font-bold text-[#3d472f] text-xs">{req._userName}</span>
-                                        </div>
+                                            <span className="font-bold text-[#3d472f] text-xs group-hover:underline">{req._userName}</span>
+                                        </button>
                                     </td>
                                     <td className="p-3 text-center">
                                         <span className={`text-[10px] font-bold px-2 py-0.5 text-white ${TEAM_COLOR[req.team_id] || 'bg-[#7a7565]'}`}>{req.team_id}</span>
@@ -182,18 +206,12 @@ export default function FinalApprovalInbox() {
                                             {TYPE_LABEL[req.type]}{isFinalMode ? ` (${DEDUCTION[req.type]}일)` : ''}
                                         </span>
                                     </td>
-                                    <td className="p-3 text-xs text-[#7a7565] max-w-[100px] truncate">{req.reason || '-'}</td>
+                                    <td className="p-3 text-xs text-[#7a7565] whitespace-pre-wrap word-break">{req.reason || '-'}</td>
                                     <td className="p-3 text-center text-xs text-[#9a9585]">{req.created_at?.slice(0, 10)}</td>
                                     <td className="p-3 text-center">
-                                        <div className="flex gap-1 justify-center">
-                                            <button onClick={() => handleApprove(req)} disabled={!!processing}
-                                                className="flex items-center gap-1 px-2 py-1 bg-[#5d6c4a] border border-[#3d472f] text-[#f5f3e8] text-[10px] font-bold hover:bg-[#4a5639] disabled:opacity-50">
-                                                {processing === req.id ? <Loader size={10} className="animate-spin" /> : <CheckCircle size={12} />} {approveLabel}
-                                            </button>
-                                            <button onClick={() => handleReject(req)} disabled={!!processing}
-                                                className="flex items-center gap-1 px-2 py-1 bg-[#a65d57] border border-[#7a3f3a] text-white text-[10px] font-bold hover:bg-[#7a3f3a] disabled:opacity-50">
-                                                <XCircle size={12} /> 반려
-                                            </button>
+                                        <div className="flex justify-center gap-1">
+                                            <button onClick={() => setConfirmApproveTarget(req)} className="flex items-center gap-1 bg-[#5d6c4a] text-white px-2 py-1 text-xs hover:bg-[#4a5639] transition-colors"><CheckCircle size={12} /> {approveLabel}</button>
+                                            <button onClick={() => setRejectTarget(req)} className="flex items-center gap-1 bg-[#a65d57] text-white px-2 py-1 text-xs hover:bg-[#8b4d47] transition-colors"><XCircle size={12} /> 반려</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -212,6 +230,9 @@ export default function FinalApprovalInbox() {
                     </tbody>
                 </table>
             </div>
+
+            {/* 결재 기록 내역 */}
+            <AdminApprovalHistory />
         </div>
     );
 }

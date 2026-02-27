@@ -13,6 +13,20 @@
                     "order": "DESCENDING"
                 }
             ]
+        },
+        {
+            "collectionGroup": "approvals",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "leave_request_id",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "acted_at",
+                    "order": "DESCENDING"
+                }
+            ]
         }
     ],
     "fieldOverrides": []

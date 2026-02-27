@@ -20,38 +20,39 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!date) { setResult({ success: false, message: '날짜를 선택해주세요.' }); return; }
+        if (!reason.trim()) { setResult({ success: false, message: '사유를 입력해주세요.' }); return; }
         setResult(null);
         setLoading(true);
         try {
             await submitLeaveRequest({ date, type, reason });
             setResult({ success: true, message: `${date} ${LEAVE_TYPES.find(t => t.value === type)?.label} 신청이 완료되었습니다.` });
 
-            // 팀 승인자 조회
-            if (userProfile?.team_id) {
-                try {
-                    const allUsers = await getAllUsers();
-                    const teamApprovers = allUsers.filter(u => u.team_id === userProfile.team_id && u.role === 'TEAM_APPROVER');
+            // 알림 발송: 팀 승인자 및 최종 관리자 모두에게 발송
+            try {
+                const allUsers = await getAllUsers();
+                const notifyPromises = [];
 
-                    if (teamApprovers.length > 0) {
-                        // 해당 팀 TEAM_APPROVER에게 알림 발송
-                        await Promise.all(teamApprovers.map(ap =>
-                            sendNotification(ap.uid, 'LEAVE_SUBMITTED', {
-                                user_name: userProfile.name,
-                                date, type,
-                            })
-                        ));
-                    } else {
-                        // 관리자(FINAL_APPROVER)에게 대행 처리 요청 알림 발송
-                        const finalApprovers = allUsers.filter(u => u.role === 'FINAL_APPROVER');
-                        await Promise.all(finalApprovers.map(ap =>
-                            sendNotification(ap.uid, 'LEAVE_SUBMITTED', {
-                                user_name: userProfile.name,
-                                date, type,
-                            })
-                        ));
-                    }
-                } catch (ne) { console.warn('알림 발송 실패:', ne); }
-            }
+                if (userProfile?.team_id) {
+                    const teamApprovers = allUsers.filter(u => u.team_id === userProfile.team_id && u.role === 'TEAM_APPROVER');
+                    teamApprovers.forEach(ap => {
+                        notifyPromises.push(sendNotification(ap.uid, 'LEAVE_SUBMITTED', {
+                            user_name: userProfile.name,
+                            date, type,
+                        }));
+                    });
+                }
+
+                // 관리자(FINAL_APPROVER)에게도 항상 알림 발송하여 전체 현황을 파악할 수 있도록 함
+                const finalApprovers = allUsers.filter(u => u.role === 'FINAL_APPROVER');
+                finalApprovers.forEach(ap => {
+                    notifyPromises.push(sendNotification(ap.uid, 'LEAVE_SUBMITTED', {
+                        user_name: userProfile.name,
+                        date, type,
+                    }));
+                });
+
+                await Promise.all(notifyPromises);
+            } catch (ne) { console.warn('알림 발송 실패:', ne); }
 
             setDate('');
             setReason('');
@@ -108,13 +109,14 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
 
                 {/* 사유 */}
                 <div>
-                    <label className="text-[10px] font-bold text-[#7a7565] block mb-1">사유 (선택)</label>
+                    <label className="text-[10px] font-bold text-[#7a7565] block mb-1">사유 *</label>
                     <input
                         type="text"
                         value={reason}
                         onChange={e => setReason(e.target.value)}
-                        placeholder="사유를 입력하세요"
+                        placeholder="사유를 입력해주세요 (필수)"
                         className={inputCls}
+                        required
                     />
                 </div>
 

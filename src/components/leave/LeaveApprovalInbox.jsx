@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, Clock, Loader, RefreshCw, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import AdminApprovalHistory from './AdminApprovalHistory';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]', HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]' };
@@ -168,6 +169,9 @@ export default function LeaveApprovalInbox() {
                     총 {filtered.length}건
                 </div>
             )}
+
+            {/* 결재 기록 내역 */}
+            <AdminApprovalHistory />
         </div>
     );
 }

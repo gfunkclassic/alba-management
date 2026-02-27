@@ -28,6 +28,7 @@ function timeAgo(isoStr) {
 export default function NotificationBell({ userId }) {
     const [notifications, setNotifications] = useState([]);
     const [open, setOpen] = useState(false);
+    const [selectedNotif, setSelectedNotif] = useState(null);
     const ref = useRef(null);
 
     useEffect(() => {
@@ -101,20 +102,94 @@ export default function NotificationBell({ userId }) {
                         ) : recent.map(n => (
                             <div
                                 key={n.id}
-                                onClick={() => !n.is_read && markRead(n.id)}
+                                onClick={() => {
+                                    if (!n.is_read) markRead(n.id);
+                                    setSelectedNotif(n);
+                                    setOpen(false);
+                                }}
                                 className={`flex items-start gap-3 px-4 py-3 border-l-4 cursor-pointer transition-colors ${TYPE_COLOR[n.type] || 'border-l-[#c5c0b0]'} ${n.is_read ? 'opacity-50' : 'hover:bg-[#f4f5eb]'}`}
                             >
                                 <div className="flex-1 min-w-0">
                                     <p className="text-xs font-bold text-[#3d472f]">{TYPE_LABEL[n.type] || n.type}</p>
                                     <p className="text-[10px] text-[#7a7565] mt-0.5 truncate">
-                                        {n.payload?.user_name && `${n.payload.user_name} · `}
-                                        {n.payload?.date} {n.payload?.type === 'FULL' ? '연차' : n.payload?.type === 'HALF_AM' ? '오전반차' : n.payload?.type === 'HALF_PM' ? '오후반차' : ''}
+                                        {n.data?.user_name ? `${n.data.user_name} · ` : ''}
+                                        {n.data?.date ? `${n.data.date} ` : ''}
+                                        {n.data?.type === 'FULL' ? '연차' : n.data?.type === 'HALF_AM' ? '오전반차' : n.data?.type === 'HALF_PM' ? '오후반차' : ''}
                                     </p>
-                                    <p className="text-[10px] text-[#9a9585]">{timeAgo(n.created_at)}</p>
+                                    {n.data?.note && <p className="text-[10px] text-[#a65d57] font-bold mt-0.5 truncate">사유: {n.data.note}</p>}
+                                    <p className="text-[10px] text-[#9a9585] mt-1">{timeAgo(n.created_at)}</p>
                                 </div>
                                 {!n.is_read && <div className="w-2 h-2 bg-[#a65d57] rounded-full mt-1 shrink-0" />}
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {/* 상세 팝업 모달 */}
+            {selectedNotif && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-[#f5f3e8] border-[3px] border-[#3d472f] w-full max-w-sm shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center justify-between px-4 py-3 border-b-2 border-[#c5c0b0] bg-[#e8e4d4]">
+                            <span className="font-bold text-[#3d472f]">알림 상세</span>
+                            <button onClick={() => setSelectedNotif(null)} className="text-[#a65d57] hover:text-[#7a3f3a]">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <h3 className="text-lg font-black text-[#5d6c4a] mb-4">
+                                {TYPE_LABEL[selectedNotif.type] || selectedNotif.type}
+                            </h3>
+
+                            <div className="space-y-3 text-sm">
+                                {selectedNotif.data?.user_name && (
+                                    <div className="flex border-b border-[#e8e4d4] pb-2">
+                                        <span className="w-24 font-bold text-[#7a7565]">대상자</span>
+                                        <span className="font-bold text-[#3d472f]">{selectedNotif.data.user_name}</span>
+                                    </div>
+                                )}
+                                {selectedNotif.data?.actor_name && (
+                                    <div className="flex border-b border-[#e8e4d4] pb-2">
+                                        <span className="w-24 font-bold text-[#7a7565]">처리자</span>
+                                        <span className="font-bold text-[#3d472f]">{selectedNotif.data.actor_name}</span>
+                                    </div>
+                                )}
+                                {selectedNotif.data?.date && (
+                                    <div className="flex border-b border-[#e8e4d4] pb-2">
+                                        <span className="w-24 font-bold text-[#7a7565]">적용 날짜</span>
+                                        <span className="font-bold text-[#3d472f]">{selectedNotif.data.date}</span>
+                                    </div>
+                                )}
+                                {selectedNotif.data?.type && (
+                                    <div className="flex border-b border-[#e8e4d4] pb-2">
+                                        <span className="w-24 font-bold text-[#7a7565]">연차 유형</span>
+                                        <span className="font-bold text-[#3d472f]">
+                                            {selectedNotif.data.type === 'FULL' ? '연차 (1일)' :
+                                                selectedNotif.data.type === 'HALF_AM' ? '오전반차 (0.5일)' :
+                                                    selectedNotif.data.type === 'HALF_PM' ? '오후반차 (0.5일)' :
+                                                        selectedNotif.data.type}
+                                        </span>
+                                    </div>
+                                )}
+                                {selectedNotif.data?.note && (
+                                    <div className="flex border-b border-[#e8e4d4] pb-2">
+                                        <span className="w-24 font-bold text-[#7a7565]">📝 사유</span>
+                                        <span className="font-bold text-[#a65d57] whitespace-pre-wrap">{selectedNotif.data.note}</span>
+                                    </div>
+                                )}
+                                <div className="flex border-b border-[#e8e4d4] pb-2">
+                                    <span className="w-24 font-bold text-[#7a7565]">발생 시간</span>
+                                    <span className="text-[#9a9585]">{new Date(selectedNotif.created_at).toLocaleString('ko-KR')}</span>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => setSelectedNotif(null)}
+                                className="w-full mt-6 py-2.5 bg-[#5d6c4a] hover:bg-[#4a5639] text-white font-bold transition-colors"
+                            >
+                                닫기
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

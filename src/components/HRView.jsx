@@ -1,7 +1,8 @@
-import React from 'react';
-import { Search, RotateCcw, Monitor, Users, Briefcase, Wallet, Calendar, AlertTriangle, FileText, UserMinus, Check, Edit } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, RotateCcw, Monitor, Users, Briefcase, Wallet, Calendar, AlertTriangle, FileText, UserMinus, Check, Edit, Trash2 } from 'lucide-react';
 import StatCard from './ui/StatCard';
 import InfoRow from './ui/InfoRow';
+import { ConfirmModal } from './modals/DialogModals';
 
 export default function HRView({
     stats,
@@ -14,8 +15,10 @@ export default function HRView({
     selectedUser, handleSelectUser,
     calculateMonthlyWage, payrollMonth,
     openModal, openUserForm, openResignModal,
-    maskPII = false, roleMode = 'ADMIN'
+    maskPII = false, roleMode = 'ADMIN', onDeleteUser
 }) {
+    const [deleteTargetUser, setDeleteTargetUser] = useState(null);
+
     return (
         <>
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -107,9 +110,12 @@ export default function HRView({
                                             </td>
                                             <td className="p-3 pr-4 text-right">
                                                 <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                                    {roleMode !== 'VIEWER' && <button onClick={(e) => openUserForm(user, e)} className="p-1.5 bg-[#e8e4d4] text-[#5d6c4a] hover:bg-[#d4dcc0] title='정보 수정'"><Edit size={14} /></button>}
+                                                    {roleMode !== 'VIEWER' && <button onClick={(e) => openUserForm(user, e)} className="p-1.5 bg-[#e8e4d4] text-[#5d6c4a] hover:bg-[#d4dcc0]" title='정보 수정'><Edit size={14} /></button>}
                                                     {!user.resignDate && roleMode === 'ADMIN' && (
-                                                        <button onClick={(e) => openResignModal(user, e)} className="p-1.5 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#f0e5e4] title='퇴사 처리'"><UserMinus size={14} /></button>
+                                                        <button onClick={(e) => openResignModal(user, e)} className="p-1.5 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#f0e5e4]" title='퇴사 처리'><UserMinus size={14} /></button>
+                                                    )}
+                                                    {roleMode === 'ADMIN' && (
+                                                        <button onClick={(e) => { e.stopPropagation(); setDeleteTargetUser(user); }} className="p-1.5 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#a65d57] hover:text-[#f8f0ef] border border-[#a65d57] transition-colors" title='직원 완전 삭제'><Trash2 size={14} /></button>
                                                     )}
                                                 </div>
                                             </td>
@@ -217,6 +223,20 @@ export default function HRView({
                     )}
                 </div>
             </div>
+            <ConfirmModal
+                isOpen={!!deleteTargetUser}
+                onClose={() => setDeleteTargetUser(null)}
+                onConfirm={() => {
+                    if (deleteTargetUser) {
+                        onDeleteUser(deleteTargetUser.id);
+                        setDeleteTargetUser(null);
+                    }
+                }}
+                title="직원 삭제 확인"
+                message={deleteTargetUser ? `[${deleteTargetUser.name}] 직원을 목록에서 완전히 삭제하시겠습니까?\n모든 기록이 함께 제거될 수 있습니다.` : ''}
+                isDanger={true}
+                confirmText="삭제"
+            />
         </>
     );
 }

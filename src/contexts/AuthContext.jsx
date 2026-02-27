@@ -10,8 +10,13 @@ import {
     createUserWithEmailAndPassword,
     getAuth,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, orderBy, runTransaction, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, orderBy, runTransaction, onSnapshot, writeBatch } from 'firebase/firestore';
+import { auth, db, functions, httpsCallable } from '../firebase';
+
+// Cloud Functions 참조
+const fnApproveTeamLeave = httpsCallable(functions, 'approveTeamLeave');
+const fnApproveFinalLeave = httpsCallable(functions, 'approveFinalLeave');
+const fnAdminApproveUser = httpsCallable(functions, 'adminApproveUser');
 
 const AuthContext = createContext(null);
 
@@ -195,18 +200,49 @@ export function AuthProvider({ children }) {
     const updateTeamName = async (oldName, newName) => {
         if (!newName || teams.includes(newName)) throw new Error('유효하지 않거나 이미 존재하는 팀명입니다.');
 
+        const cleanOld = oldName.trim();
+        const cleanNew = newName.trim();
+
         // 1. Update settings/teams list
-        const newList = teams.map(t => t === oldName ? newName : t);
+        const newList = teams.map(t => t.trim() === cleanOld ? cleanNew : t);
         await updateDoc(doc(db, 'settings', 'teams'), { list: newList });
 
-        // 2. Update existing users with this team_id
-        const q = query(collection(db, 'users'), where('team_id', '==', oldName));
-        const snap = await getDocs(q);
         const batch = writeBatch(db);
-        snap.forEach(d => {
-            batch.update(d.ref, { team_id: newName, updated_at: new Date().toISOString() });
+        let updatedCount = 0;
+
+        // 2. Update users
+        const usersSnap = await getDocs(collection(db, 'users'));
+        usersSnap.forEach(d => {
+            const data = d.data();
+            if (data.team_id && data.team_id.trim() === cleanOld) {
+                batch.update(d.ref, { team_id: cleanNew, updated_at: new Date().toISOString() });
+                updatedCount++;
+            }
         });
-        await batch.commit();
+
+        // 3. Update leave_requests
+        const leaveSnap = await getDocs(collection(db, 'leave_requests'));
+        leaveSnap.forEach(d => {
+            const data = d.data();
+            if (data.team_id && data.team_id.trim() === cleanOld) {
+                batch.update(d.ref, { team_id: cleanNew, updated_at: new Date().toISOString() });
+                updatedCount++;
+            }
+        });
+
+        // 4. Update delegations
+        const delSnap = await getDocs(collection(db, 'delegations'));
+        delSnap.forEach(d => {
+            const data = d.data();
+            if (data.team_id && data.team_id.trim() === cleanOld) {
+                batch.update(d.ref, { team_id: cleanNew, updated_at: new Date().toISOString() });
+                updatedCount++;
+            }
+        });
+
+        if (updatedCount > 0) {
+            await batch.commit();
+        }
     };
 
     // 계정 생성 (FINAL_APPROVER만 호출 가능 — secondary app 트릭으로 세션 유지)
@@ -377,75 +413,16 @@ export function AuthProvider({ children }) {
             .sort((a, b) => b.created_at?.localeCompare(a.created_at));
     };
 
-    // 연차 승인 (TEAM_APPROVER)
-    const approveLeaveRequest = async (reqId, requestorUid, date, leaveType) => {
-        const now = new Date().toISOString();
-        const actorUid = auth.currentUser.uid;
-        // status 변경
-        await updateDoc(doc(db, 'leave_requests', reqId), {
-            status: 'TEAM_APPROVED',
-            updated_at: now,
-        });
-        // approvals 로그
-        await addDoc(collection(db, 'approvals'), {
-            leave_request_id: reqId,
-            stage: 'TEAM',
-            action: 'APPROVE',
-            actor_user_id: actorUid,
-            acted_at: now,
-            note: '',
-            delegation_from_user_id: null,
-        });
-        // 신청자에게 알림
-        const actorSnap = await getDoc(doc(db, 'users', actorUid));
-        await sendNotification(requestorUid, 'LEAVE_TEAM_APPROVED', {
-            leave_request_id: reqId,
-            date,
-            type: leaveType,
-            actor_name: actorSnap.data()?.name,
-        });
-        // FINAL_APPROVER 전체에게도 알림
-        try {
-            const allUsersQ = query(collection(db, 'users'), where('role', '==', 'FINAL_APPROVER'));
-            const allSnap = await getDocs(allUsersQ);
-            const requesterSnap = await getDoc(doc(db, 'users', requestorUid));
-            await Promise.all(allSnap.docs.map(fa =>
-                sendNotification(fa.id, 'LEAVE_TEAM_APPROVED', {
-                    leave_request_id: reqId,
-                    user_name: requesterSnap.data()?.name,
-                    date,
-                    type: leaveType,
-                    actor_name: actorSnap.data()?.name,
-                })
-            ));
-        } catch (ne) { console.warn('FINAL_APPROVER 알림 실패:', ne); }
+    // 연차 승인 (TEAM_APPROVER) → Cloud Function 호출
+    const approveLeaveRequest = async (reqId) => {
+        const result = await fnApproveTeamLeave({ reqId, action: 'APPROVE' });
+        if (!result.data.success) throw new Error('팀 승인 처리 중 오류가 발생했습니다.');
     };
 
-    // 연차 반려 (TEAM_APPROVER)
-    const rejectLeaveRequest = async (reqId, requestorUid, date, leaveType, note = '') => {
-        const now = new Date().toISOString();
-        const actorUid = auth.currentUser.uid;
-        await updateDoc(doc(db, 'leave_requests', reqId), {
-            status: 'REJECTED',
-            updated_at: now,
-        });
-        await addDoc(collection(db, 'approvals'), {
-            leave_request_id: reqId,
-            stage: 'TEAM',
-            action: 'REJECT',
-            actor_user_id: actorUid,
-            acted_at: now,
-            note,
-            delegation_from_user_id: null,
-        });
-        const actorSnap = await getDoc(doc(db, 'users', actorUid));
-        await sendNotification(requestorUid, 'LEAVE_REJECTED', {
-            leave_request_id: reqId,
-            date,
-            type: leaveType,
-            actor_name: actorSnap.data()?.name,
-            note,
-        });
+    // 연차 반려 (TEAM_APPROVER) → Cloud Function 호출
+    const rejectLeaveRequest = async (reqId, _requestorUid, _date, _leaveType, note = '') => {
+        const result = await fnApproveTeamLeave({ reqId, action: 'REJECT', note });
+        if (!result.data.success) throw new Error('팀 반려 처리 중 오류가 발생했습니다.');
     };
 
     // 나의 알림 목록
@@ -486,87 +463,17 @@ export function AuthProvider({ children }) {
             .sort((a, b) => b.created_at?.localeCompare(a.created_at));
     };
 
-    // 최종 승인 (FINAL_APPROVER) — runTransaction
-    const finalApproveLeaveRequest = async (reqId, requestorUid, date, leaveType) => {
-        const actorUid = auth.currentUser.uid;
-        const now = new Date().toISOString();
-        const deduction = DEDUCTION_MAP[leaveType] ?? 1.0;
-        const year = date?.slice(0, 4);
-        const balanceRef = doc(db, 'leave_balance', `${requestorUid}_${year}`);
-        const reqRef = doc(db, 'leave_requests', reqId);
-
-        await runTransaction(db, async (tx) => {
-            const reqSnap = await tx.get(reqRef);
-            if (!reqSnap.exists()) throw new Error('신청서를 찾을 수 없습니다.');
-            if (reqSnap.data().status === 'FINAL_APPROVED') throw new Error('이미 최종 승인된 요청입니다.');
-            if (reqSnap.data().status !== 'TEAM_APPROVED') throw new Error('팀 승인 완료된 요청만 최종 승인 가능합니다.');
-
-            const balSnap = await tx.get(balanceRef);
-            const total = balSnap.exists() ? (balSnap.data().total_days ?? 0) : 0;
-            const used = balSnap.exists() ? (balSnap.data().used_days ?? 0) : 0;
-            const remaining = total - used;
-            if (remaining < deduction) {
-                throw new Error(`잔여 연차 부족: 잔여 ${remaining}일 / 차감 ${deduction}일`);
-            }
-
-            // leave_requests 상태 변경
-            tx.update(reqRef, { status: 'FINAL_APPROVED', updated_at: now });
-
-            // leave_balance 차감
-            if (balSnap.exists()) {
-                tx.update(balanceRef, { used_days: used + deduction, updated_at: now });
-            } else {
-                tx.set(balanceRef, {
-                    user_id: requestorUid, year: Number(year),
-                    total_days: 0, used_days: deduction, updated_at: now,
-                });
-            }
-        });
-
-        // 트랜잭션 외부: approvals 로그 + 알림
-        await addDoc(collection(db, 'approvals'), {
-            leave_request_id: reqId,
-            stage: 'FINAL',
-            action: 'APPROVE',
-            actor_user_id: actorUid,
-            acted_at: now,
-            note: '',
-            delegation_from_user_id: null,
-        });
-        const actorSnap = await getDoc(doc(db, 'users', actorUid));
-        await sendNotification(requestorUid, 'LEAVE_FINAL_APPROVED', {
-            leave_request_id: reqId,
-            date,
-            type: leaveType,
-            deduction,
-            actor_name: actorSnap.data()?.name,
-        });
+    // 최종 승인 (FINAL_APPROVER) → Cloud Function 호출
+    const finalApproveLeaveRequest = async (reqId) => {
+        const result = await fnApproveFinalLeave({ reqId, action: 'APPROVE' });
+        if (!result.data.success) throw new Error('최종 승인 처리 중 오류가 발생했습니다.');
     };
 
-    // 최종 반려 (FINAL_APPROVER)
-    const finalRejectLeaveRequest = async (reqId, requestorUid, date, leaveType, note = '') => {
-        const now = new Date().toISOString();
-        const actorUid = auth.currentUser.uid;
-        await updateDoc(doc(db, 'leave_requests', reqId), { status: 'REJECTED', updated_at: now });
-        await addDoc(collection(db, 'approvals'), {
-            leave_request_id: reqId,
-            stage: 'FINAL',
-            action: 'REJECT',
-            actor_user_id: actorUid,
-            acted_at: now,
-            note,
-            delegation_from_user_id: null,
-        });
-        const actorSnap = await getDoc(doc(db, 'users', actorUid));
-        await sendNotification(requestorUid, 'LEAVE_REJECTED', {
-            leave_request_id: reqId,
-            date,
-            type: leaveType,
-            actor_name: actorSnap.data()?.name,
-            note,
-        });
+    // 최종 반려 (FINAL_APPROVER) → Cloud Function 호출
+    const finalRejectLeaveRequest = async (reqId, _requestorUid, _date, _leaveType, note = '') => {
+        const result = await fnApproveFinalLeave({ reqId, action: 'REJECT', note });
+        if (!result.data.success) throw new Error('최종 반려 처리 중 오류가 발생했습니다.');
     };
-
 
     // ─── PHASE 5: DELEGATION + PROXY APPROVAL ──────────────────
 
@@ -629,66 +536,16 @@ export function AuthProvider({ children }) {
         } catch { return null; }
     };
 
-    // 수임자 / FINAL_APPROVER 팀 승인 대행 승인
-    const proxyTeamApprove = async (reqId, requestorUid, date, leaveType, delegationFromUserId, isFinalProxy) => {
-        const now = new Date().toISOString();
-        const actorUid = auth.currentUser.uid;
-        await updateDoc(doc(db, 'leave_requests', reqId), { status: 'TEAM_APPROVED', updated_at: now });
-        const note = isFinalProxy ? 'FINAL_APPROVER 대행' : '';
-        await addDoc(collection(db, 'approvals'), {
-            leave_request_id: reqId,
-            stage: 'TEAM',
-            action: 'APPROVE',
-            actor_user_id: actorUid,
-            acted_at: now,
-            note,
-            delegation_from_user_id: delegationFromUserId || null,
-        });
-        const actorSnap = await getDoc(doc(db, 'users', actorUid));
-        await sendNotification(requestorUid, 'LEAVE_TEAM_APPROVED', {
-            leave_request_id: reqId,
-            date,
-            type: leaveType,
-            actor_name: actorSnap.data()?.name,
-        });
-        // FINAL_APPROVER들에게도 알림
-        try {
-            const allQ = query(collection(db, 'users'), where('role', '==', 'FINAL_APPROVER'));
-            const allSnap = await getDocs(allQ);
-            const reqSnap = await getDoc(doc(db, 'users', requestorUid));
-            await Promise.all(allSnap.docs.map(fa =>
-                sendNotification(fa.id, 'LEAVE_TEAM_APPROVED', {
-                    leave_request_id: reqId,
-                    user_name: reqSnap.data()?.name,
-                    date, type: leaveType,
-                    actor_name: actorSnap.data()?.name,
-                })
-            ));
-        } catch (ne) { console.warn('FINAL_APPROVER 알림 실패:', ne); }
+    // 수임자 / FINAL_APPROVER 팀 승인 대행 승인 → Cloud Function 호출
+    const proxyTeamApprove = async (reqId, _requestorUid, _date, _leaveType, _delegationFromUserId, _isFinalProxy) => {
+        const result = await fnApproveTeamLeave({ reqId, action: 'APPROVE' });
+        if (!result.data.success) throw new Error('팀 대행 승인 처리 중 오류가 발생했습니다.');
     };
 
-    // 수임자 / FINAL_APPROVER 팀 대행 반려
-    const proxyTeamReject = async (reqId, requestorUid, date, leaveType, note, delegationFromUserId, isFinalProxy) => {
-        const now = new Date().toISOString();
-        const actorUid = auth.currentUser.uid;
-        const noteText = isFinalProxy ? (note ? `[FINAL_APPROVER 대행] ${note}` : 'FINAL_APPROVER 대행') : note;
-        await updateDoc(doc(db, 'leave_requests', reqId), { status: 'REJECTED', updated_at: now });
-        await addDoc(collection(db, 'approvals'), {
-            leave_request_id: reqId,
-            stage: 'TEAM',
-            action: 'REJECT',
-            actor_user_id: actorUid,
-            acted_at: now,
-            note: noteText,
-            delegation_from_user_id: delegationFromUserId || null,
-        });
-        const actorSnap = await getDoc(doc(db, 'users', actorUid));
-        await sendNotification(requestorUid, 'LEAVE_REJECTED', {
-            leave_request_id: reqId,
-            date, type: leaveType,
-            actor_name: actorSnap.data()?.name,
-            note: noteText,
-        });
+    // 수임자 / FINAL_APPROVER 팀 대행 반려 → Cloud Function 호출
+    const proxyTeamReject = async (reqId, _requestorUid, _date, _leaveType, note, _delegationFromUserId, _isFinalProxy) => {
+        const result = await fnApproveTeamLeave({ reqId, action: 'REJECT', note });
+        if (!result.data.success) throw new Error('팀 대행 반려 처리 중 오류가 발생했습니다.');
     };
 
     // 전체 SUBMITTED 요청 (FINAL_APPROVER 대행용)

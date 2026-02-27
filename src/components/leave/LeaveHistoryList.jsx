@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { List, X, ChevronDown, Loader } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { ConfirmModal } from '../modals/DialogModals';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = {
@@ -21,6 +22,7 @@ export default function LeaveHistoryList({ refreshKey }) {
     const [filterYear, setFilterYear] = useState(new Date().getFullYear());
     const [filterStatus, setFilterStatus] = useState('ALL');
     const [cancelling, setCancelling] = useState(null); // reqId
+    const [confirmCancel, setConfirmCancel] = useState(null); // reqId for modal
 
     const load = async () => {
         setLoading(true);
@@ -33,14 +35,21 @@ export default function LeaveHistoryList({ refreshKey }) {
 
     useEffect(() => { load(); }, [filterYear, refreshKey]);
 
-    const handleCancel = async (reqId) => {
-        if (!window.confirm('해당 연차 신청을 취소하시겠습니까?')) return;
-        setCancelling(reqId);
+    const requestCancel = (reqId) => {
+        setConfirmCancel(reqId);
+    };
+
+    const executeCancel = async () => {
+        if (!confirmCancel) return;
+        setCancelling(confirmCancel);
         try {
-            await cancelLeaveRequest(reqId);
+            await cancelLeaveRequest(confirmCancel);
             await load();
         } catch (e) { alert('취소 실패: ' + e.message); }
-        finally { setCancelling(null); }
+        finally {
+            setCancelling(null);
+            setConfirmCancel(null);
+        }
     };
 
     const filtered = filterStatus === 'ALL' ? requests : requests.filter(r => r.status === filterStatus);
@@ -94,9 +103,9 @@ export default function LeaveHistoryList({ refreshKey }) {
                                 <td className="p-3 text-center">
                                     {req.status === 'SUBMITTED' ? (
                                         <button
-                                            onClick={() => handleCancel(req.id)}
+                                            onClick={() => requestCancel(req.id)}
                                             disabled={cancelling === req.id}
-                                            className="text-[#a65d57] hover:bg-[#f8f0ef] p-1.5 border border-[#dcc0bc] text-xs font-bold disabled:opacity-50"
+                                            className="text-[#a65d57] hover:bg-[#f8f0ef] p-1.5 border border-[#dcc0bc] text-xs font-bold disabled:opacity-50 transition-colors"
                                         >
                                             {cancelling === req.id ? <Loader size={12} className="animate-spin" /> : <X size={14} />}
                                         </button>
@@ -115,6 +124,17 @@ export default function LeaveHistoryList({ refreshKey }) {
                     총 {filtered.length}건 | 대기 {filtered.filter(r => r.status === 'SUBMITTED').length}건 | 취소 {filtered.filter(r => r.status === 'CANCELLED').length}건
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={!!confirmCancel}
+                onClose={() => setConfirmCancel(null)}
+                onConfirm={executeCancel}
+                title="연차 취소"
+                message="해당 연차 신청을 취소하시겠습니까?\n취소된 연차는 내역에만 남고 사용 일수에 반영되지 않습니다."
+                confirmText="신청 취소"
+                cancelText="돌아가기"
+                isDanger={true}
+            />
         </div>
     );
 }
