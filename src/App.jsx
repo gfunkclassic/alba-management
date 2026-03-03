@@ -14,6 +14,11 @@ import FinalApproverView from './components/views/FinalApproverView';
 // Data
 import { INITIAL_USERS } from './data/initialUsers';
 
+// Firestore Hooks
+import { useEmployees } from './hooks/useEmployees';
+import { useAttendance } from './hooks/useAttendance';
+import { useLeaveData } from './hooks/useLeaveData';
+
 // Utils
 import { normalizeDateStr, getMonthsBetween, getDaysBetween } from './utils/dateUtils';
 import { getLegalAnnualLeave, getFirstYearLeave, getFirstYearCarryoverDeadline } from './utils/leaveUtils';
@@ -34,79 +39,58 @@ import UserFormModal from './components/modals/UserFormModal';
 import AdjustLeaveModal from './components/modals/AdjustLeaveModal';
 import PayrollDetailModal from './components/modals/PayrollDetailModal';
 
-// ── 인사급여 시스템 (기존) ──────────────────────────────────
+// ── 인사급여 시스템 (Firestore 연동) ───────────────────────────
 function HRPayrollApp() {
     const { userProfile } = useAuth();
-    const [users, setUsers] = useState(() => {
-        try {
-            const saved = localStorage.getItem('alba_users');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed)) return parsed;
-            }
-            return JSON.parse(JSON.stringify(INITIAL_USERS));
-        } catch (e) { return JSON.parse(JSON.stringify(INITIAL_USERS)); }
-    });
-    const [attendance, setAttendance] = useState(() => { try { const saved = localStorage.getItem('alba_attendance'); return saved ? JSON.parse(saved) : {}; } catch (e) { return {}; } });
-    const [leaveRecords, setLeaveRecords] = useState(() => { try { const saved = localStorage.getItem('leave_records'); return saved ? JSON.parse(saved) : {}; } catch (e) { return {}; } });
-    const [adjustments, setAdjustments] = useState(() => { try { const saved = localStorage.getItem('leave_adjustments'); return saved ? JSON.parse(saved) : {}; } catch (e) { return {}; } });
-    const [carryovers, setCarryovers] = useState(() => { try { const saved = localStorage.getItem('leave_carryovers'); return saved ? JSON.parse(saved) : {}; } catch (e) { return {}; } });
-    // 월 마감 상태: { 'YYYY-MM': 'DRAFT' | 'REVIEW' | 'CONFIRMED' | 'AMENDING' }
-    const [payrollStatus, setPayrollStatus] = useState(() => { try { const saved = localStorage.getItem('alba_payroll_status'); return saved ? JSON.parse(saved) : {}; } catch (e) { return {}; } });
 
-    const stateRef = useRef({ users, attendance, leaveRecords, adjustments, carryovers, payrollStatus });
+    // ── Firestore 실시간 훅 ──
+    const { employees: users, loading: empLoading, addEmployee, updateEmployee, deleteEmployee, batchImport: batchImportEmployees } = useEmployees();
+    const { attendance, saveAttendance: saveAttendanceFn, batchImport: batchImportAttendance } = useAttendance();
+    const { leaveRecords, adjustments, carryovers, payrollStatus,
+        addLeaveRecord, deleteLeaveRecord, saveAdjustment: saveAdjustmentFn,
+        savePayrollStatus, batchImport: batchImportLeave } = useLeaveData();
 
+    // ── 최초 1회 마이그레이션: Firestore가 비어있으면 localStorage → Firestore ──
+    const migratedRef = useRef(false);
     useEffect(() => {
-        // Removed xlsx script loading as we use sheetjs-style npm package directly
-    }, []);
+        if (empLoading || migratedRef.current) return;
+        if (users.length === 0) {
+            migratedRef.current = true;
+            (async () => {
+                try {
+                    // 직원 데이터
+                    let toMigrate = [];
+                    try {
+                        const savedUsers = localStorage.getItem('alba_users');
+                        if (savedUsers) {
+                            const parsed = JSON.parse(savedUsers);
+                            if (Array.isArray(parsed) && parsed.length > 0) toMigrate = parsed;
+                        }
+                    } catch { }
+                    if (toMigrate.length === 0) toMigrate = JSON.parse(JSON.stringify(INITIAL_USERS));
+                    await batchImportEmployees(toMigrate);
 
-    useEffect(() => {
-        const handleBeforeUnload = () => {
-            const { users, attendance, leaveRecords, adjustments, carryovers, payrollStatus } = stateRef.current;
-            try {
-                localStorage.setItem('alba_users', JSON.stringify(users));
-                localStorage.setItem('alba_attendance', JSON.stringify(attendance));
-                localStorage.setItem('leave_records', JSON.stringify(leaveRecords));
-                localStorage.setItem('leave_adjustments', JSON.stringify(adjustments));
-                localStorage.setItem('leave_carryovers', JSON.stringify(carryovers));
-                localStorage.setItem('alba_payroll_status', JSON.stringify(payrollStatus));
-            } catch (e) {
-                console.error("종료 전 저장 실패:", e);
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, []);
+                    // 근태 데이터
+                    try {
+                        const savedAtt = localStorage.getItem('alba_attendance');
+                        if (savedAtt) await batchImportAttendance(JSON.parse(savedAtt));
+                    } catch { }
 
-    const saveTimeoutRef = useRef(null);
-    const isInitialMount = useRef(true);
+                    // 연차/급여 데이터
+                    try {
+                        await batchImportLeave({
+                            leaveRecords: JSON.parse(localStorage.getItem('leave_records') || '{}'),
+                            adjustments: JSON.parse(localStorage.getItem('leave_adjustments') || '{}'),
+                            carryovers: JSON.parse(localStorage.getItem('leave_carryovers') || '{}'),
+                            payrollStatus: JSON.parse(localStorage.getItem('alba_payroll_status') || '{}'),
+                        });
+                    } catch { }
 
-    useEffect(() => {
-        stateRef.current = { users, attendance, leaveRecords, adjustments, carryovers, payrollStatus };
-        if (isInitialMount.current) {
-            isInitialMount.current = false;
-            return;
+                    console.log('✅ Firestore 마이그레이션 완료');
+                } catch (e) { console.error('마이그레이션 오류:', e); }
+            })();
         }
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = setTimeout(() => {
-            try {
-                localStorage.setItem('alba_users', JSON.stringify(users));
-                localStorage.setItem('alba_attendance', JSON.stringify(attendance));
-                localStorage.setItem('leave_records', JSON.stringify(leaveRecords));
-                localStorage.setItem('leave_adjustments', JSON.stringify(adjustments));
-                localStorage.setItem('leave_carryovers', JSON.stringify(carryovers));
-                localStorage.setItem('alba_payroll_status', JSON.stringify(payrollStatus));
-            } catch (e) {
-                console.error('localStorage 저장 실패:', e);
-                if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-                    alert("저장 공간이 부족하여 데이터가 저장되지 않았습니다. 불필요한 데이터를 정리해주세요.");
-                }
-            }
-        }, 300);
-        return () => {
-            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-        };
-    }, [users, attendance, leaveRecords, adjustments, carryovers, payrollStatus]);
+    }, [empLoading, users.length]);
 
     const [activeTab, setActiveTab] = useState(() => {
         return localStorage.getItem('app_active_tab') || 'HR';
@@ -528,17 +512,17 @@ function HRPayrollApp() {
         });
     }, [users, searchTerm, filterTeam, filterStatus, viewMode]);
 
-    const confirmResign = useCallback(() => {
+    const confirmResign = useCallback(async () => {
         if (resignTargetUser && resignDateInput) {
             const updatedUser = { ...resignTargetUser, resignDate: resignDateInput, resignReason: resignReasonInput };
-            setUsers(prev => prev.map(u => u.id === resignTargetUser.id ? updatedUser : u));
+            await updateEmployee(updatedUser);
             setSelectedUser(prev => prev?.id === resignTargetUser.id ? updatedUser : prev);
             showNotificationMsg(`${resignTargetUser.name}님의 퇴사 처리가 완료되었습니다.`);
             closeModal('resign');
             setResignTargetUser(null);
             setResignReasonInput('');
         }
-    }, [resignTargetUser, resignDateInput, resignReasonInput, closeModal, showNotificationMsg]);
+    }, [resignTargetUser, resignDateInput, resignReasonInput, closeModal, showNotificationMsg, updateEmployee]);
 
     const openResignModal = useCallback((user, e) => {
         e?.stopPropagation();
@@ -554,49 +538,46 @@ function HRPayrollApp() {
         openModal('userForm');
     }, [openModal]);
 
-    const handleUserSave = useCallback((user) => {
+    const handleUserSave = useCallback(async (user) => {
         if (formUser) {
-            setUsers(prev => prev.map(u => u.id === user.id ? user : u));
+            await updateEmployee(user);
             setSelectedUser(prev => prev?.id === user.id ? user : prev);
             showNotificationMsg('정보가 수정되었습니다.');
         } else {
-            setUsers(prev => [...prev, { ...user, id: Math.max(...prev.map(u => u.id), 0) + 1 }]);
+            const newId = users.length > 0 ? Math.max(...users.map(u => u.id), 0) + 1 : 1;
+            await addEmployee({ ...user, id: newId });
             showNotificationMsg('신규 인원이 등록되었습니다.');
         }
         closeModal('userForm');
-    }, [formUser, closeModal, showNotificationMsg]);
+    }, [formUser, closeModal, showNotificationMsg, updateEmployee, addEmployee, users]);
 
-    const handleUserDelete = useCallback((userId) => {
-        setUsers(prev => prev.filter(u => u.id !== userId));
+    const handleUserDelete = useCallback(async (userId) => {
+        await deleteEmployee(userId);
         if (selectedUser?.id === userId) setSelectedUser(null);
         showNotificationMsg('직원이 삭제되었습니다.');
         closeModal('userForm');
-    }, [selectedUser, showNotificationMsg, closeModal]);
+    }, [selectedUser, showNotificationMsg, closeModal, deleteEmployee]);
 
-    const saveAttendance = useCallback((userId, date, record) => {
-        setAttendance(prev => ({ ...prev, [userId]: { ...(prev[userId] || {}), [date]: record } }));
-    }, []);
+    const saveAttendance = useCallback(async (userId, date, record) => {
+        await saveAttendanceFn(userId, date, record);
+    }, [saveAttendanceFn]);
 
-    const handleAddLeave = useCallback((userId, date, type) => {
-        setLeaveRecords(prev => ({ ...prev, [userId]: { ...(prev[userId] || {}), [date]: type } }));
+    const handleAddLeave = useCallback(async (userId, date, type) => {
+        await addLeaveRecord(userId, date, type);
         showNotificationMsg(`${type} 등록 완료`);
-    }, [showNotificationMsg]);
+    }, [showNotificationMsg, addLeaveRecord]);
 
-    const handleDeleteLeave = useCallback((userId, date) => {
-        setLeaveRecords(prev => {
-            const userRecords = { ...(prev[userId] || {}) };
-            delete userRecords[date];
-            return { ...prev, [userId]: userRecords };
-        });
+    const handleDeleteLeave = useCallback(async (userId, date) => {
+        await deleteLeaveRecord(userId, date);
         showNotificationMsg('삭제 완료');
-    }, [showNotificationMsg]);
+    }, [showNotificationMsg, deleteLeaveRecord]);
 
-    const handleSaveAdjustment = useCallback((userId, amount) => {
-        setAdjustments(prev => ({ ...prev, [userId]: amount }));
+    const handleSaveAdjustment = useCallback(async (userId, amount) => {
+        await saveAdjustmentFn(userId, amount);
         showNotificationMsg('연차 조정 완료');
         closeModal('adjust');
         setAdjustUser(null);
-    }, [closeModal, showNotificationMsg]);
+    }, [closeModal, showNotificationMsg, saveAdjustmentFn]);
 
     const handleRosterUpload = async (e) => {
         const file = e.target.files[0];
@@ -636,17 +617,16 @@ function HRPayrollApp() {
                     });
                 });
 
-                setUsers(prevUsers => {
-                    const updatedUsers = [...prevUsers];
-                    let addedCount = 0, updatedCount = 0;
-                    uploadedData.forEach(newInfo => {
-                        const idx = updatedUsers.findIndex(u => u.name === newInfo.name);
-                        if (idx !== -1) { updatedUsers[idx] = { ...updatedUsers[idx], ...newInfo }; updatedCount++; }
-                        else { updatedUsers.push({ ...newInfo, id: Math.max(...updatedUsers.map(u => u.id), 0) + 1 }); addedCount++; }
-                    });
-                    showNotificationMsg(`${addedCount}명 추가, ${updatedCount}명 수정 완료`);
-                    return updatedUsers;
+                const updatedUsers = [...users];
+                let addedCount = 0, updatedCount = 0;
+                uploadedData.forEach(newInfo => {
+                    const idx = updatedUsers.findIndex(u => u.name === newInfo.name);
+                    if (idx !== -1) { updatedUsers[idx] = { ...updatedUsers[idx], ...newInfo }; updatedCount++; }
+                    else { updatedUsers.push({ ...newInfo, id: Math.max(...updatedUsers.map(u => u.id), 0) + 1 }); addedCount++; }
                 });
+                // Firestore에 일괄 업로드
+                await batchImportEmployees(updatedUsers);
+                showNotificationMsg(`${addedCount}명 추가, ${updatedCount}명 수정 완료`);
             }
         } catch (err) { console.error(err); showNotificationMsg(err.message || '파일 처리 실패', 'error'); }
         e.target.value = null; closeModal('dataMenu');
@@ -662,57 +642,47 @@ function HRPayrollApp() {
                 const headers = rows[0];
                 const mapIdx = (key) => headers.findIndex(h => h && String(h).replace(/\s/g, '').includes(key));
                 const findExact = (key) => headers.findIndex(h => h && String(h).replace(/\s/g, '') === key);
-                // '근무일자' 또는 '날짜' 컬럼 인식
                 const idxName = mapIdx('이름');
                 const idxDate = mapIdx('근무일자') !== -1 ? mapIdx('근무일자') : findExact('날짜');
-                // '출근시간' 또는 정확히 '출근' 컬럼 인식
                 const idxIn = mapIdx('출근시간') !== -1 ? mapIdx('출근시간') : findExact('출근');
-                // '퇴근시간' 또는 정확히 '퇴근' 컬럼 인식
                 const idxOut = mapIdx('퇴근시간') !== -1 ? mapIdx('퇴근시간') : findExact('퇴근');
-                // '연장시간' 컬럼만 매칭 (연장근무 사유 컬럼과 혼동 방지)
                 const idxOvertime = findExact('연장시간') !== -1 ? findExact('연장시간') : findExact('연장');
 
                 if (idxName === -1 || idxDate === -1) { showNotificationMsg('이름 또는 근무일자 컬럼 누락', 'error'); return; }
 
-                // '근태사유' 컬럼 인식 (조기퇴근사유/연장근무사유와 구분)
                 const idxReason = mapIdx('근태사유') !== -1 ? mapIdx('근태사유') : (findExact('사유') !== -1 ? findExact('사유') : findExact('비고'));
 
-                setAttendance(prev => {
-                    const next = { ...prev };
-                    let count = 0;
-                    rows.slice(1).forEach(row => {
-                        if (!row || row.length === 0) return;
-                        const name = row[idxName];
-                        if (!name) return;
-                        const user = users.find(u => u.name === name);
-                        if (!user) return;
+                let count = 0;
+                const saves = [];
+                rows.slice(1).forEach(row => {
+                    if (!row || row.length === 0) return;
+                    const name = row[idxName];
+                    if (!name) return;
+                    const user = users.find(u => u.name === name);
+                    if (!user) return;
 
-                        const dateStr = normalizeDateStr(row[idxDate]);
-                        if (!dateStr) return;
+                    const dateStr = normalizeDateStr(row[idxDate]);
+                    if (!dateStr) return;
 
-                        const rawCheckIn = row[idxIn] ? String(row[idxIn]).replace('시', ':00') : '';
-                        const rawCheckOut = row[idxOut] ? String(row[idxOut]).replace('시', ':00') : '';
-                        const overtime = (row[idxOvertime] ? Number(row[idxOvertime]) : 0) || 0; // NaN 방지
-                        const reason = idxReason !== -1 ? String(row[idxReason] || '').trim() : '';
+                    const rawCheckIn = row[idxIn] ? String(row[idxIn]).replace('시', ':00') : '';
+                    const rawCheckOut = row[idxOut] ? String(row[idxOut]).replace('시', ':00') : '';
+                    const overtime = (row[idxOvertime] ? Number(row[idxOvertime]) : 0) || 0;
+                    const reason = idxReason !== -1 ? String(row[idxReason] || '').trim() : '';
 
-                        // 결근일만 빈 시간으로 저장, 그 외는 시간 없으면 계약 기본 시간 사용
-                        const isAbsent = reason.includes('결근');
-                        const checkIn = isAbsent ? '' : (rawCheckIn || user.checkIn);
-                        const checkOut = isAbsent ? '' : (rawCheckOut || user.checkOut);
+                    const isAbsent = reason.includes('결근');
+                    const checkIn = isAbsent ? '' : (rawCheckIn || user.checkIn);
+                    const checkOut = isAbsent ? '' : (rawCheckOut || user.checkOut);
 
-                        // 조기퇴근 사유 / 연장근무 사유 컬럼 읽기
-                        const idxEarlyReason = mapIdx('조기퇴근사유') !== -1 ? mapIdx('조기퇴근사유') : findExact('조기퇴근');
-                        const idxOvertimeReason = mapIdx('연장근무사유') !== -1 ? mapIdx('연장근무사유') : findExact('연장근무');
-                        const earlyLeaveReason = idxEarlyReason !== -1 ? String(row[idxEarlyReason] || '').trim() : '';
-                        const overtimeReason = idxOvertimeReason !== -1 ? String(row[idxOvertimeReason] || '').trim() : '';
+                    const idxEarlyReason = mapIdx('조기퇴근사유') !== -1 ? mapIdx('조기퇴근사유') : findExact('조기퇴근');
+                    const idxOvertimeReason = mapIdx('연장근무사유') !== -1 ? mapIdx('연장근무사유') : findExact('연장근무');
+                    const earlyLeaveReason = idxEarlyReason !== -1 ? String(row[idxEarlyReason] || '').trim() : '';
+                    const overtimeReason = idxOvertimeReason !== -1 ? String(row[idxOvertimeReason] || '').trim() : '';
 
-                        if (!next[user.id]) next[user.id] = {};
-                        next[user.id][dateStr] = { checkIn, checkOut, overtime, reason, earlyLeaveReason, overtimeReason };
-                        count++;
-                    });
-                    showNotificationMsg(`총 ${count}건의 근무 기록이 등록되었습니다.`);
-                    return next;
+                    saves.push(saveAttendanceFn(user.id, dateStr, { checkIn, checkOut, overtime, reason, earlyLeaveReason, overtimeReason }));
+                    count++;
                 });
+                await Promise.all(saves);
+                showNotificationMsg(`총 ${count}건의 근무 기록이 등록되었습니다.`);
             }
         } catch (err) { console.error(err); showNotificationMsg(err.message || '파일 처리 실패', 'error'); }
         e.target.value = null; closeModal('dataMenu');
@@ -1155,8 +1125,8 @@ function HRPayrollApp() {
                         onDownloadInsured={downloadInsuredCSV} onDownloadFreelancer={downloadFreelancerCSV}
                         onDownloadTemplate={downloadAttendanceTemplate}
                         payrollMonth={payrollMonth} onMonthChange={movePayrollMonth}
-                        payrollStatus={payrollStatus} onStatusChange={(month, status) => {
-                            setPayrollStatus(prev => ({ ...prev, [month]: status }));
+                        payrollStatus={payrollStatus} onStatusChange={async (month, status) => {
+                            await savePayrollStatus(month, status);
                         }}
                         onOpenDetail={(user) => { setPayrollDetailUser(user); openModal('payrollDetail'); }}
                     />

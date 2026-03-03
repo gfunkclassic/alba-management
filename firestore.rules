@@ -127,5 +127,36 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
       allow create, delete: if false;
     }
+
+    // ─── HR 직원 데이터 (인사 급여 시스템) ────────────────────────
+    match /employees/{docId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+    }
+
+    match /attendance/{docId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+    }
+
+    match /leave_records/{docId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+    }
+
+    match /leave_adjustments/{docId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+    }
+
+    match /leave_carryovers/{docId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+    }
+
+    match /payroll_status/{docId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+    }
   }
 }
