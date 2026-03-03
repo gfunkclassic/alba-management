@@ -697,6 +697,21 @@ function HRPayrollApp() {
         e.target.value = null; closeModal('dataMenu');
     };
 
+    // 엑셀/CSV 파일 다운로드 헬퍼 - DataURL 방식(blob: URL 제한 우회)
+    const saveFile = (blob, filename) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const a = document.createElement('a');
+            a.href = reader.result;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
+        reader.readAsDataURL(blob);
+    };
+
     const downloadCSV = () => {
         const headers = ["성별", "이름", "은행", "계좌번호", "팀", "입사일", "4대보험 신고일", "계약 갱신일", "출근시간", "퇴근시간", "근무시간", "근무일자", "시급", "시급인상일", "연락처", "주민등록번호", "주소지", "이메일", "퇴사일자", "퇴사사유"];
         const rows = filteredData.map(u => [
@@ -747,14 +762,7 @@ function HRPayrollApp() {
         XLSX.utils.book_append_sheet(wb, ws, '직원 명단');
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `아르바이트_명단_${filterTeam}_${new Date().toISOString().slice(0, 10)}.xlsx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        saveFile(blob, `아르바이트_명단_${filterTeam}_${new Date().toISOString().slice(0, 10)}.xlsx`);
         closeModal('dataMenu');
     };
 
@@ -770,7 +778,7 @@ function HRPayrollApp() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
         closeModal('dataMenu');
     };
 
@@ -824,14 +832,7 @@ function HRPayrollApp() {
         const filename = `근태양식_${monthLabel}_${teamLabel}.xlsx`;
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        saveFile(blob, filename);
         showNotificationMsg(`${monthLabel} ${teamLabel} 근태 양식 다운로드 (${activeUsers.length}명 × ${weekdays.length}일)`);
     };
 
@@ -1089,14 +1090,7 @@ function HRPayrollApp() {
 
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${payrollMonth}_4대보험가입자_노무사전달용.xlsx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        saveFile(blob, `${payrollMonth}_4대보험가입자_노무사전달용.xlsx`);
     };
 
     const downloadFreelancerCSV = () => {
@@ -1108,14 +1102,7 @@ function HRPayrollApp() {
         });
         const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `${payrollMonth}_3.3공제자_본사지급요청.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        saveFile(blob, `${payrollMonth}_3.3공제자_본사지급요청.csv`);
     };
 
     return (
