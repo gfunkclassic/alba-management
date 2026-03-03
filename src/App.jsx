@@ -689,13 +689,55 @@ function HRPayrollApp() {
     };
 
     const downloadCSV = () => {
-        const headers = ["성별", "이름", "은행", "계좌번호", "팀", "출근날짜", "4대보험 신고날짜", "계약 갱신 날짜", "출근시간", "퇴근시간", "근무시간", "근무일자", "시급", "시급인상일", "연락처", "주민등록번호", "주소지", "이메일", "퇴사일자", "퇴사사유"];
-        const rows = filteredData.map(u => [escapeCsvField(u.gender), escapeCsvField(u.name), escapeCsvField(u.bank), escapeCsvField(u.account), escapeCsvField(u.team), escapeCsvField(u.startDate), escapeCsvField(u.insuranceDate), escapeCsvField(u.renewalDate), escapeCsvField(u.checkIn), escapeCsvField(u.checkOut), escapeCsvField(u.workHours), escapeCsvField(u.workDays), escapeCsvField(u.wage), escapeCsvField(u.wageIncreaseDate), escapeCsvField(u.phone), escapeCsvField(u.rrn), escapeCsvField(u.address), escapeCsvField(u.email), escapeCsvField(u.resignDate), escapeCsvField(u.resignReason || '')]);
-        const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a"); link.setAttribute("href", url); link.setAttribute("download", `아르바이트_명단_${filterTeam}_${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link); link.click(); document.body.removeChild(link); closeModal('dataMenu');
+        const headers = ["성별", "이름", "은행", "계좌번호", "팀", "입사일", "4대보험 신고일", "계약 갱신일", "출근시간", "퇴근시간", "근무시간", "근무일자", "시급", "시급인상일", "연락처", "주민등록번호", "주소지", "이메일", "퇴사일자", "퇴사사유"];
+        const rows = filteredData.map(u => [
+            u.gender, u.name, u.bank, u.account, u.team,
+            u.startDate, u.insuranceDate, u.renewalDate,
+            u.checkIn, u.checkOut, u.workHours, u.workDays, u.wage, u.wageIncreaseDate,
+            u.phone, u.rrn, u.address, u.email,
+            u.resignDate || '', u.resignReason || ''
+        ]);
+
+        const HEADER_STYLE = {
+            font: { bold: true, color: { rgb: 'FFFFFF' } },
+            fill: { fgColor: { rgb: '5D6C4A' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: { bottom: { style: 'thin', color: { rgb: '3D472F' } } }
+        };
+        const DATA_STYLE = {
+            alignment: { vertical: 'center' },
+            border: { bottom: { style: 'thin', color: { rgb: 'E8E4D4' } } }
+        };
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+        // 컬럼 너비 설정
+        ws['!cols'] = [
+            { wch: 5 }, { wch: 10 }, { wch: 8 }, { wch: 22 }, { wch: 8 },
+            { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 8 }, { wch: 8 },
+            { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 12 },
+            { wch: 14 }, { wch: 16 }, { wch: 30 }, { wch: 24 },
+            { wch: 12 }, { wch: 16 }
+        ];
+
+        // 헤더 스타일 적용
+        headers.forEach((_, ci) => {
+            const cellRef = XLSX.utils.encode_cell({ r: 0, c: ci });
+            if (ws[cellRef]) ws[cellRef].s = HEADER_STYLE;
+        });
+
+        // 데이터 스타일 적용
+        rows.forEach((_, ri) => {
+            headers.forEach((__, ci) => {
+                const cellRef = XLSX.utils.encode_cell({ r: ri + 1, c: ci });
+                if (ws[cellRef]) ws[cellRef].s = DATA_STYLE;
+            });
+        });
+
+        XLSX.utils.book_append_sheet(wb, ws, '직원 명단');
+        XLSX.writeFile(wb, `아르바이트_명단_${filterTeam}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        closeModal('dataMenu');
     };
 
     const downloadLeaveCSV = () => {
