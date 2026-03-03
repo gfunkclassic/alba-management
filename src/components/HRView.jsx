@@ -109,7 +109,7 @@ export default function HRView({
                                                 </div>
                                             </td>
                                             <td className="p-3 pr-4 text-right">
-                                                <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                <div className="flex items-center justify-end gap-1 transition-opacity">
                                                     {roleMode !== 'VIEWER' && <button onClick={(e) => openUserForm(user, e)} className="p-1.5 bg-[#e8e4d4] text-[#5d6c4a] hover:bg-[#d4dcc0]" title='정보 수정'><Edit size={14} /></button>}
                                                     {!user.resignDate && roleMode === 'ADMIN' && (
                                                         <button onClick={(e) => openResignModal(user, e)} className="p-1.5 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#f0e5e4]" title='퇴사 처리'><UserMinus size={14} /></button>
