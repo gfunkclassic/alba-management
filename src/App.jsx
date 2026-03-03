@@ -736,7 +736,16 @@ function HRPayrollApp() {
         });
 
         XLSX.utils.book_append_sheet(wb, ws, '직원 명단');
-        XLSX.writeFile(wb, `아르바이트_명단_${filterTeam}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `아르바이트_명단_${filterTeam}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         closeModal('dataMenu');
     };
 
@@ -797,7 +806,17 @@ function HRPayrollApp() {
         });
 
         const teamLabel = team === '전체' ? '전체' : team;
-        XLSX.writeFile(wb, `근태양식_${monthLabel}_${teamLabel}.xlsx`);
+        const filename = `근태양식_${monthLabel}_${teamLabel}.xlsx`;
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         showNotificationMsg(`${monthLabel} ${teamLabel} 근태 양식 다운로드 (${activeUsers.length}명 × ${weekdays.length}일)`);
     };
 
