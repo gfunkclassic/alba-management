@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Layers, ChevronDown, Download, RotateCcw, X, UserMinus, Calendar, AlertTriangle, Check, Users, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
-
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from './firebase';
 // Auth
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/auth/LoginPage';
@@ -653,7 +654,7 @@ function HRPayrollApp() {
                 const idxReason = mapIdx('근태사유') !== -1 ? mapIdx('근태사유') : (findExact('사유') !== -1 ? findExact('사유') : findExact('비고'));
 
                 let count = 0;
-                const saves = [];
+                const saves = {}; // { [userId]: { [dateStr]: record } }
                 rows.slice(1).forEach(row => {
                     if (!row || row.length === 0) return;
                     const name = row[idxName];
@@ -678,10 +679,18 @@ function HRPayrollApp() {
                     const earlyLeaveReason = idxEarlyReason !== -1 ? String(row[idxEarlyReason] || '').trim() : '';
                     const overtimeReason = idxOvertimeReason !== -1 ? String(row[idxOvertimeReason] || '').trim() : '';
 
-                    saves.push(saveAttendanceFn(user.id, dateStr, { checkIn, checkOut, overtime, reason, earlyLeaveReason, overtimeReason }));
+                    if (!saves[user.id]) saves[user.id] = {};
+                    saves[user.id][dateStr] = { checkIn, checkOut, overtime, reason, earlyLeaveReason, overtimeReason };
                     count++;
                 });
-                await Promise.all(saves);
+
+                // Firestore에 저장 (각 유저별 1번의 setDoc으로 병합)
+                const promises = Object.entries(saves).map(([userId, userRecords]) => {
+                    const docRef = doc(db, 'attendance', String(userId));
+                    return setDoc(docRef, { records: userRecords }, { merge: true });
+                });
+
+                await Promise.all(promises);
                 showNotificationMsg(`총 ${count}건의 근무 기록이 등록되었습니다.`);
             }
         } catch (err) { console.error(err); showNotificationMsg(err.message || '파일 처리 실패', 'error'); }
@@ -755,8 +764,14 @@ function HRPayrollApp() {
         const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement("a"); link.setAttribute("href", url); link.setAttribute("download", `연차현황_${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link); link.click(); document.body.removeChild(link); closeModal('dataMenu');
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `연차현황_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        closeModal('dataMenu');
     };
 
     const downloadAttendanceTemplate = (team = '전체') => {
@@ -1072,7 +1087,16 @@ function HRPayrollApp() {
             XLSX.utils.book_append_sheet(wb, wsDetail, sheetName);
         });
 
-        XLSX.writeFile(wb, `${payrollMonth}_4대보험가입자_노무사전달용.xlsx`);
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${payrollMonth}_4대보험가입자_노무사전달용.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     const downloadFreelancerCSV = () => {
@@ -1085,8 +1109,13 @@ function HRPayrollApp() {
         const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement("a"); link.setAttribute("href", url); link.setAttribute("download", `${payrollMonth}_3.3공제자_본사지급요청.csv`);
-        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${payrollMonth}_3.3공제자_본사지급요청.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     return (
