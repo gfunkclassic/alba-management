@@ -1,0 +1,62 @@
+name: AI Change Guard
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [master]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  size_guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block overly large PRs unless justified
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = (pr.body || "");
+
+            // ✅ 여기 숫자만 팀 상황에 맞게 조절하면 됨
+            const LIMIT_FILES = 15;          // 변경 파일 수 상한
+            const LIMIT_TOTAL_CHANGES = 500; // (추가+삭제) 총 라인 수 상한
+
+            // 상한 초과 시 PR 본문에 이 키워드가 있으면 통과
+            const OVERRIDE_KEYWORD = "대규모 변경 사유";
+
+            const files = await github.paginate(
+              github.rest.pulls.listFiles,
+              { owner: context.repo.owner, repo: context.repo.repo, pull_number: pr.number, per_page: 100 }
+            );
+
+            const changedFilesCount = files.length;
+
+            // listFiles 응답의 additions/deletions 합산
+            const totalChanges = files.reduce((sum, f) => sum + (f.additions || 0) + (f.deletions || 0), 0);
+
+            // 폭주 기준 충족 여부
+            const tooManyFiles = changedFilesCount > LIMIT_FILES;
+            const tooManyChanges = totalChanges > LIMIT_TOTAL_CHANGES;
+
+            if (tooManyFiles || tooManyChanges) {
+              if (!body.includes(OVERRIDE_KEYWORD)) {
+                core.setFailed(
+                  [
+                    "대규모 변경 PR 감지됨 (AI 실수/폭주 방지)",
+                    `- 변경 파일 수: ${changedFilesCount} (기준: ${LIMIT_FILES})`,
+                    `- 총 라인 변경량(+/-): ${totalChanges} (기준: ${LIMIT_TOTAL_CHANGES})`,
+                    "",
+                    `해결 방법: PR 본문에 아래 문구를 추가하고, 왜 큰 변경이 필요한지 간단히 작성하세요.`,
+                    `- ${OVERRIDE_KEYWORD}: (예: 리팩터링 범위/이유/검증/롤백 계획)`
+                  ].join("\n")
+                );
+                return;
+              } else {
+                core.info(`Override keyword detected: ${OVERRIDE_KEYWORD}. Allowing large PR.`);
+              }
+            }
+
+            core.info("AI Change Guard passed.");
