@@ -11,6 +11,3 @@ src/auth/ @gfunkclassic
 
 # 승인 시스템 핵심 코드
 src/services/ @gfunkclassic
-
-# GitHub 설정 보호
-.github/ @gfunkclassic
