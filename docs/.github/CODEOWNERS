@@ -1,0 +1,16 @@
+# CODEOWNERS
+
+# Firestore 보안 규칙
+firestore.rules @gfunkclassic
+
+# Cloud Functions (승인 / 차감 로직)
+functions/ @gfunkclassic
+
+# 인증 및 권한 처리
+src/auth/ @gfunkclassic
+
+# 승인 시스템 핵심 코드
+src/services/ @gfunkclassic
+
+# GitHub 설정 보호
+.github/ @gfunkclassic
