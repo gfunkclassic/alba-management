@@ -241,6 +241,16 @@ function HRPayrollApp() {
 
         // 1) Build dates for the target month
         const processDateStr = (dateStr, isTargetMonthDay) => {
+            // 입사일 이전 날짜: 근무 없음 (0시간)
+            if (user.startDate && dateStr < user.startDate) {
+                dailyRecords[dateStr] = { checkIn: null, checkOut: null, overtime: 0, reason: '', isRecorded: false, isTargetMonth: isTargetMonthDay };
+                return;
+            }
+            // 퇴사일 이후 날짜: 근무 없음 (0시간)
+            if (user.resignDate && dateStr > user.resignDate) {
+                dailyRecords[dateStr] = { checkIn: null, checkOut: null, overtime: 0, reason: '', isRecorded: false, isTargetMonth: isTargetMonthDay };
+                return;
+            }
             const record = userAttendance[dateStr];
             if (record) {
                 dailyRecords[dateStr] = { checkIn: record.checkIn, checkOut: record.checkOut, overtime: record.overtime, reason: record.reason || '', isRecorded: true, isTargetMonth: isTargetMonthDay };
@@ -697,19 +707,30 @@ function HRPayrollApp() {
         e.target.value = null; closeModal('dataMenu');
     };
 
-    // 엑셀/CSV 파일 다운로드 헬퍼 - DataURL 방식(blob: URL 제한 우회)
-    const saveFile = (blob, filename) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const a = document.createElement('a');
-            a.href = reader.result;
-            a.download = filename;
-            a.style.display = 'none';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        };
-        reader.readAsDataURL(blob);
+    // XLSX 파일 다운로드 헬퍼 - base64 data URI 방식 (blob/FileReader UUID 버그 우회)
+    const saveXlsx = (wb, filename) => {
+        const b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+        const uri = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = uri;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    };
+
+    // CSV 파일 다운로드 헬퍼 - base64 data URI 방식
+    const saveCsv = (csvContent, filename) => {
+        const b64 = btoa(unescape(encodeURIComponent(csvContent)));
+        const uri = 'data:text/csv;charset=utf-8;base64,' + b64;
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = uri;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     };
 
     const downloadCSV = () => {
@@ -760,9 +781,7 @@ function HRPayrollApp() {
         });
 
         XLSX.utils.book_append_sheet(wb, ws, '직원 명단');
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        saveFile(blob, `아르바이트_명단_${filterTeam}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        saveXlsx(wb, `아르바이트_명단_${filterTeam}_${new Date().toISOString().slice(0, 10)}.xlsx`);
         closeModal('dataMenu');
     };
 
@@ -830,9 +849,7 @@ function HRPayrollApp() {
 
         const teamLabel = team === '전체' ? '전체' : team;
         const filename = `근태양식_${monthLabel}_${teamLabel}.xlsx`;
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        saveFile(blob, filename);
+        saveXlsx(wb, filename);
         showNotificationMsg(`${monthLabel} ${teamLabel} 근태 양식 다운로드 (${activeUsers.length}명 × ${weekdays.length}일)`);
     };
 
@@ -1088,9 +1105,7 @@ function HRPayrollApp() {
             XLSX.utils.book_append_sheet(wb, wsDetail, sheetName);
         });
 
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        saveFile(blob, `${payrollMonth}_4대보험가입자_노무사전달용.xlsx`);
+        saveXlsx(wb, `${payrollMonth}_4대보험가입자_노무사전달용.xlsx`);
     };
 
     const downloadFreelancerCSV = () => {
@@ -1101,8 +1116,7 @@ function HRPayrollApp() {
             return [escapeCsvField(u.gender), escapeCsvField(u.name), escapeCsvField(u.bank), escapeCsvField(u.account), escapeCsvField(u.team), escapeCsvField(pay.actual), escapeCsvField(pay.strictDeduction), escapeCsvField(pay.strictFinalPayout), "본사 지급 요청"];
         });
         const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        saveFile(blob, `${payrollMonth}_3.3공제자_본사지급요청.csv`);
+        saveCsv(csvContent, `${payrollMonth}_3.3공제자_본사지급요청.csv`);
     };
 
     return (
