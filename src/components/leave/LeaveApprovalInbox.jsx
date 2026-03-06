@@ -5,10 +5,12 @@ import AdminApprovalHistory from './AdminApprovalHistory';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]', HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]' };
-const STATUS_LABEL = { SUBMITTED: '승인대기', TEAM_APPROVED: '팀 승인', REJECTED: '반려', CANCELLED: '취소' };
+const STATUS_LABEL = { SUBMITTED: '승인대기', TEAM_APPROVED: '1차승인', FINAL_PENDING: '최종대기', FINAL_APPROVED: '최종승인', REJECTED: '반려', CANCELLED: '취소' };
 const STATUS_COLOR = {
     SUBMITTED: 'bg-[#d8973c] text-white',
-    TEAM_APPROVED: 'bg-[#5d6c4a] text-white',
+    TEAM_APPROVED: 'bg-[#7a8c5f] text-white',
+    FINAL_PENDING: 'bg-[#5d6c4a] text-white',
+    FINAL_APPROVED: 'bg-[#3d6b5e] text-white',
     REJECTED: 'bg-[#a65d57] text-white',
     CANCELLED: 'bg-[#c5c0b0] text-[#5a5545]',
 };
@@ -95,8 +97,10 @@ export default function LeaveApprovalInbox() {
                     <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
                         className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
                         <option value="ALL">전체</option>
-                        <option value="SUBMITTED">승인대기</option>
-                        <option value="TEAM_APPROVED">팀 승인</option>
+                        <option value="SUBMITTED">승인대기(팀)</option>
+                        <option value="TEAM_APPROVED">1차 승인</option>
+                        <option value="FINAL_PENDING">최종 대기</option>
+                        <option value="FINAL_APPROVED">최종 승인</option>
                         <option value="REJECTED">반려</option>
                     </select>
                     <button onClick={load} className="border-2 border-[#c5c0b0] p-1.5 text-[#5a5545] hover:bg-[#e8e4d4]">

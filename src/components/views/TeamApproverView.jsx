@@ -51,7 +51,7 @@ export default function TeamApproverView() {
                     <span className={`text-[10px] text-white font-bold px-2 py-0.5 ${teamColor[profile?.team_id] || 'bg-[#7a7565]'}`}>{profile?.team_id} 관리자</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <NotificationBell userId={profile?.uid} />
+                    <NotificationBell userId={profile?.uid} onNavigate={() => setTab('INBOX')} />
                     <span className="text-[#b8c4a0] text-xs">{profile?.name}</span>
                     <button onClick={logout} className="flex items-center gap-1 text-[#b8c4a0] hover:text-[#f5f3e8] text-xs"><LogOut size={14} /> 로그아웃</button>
                 </div>

@@ -17,6 +17,7 @@ import { auth, db, functions, httpsCallable } from '../firebase';
 const fnApproveTeamLeave = httpsCallable(functions, 'approveTeamLeave');
 const fnApproveFinalLeave = httpsCallable(functions, 'approveFinalLeave');
 const fnAdminApproveUser = httpsCallable(functions, 'adminApproveUser');
+const fnApproveCEOLeave = httpsCallable(functions, 'approveCEOLeave');
 
 const AuthContext = createContext(null);
 
@@ -446,7 +447,7 @@ export function AuthProvider({ children }) {
 
     // 전체 TEAM_APPROVED 요청 조회 (FINAL_APPROVER용)
     const getAllTeamApprovedRequests = async () => {
-        const q = query(collection(db, 'leave_requests'), where('status', '==', 'TEAM_APPROVED'));
+        const q = query(collection(db, 'leave_requests'), where('status', 'in', ['TEAM_APPROVED', 'FINAL_PENDING', 'FINAL_APPROVED', 'REJECTED']));
         const snap = await getDocs(q);
         const reqs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         // 신청자 이름 enrichment
@@ -473,6 +474,37 @@ export function AuthProvider({ children }) {
     const finalRejectLeaveRequest = async (reqId, _requestorUid, _date, _leaveType, note = '') => {
         const result = await fnApproveFinalLeave({ reqId, action: 'REJECT', note });
         if (!result.data.success) throw new Error('최종 반려 처리 중 오류가 발생했습니다.');
+    };
+
+    // ─── PHASE 4.5: CEO APPROVAL (최종 확정) ──────────────
+
+    // 대표 대기(CEO_PENDING) 상태 조회
+    const getCEOApprovalRequests = async () => {
+        const q = query(collection(db, 'leave_requests'), where('status', 'in', ['CEO_PENDING', 'FINAL_APPROVED', 'REJECTED']));
+        const snap = await getDocs(q);
+        const reqs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // 신청자 이름 enrichment
+        const userIds = [...new Set(reqs.map(r => r.user_id))];
+        const userMap = {};
+        await Promise.all(userIds.map(async uid => {
+            try {
+                const u = await getDoc(doc(db, 'users', uid));
+                if (u.exists()) userMap[uid] = u.data().name;
+            } catch { }
+        }));
+        return reqs
+            .map(r => ({ ...r, _userName: userMap[r.user_id] || r.user_id }))
+            .sort((a, b) => b.created_at?.localeCompare(a.created_at));
+    };
+
+    const ceoApproveLeaveRequest = async (reqId) => {
+        const result = await fnApproveCEOLeave({ reqId, action: 'APPROVE' });
+        if (!result.data.success) throw new Error('대표 최종 승인 처리 중 오류가 발생했습니다.');
+    };
+
+    const ceoRejectLeaveRequest = async (reqId, _requestorUid, _date, _leaveType, note = '') => {
+        const result = await fnApproveCEOLeave({ reqId, action: 'REJECT', note });
+        if (!result.data.success) throw new Error('대표 반려 처리 중 오류가 발생했습니다.');
     };
 
     // ─── PHASE 5: DELEGATION + PROXY APPROVAL ──────────────────
@@ -591,6 +623,8 @@ export function AuthProvider({ children }) {
         sendNotification, getMyNotifications, markNotificationRead,
         // Phase 4
         getAllTeamApprovedRequests, finalApproveLeaveRequest, finalRejectLeaveRequest,
+        // Phase 4.5
+        getCEOApprovalRequests, ceoApproveLeaveRequest, ceoRejectLeaveRequest,
         // Phase 5: Delegation + Proxy
         createDelegation, revokeDelegation,
         getMyDelegationsGiven, getMyActiveReceivedDelegation,

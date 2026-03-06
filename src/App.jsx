@@ -11,6 +11,7 @@ import ChangePasswordPage from './components/auth/ChangePasswordPage';
 import AlbaView from './components/views/AlbaView';
 import TeamApproverView from './components/views/TeamApproverView';
 import FinalApproverView from './components/views/FinalApproverView';
+import SuperAdminView from './components/views/SuperAdminView';
 
 // Data
 import { INITIAL_USERS } from './data/initialUsers';
@@ -1148,7 +1149,7 @@ function HRPayrollApp() {
 
                         {/* 알림 벨 아이콘 */}
                         <div className="mr-3 flex items-center justify-center">
-                            <NotificationBell userId={userProfile?.uid} />
+                            <NotificationBell userId={userProfile?.uid} onNavigate={(tab) => setActiveTab(tab)} />
                         </div>
 
                         {/* 역할 모드 선택기 */}
@@ -1353,6 +1354,40 @@ export default function App() {
     if (userProfile.is_temp_password) return <ChangePasswordPage />;
 
     const { role } = userProfile;
+    if (role === 'SUPER_ADMIN' || role === 'VIEWER') {
+        if (showHRSystem) {
+            return (
+                <div className="min-h-screen flex flex-col">
+                    {/* 최고관리자 상단 바 */}
+                    <div className="bg-[#302b25] border-b-2 border-[#1c1915] px-4 py-2 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setShowHRSystem(false)}
+                                className="text-[10px] bg-[#d8973c] border border-[#7a5a1a] text-[#f5f3e8] px-3 py-1.5 font-bold hover:bg-[#b07a30] flex items-center gap-1"
+                            >
+                                ← 결재/열람함
+                            </button>
+                            <span className="text-[#e2ceab] text-xs">인사 급여관리 시스템</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[10px] bg-[#d8973c] text-white font-bold px-2 py-0.5">최고관리자</span>
+                            <span className="text-[#e2ceab] text-xs">{userProfile.name}</span>
+                            <button
+                                onClick={logout}
+                                className="text-[10px] text-[#e2ceab] hover:text-[#f5f3e8] font-bold"
+                            >
+                                로그아웃
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex-1">
+                        <HRPayrollApp />
+                    </div>
+                </div>
+            );
+        }
+        return <SuperAdminView onSwitchToHRSystem={() => setShowHRSystem(true)} />;
+    }
     if (role === 'FINAL_APPROVER') {
         if (showHRSystem) {
             return (

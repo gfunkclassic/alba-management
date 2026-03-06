@@ -9,6 +9,15 @@ const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후�
 const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]', HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]' };
 const DEDUCTION = { FULL: 1.0, HALF_AM: 0.5, HALF_PM: 0.5 };
 const TEAM_COLOR = { '카페': 'bg-[#d8973c]', '생산기획': 'bg-[#5d6c4a]', 'QC': 'bg-[#4a6070]', 'ER': 'bg-[#a65d57]', 'LM': 'bg-[#7a7565]' };
+const STATUS_LABEL = { SUBMITTED: '승인대기(팀)', TEAM_APPROVED: '1차승인', FINAL_PENDING: '최종대기', FINAL_APPROVED: '최종승인', REJECTED: '반려', CANCELLED: '취소' };
+const STATUS_COLOR = {
+    SUBMITTED: 'bg-[#d8973c] text-white',
+    TEAM_APPROVED: 'bg-[#7a8c5f] text-white',
+    FINAL_PENDING: 'bg-[#5d6c4a] text-white',
+    FINAL_APPROVED: 'bg-[#3d6b5e] text-white',
+    REJECTED: 'bg-[#a65d57] text-white',
+    CANCELLED: 'bg-[#c5c0b0] text-[#5a5545]',
+};
 
 function RejectModal({ title, onConfirm, onCancel }) {
     const [note, setNote] = useState('');
@@ -176,6 +185,7 @@ export default function FinalApprovalInbox() {
                             <th className="p-3 text-center">유형</th>
                             <th className="p-3 text-left">사유</th>
                             <th className="p-3 text-center">신청일</th>
+                            <th className="p-3 text-center">상태</th>
                             <th className="p-3 text-center">처리</th>
                         </tr>
                     </thead>
@@ -184,7 +194,9 @@ export default function FinalApprovalInbox() {
                             <tr><td colSpan={7} className="p-8 text-center"><Loader size={16} className="animate-spin mx-auto text-[#9a9585]" /></td></tr>
                         ) : requests.length === 0 ? (
                             <tr><td colSpan={7} className="p-8 text-center text-xs text-[#9a9585]">
-                                {isFinalMode ? '팀 승인 완료된 대기 신청이 없습니다.' : 'SUBMITTED 상태 신청이 없습니다.'}
+                                {isFinalMode
+                                    ? <span>팀 승인 완료된 대기 신청이 없습니다.<br /><span className="text-[#a65d57] font-bold mt-1 inline-block">💡 새로운 신청은 [팀 대행] 탭에서 확인하세요.</span></span>
+                                    : 'SUBMITTED 상태 신청이 없습니다.'}
                             </td></tr>
                         ) : requests.map(req => (
                             <React.Fragment key={req.id}>
@@ -209,10 +221,17 @@ export default function FinalApprovalInbox() {
                                     <td className="p-3 text-xs text-[#7a7565] whitespace-pre-wrap word-break">{req.reason || '-'}</td>
                                     <td className="p-3 text-center text-xs text-[#9a9585]">{req.created_at?.slice(0, 10)}</td>
                                     <td className="p-3 text-center">
-                                        <div className="flex justify-center gap-1">
-                                            <button onClick={() => setConfirmApproveTarget(req)} className="flex items-center gap-1 bg-[#5d6c4a] text-white px-2 py-1 text-xs hover:bg-[#4a5639] transition-colors"><CheckCircle size={12} /> {approveLabel}</button>
-                                            <button onClick={() => setRejectTarget(req)} className="flex items-center gap-1 bg-[#a65d57] text-white px-2 py-1 text-xs hover:bg-[#8b4d47] transition-colors"><XCircle size={12} /> 반려</button>
-                                        </div>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 ${STATUS_COLOR[req.status] || 'bg-[#e8e4d4] text-[#5a5545]'}`}>
+                                            {STATUS_LABEL[req.status] || req.status}
+                                        </span>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                        {(isFinalMode ? (req.status === 'TEAM_APPROVED' || req.status === 'FINAL_PENDING') : req.status === 'SUBMITTED') ? (
+                                            <div className="flex justify-center gap-1">
+                                                <button onClick={() => setConfirmApproveTarget(req)} className="flex items-center gap-1 bg-[#5d6c4a] text-white px-2 py-1 text-xs hover:bg-[#4a5639] transition-colors"><CheckCircle size={12} /> {approveLabel}</button>
+                                                <button onClick={() => setRejectTarget(req)} className="flex items-center gap-1 bg-[#a65d57] text-white px-2 py-1 text-xs hover:bg-[#8b4d47] transition-colors"><XCircle size={12} /> 반려</button>
+                                            </div>
+                                        ) : '-'}
                                     </td>
                                 </tr>
                                 {errors[req.id] && (

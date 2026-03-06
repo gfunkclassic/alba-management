@@ -1,0 +1,7 @@
+feat: Add multi-step approval workflow and SuperAdmin/CEO dashboard
+
+- Implement 4-step approval flow (ALBA -> TEAM_APPROVER -> FINAL_APPROVER -> SUPER_ADMIN)
+- Create `SuperAdminView` and `CEOApprovalInbox` components
+- Add `approveCEOLeave` backend Cloud Function
+- Enhance `LeaveDetailModal` to show parallel and final step approvals
+- Add representative subagent testing and artifacts

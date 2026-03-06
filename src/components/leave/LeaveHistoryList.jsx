@@ -9,9 +9,20 @@ const TYPE_COLOR = {
     HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]',
     HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]',
 };
-const STATUS_LABEL = { SUBMITTED: '승인대기', CANCELLED: '취소됨' };
+const STATUS_LABEL = {
+    SUBMITTED: '승인대기(팀)',
+    TEAM_APPROVED: '승인대기(실장)',
+    FINAL_PENDING: '승인대기(실장)',
+    FINAL_APPROVED: '최종승인',
+    REJECTED: '반려됨',
+    CANCELLED: '취소됨'
+};
 const STATUS_COLOR = {
     SUBMITTED: 'bg-[#d8973c] text-white',
+    TEAM_APPROVED: 'bg-[#7a8c5f] text-white',
+    FINAL_PENDING: 'bg-[#5d6c4a] text-white',
+    FINAL_APPROVED: 'bg-[#3d6b5e] text-white',
+    REJECTED: 'bg-[#a65d57] text-white',
     CANCELLED: 'bg-[#c5c0b0] text-[#5a5545]',
 };
 
@@ -67,7 +78,11 @@ export default function LeaveHistoryList({ refreshKey }) {
                     </select>
                     <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
                         <option value="ALL">전체</option>
-                        <option value="SUBMITTED">승인대기</option>
+                        <option value="SUBMITTED">승인대기(팀)</option>
+                        <option value="TEAM_APPROVED">승인대기(실장)</option>
+                        <option value="FINAL_PENDING">승인진행중</option>
+                        <option value="FINAL_APPROVED">최종승인</option>
+                        <option value="REJECTED">반려됨</option>
                         <option value="CANCELLED">취소됨</option>
                     </select>
                 </div>

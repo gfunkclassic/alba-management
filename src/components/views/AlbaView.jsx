@@ -63,7 +63,7 @@ export default function AlbaView() {
                     )}
                 </div>
                 <div className="flex items-center gap-3">
-                    <NotificationBell userId={profile?.uid} />
+                    <NotificationBell userId={profile?.uid} onNavigate={(destination) => setTab(destination === 'APPROVALS' ? 'DELEGATE' : destination)} />
                     <span className="text-[#b8c4a0] text-xs">{profile?.name}</span>
                     <button onClick={logout} className="flex items-center gap-1 text-[#b8c4a0] hover:text-[#f5f3e8] text-xs"><LogOut size={14} /> 로그아웃</button>
                 </div>

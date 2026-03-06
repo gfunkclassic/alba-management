@@ -149,25 +149,157 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
         const reqRef = db.collection('leave_requests').doc(reqId);
         const now = nowISO();
 
+        // 1. 활성화된 모든 최종 관리자(실장)의 목록을 가져옵니다. (트랜잭션 밖에서 수행)
+        const finalApproversSnap = await db.collection('users').where('role', '==', 'FINAL_APPROVER').where('status', '==', 'ACTIVE').get();
+        const requiredApprovers = finalApproversSnap.docs.map(d => ({ uid: d.id, name: d.data().name }));
+        if (requiredApprovers.length === 0) {
+            throw new HttpsError('failed-precondition', '설정된 최종 결재자가 없습니다.');
+        }
+
         let leaveReq;
+        let isFullyResolved = false;
+        let finalStatus = '';
+
         await db.runTransaction(async (tx) => {
             const reqSnap = await tx.get(reqRef);
             if (!reqSnap.exists) throw new HttpsError('not-found', '연차 신청을 찾을 수 없습니다.');
             leaveReq = reqSnap.data();
 
-            if (leaveReq.status !== 'TEAM_APPROVED') {
-                throw new HttpsError('failed-precondition', `현재 상태(${leaveReq.status})에서는 최종 승인을 할 수 없습니다. 팀 승인 후 최종 승인이 가능합니다.`);
+            if (!['TEAM_APPROVED', 'FINAL_PENDING'].includes(leaveReq.status)) {
+                throw new HttpsError('failed-precondition', `현재 상태(${leaveReq.status})에서는 결재를 진행할 수 없습니다.`);
             }
 
-            const deduction = action === 'APPROVE' ? (DEDUCTION_MAP[leaveReq.type] ?? 1.0) : 0;
-            const year = leaveReq.date?.slice(0, 4);
-            let balRef, balSnap;
+            const currentApprovals = leaveReq.final_approvals || {};
 
-            // 모든 READ 작업을 먼저 수행
-            if (action === 'APPROVE') {
+            // 이미 내가 결재했는지 확인
+            if (currentApprovals[actorUid] && leaveReq.status === 'FINAL_PENDING') {
+                throw new HttpsError('already-exists', '이미 결재하셨습니다.');
+            }
+
+            let newFinalApprovals = { ...currentApprovals };
+
+            if (action === 'REJECT') {
+                // 한 명이라도 반려하면 즉시 전체 신청을 REJECTED 처리
+                newFinalApprovals[actorUid] = { status: 'REJECTED', acted_at: now, note: note || '', name: actor.name };
+                finalStatus = 'REJECTED';
+                isFullyResolved = true;
+
+                tx.update(reqRef, {
+                    status: finalStatus,
+                    updated_at: now,
+                    final_approvals: newFinalApprovals
+                });
+            } else {
+                // 승인 처리
+                newFinalApprovals[actorUid] = { status: 'APPROVED', acted_at: now, note: note || '', name: actor.name };
+
+                // 모든 필수 결재자가 승인했는지 확인
+                const allApproved = requiredApprovers.every(fa => newFinalApprovals[fa.uid]?.status === 'APPROVED');
+
+                if (allApproved) {
+                    finalStatus = 'CEO_PENDING';
+                    isFullyResolved = true; // 실장 단계 종결
+
+                    tx.update(reqRef, {
+                        status: finalStatus,
+                        updated_at: now,
+                        final_approvals: newFinalApprovals
+                    });
+                } else {
+                    finalStatus = 'FINAL_PENDING';
+                    isFullyResolved = false;
+
+                    tx.update(reqRef, {
+                        status: finalStatus,
+                        updated_at: now,
+                        final_approvals: newFinalApprovals
+                    });
+                }
+            }
+
+            // 공통 로깅
+            tx.create(db.collection('approvals').doc(), {
+                leave_request_id: reqId,
+                stage: 'FINAL',
+                action,
+                actor_user_id: actorUid,
+                acted_at: now,
+                note: note || '',
+                delegation_from_user_id: null,
+            });
+        });
+
+        // 3. 알림 발송 (전체 완료된 경우만 신청자에게 발송)
+        if (isFullyResolved) {
+            try {
+                const notifType = finalStatus === 'CEO_PENDING' ? 'LEAVE_CEO_PENDING' : 'LEAVE_REJECTED';
+                await sendNotification(leaveReq.user_id, notifType, {
+                    leave_request_id: reqId,
+                    date: leaveReq.date,
+                    type: leaveReq.type,
+                    actor_name: actor.name,
+                    note: note || (finalStatus === 'CEO_PENDING' ? '실장 결재 완료 (대표 대기)' : '반려됨'),
+                });
+            } catch (ne) {
+                console.warn('알림 발송 실패 (무시됨):', ne.message);
+            }
+        }
+
+        return { success: true, newStatus: finalStatus, isFullyResolved };
+    } catch (error) {
+        console.error('approveFinalLeave ERROR:', error);
+        if (error instanceof HttpsError) throw error;
+        throw new HttpsError('internal', error.message || '내부 서버 오류가 발생했습니다.');
+    }
+});
+
+// ─────────────────────────────────────────────────────────────
+// 2.5. approveCEOLeave — 대표님 최종 승인 / 반려 + 잔여 차감 (트랜잭션)
+// ─────────────────────────────────────────────────────────────
+exports.approveCEOLeave = onCall({ region: 'asia-northeast3' }, async (req) => {
+    try {
+        if (!req.auth) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
+
+        const { reqId, action, note } = req.data;
+        if (!reqId || !action) throw new HttpsError('invalid-argument', 'reqId, action 필드가 필요합니다.');
+        if (!['APPROVE', 'REJECT'].includes(action)) throw new HttpsError('invalid-argument', 'action은 APPROVE 또는 REJECT이어야 합니다.');
+
+        const actorUid = req.auth.uid;
+        const actor = await getUserProfile(actorUid);
+        if (actor.role !== 'SUPER_ADMIN' && actor.role !== 'VIEWER') throw new HttpsError('permission-denied', '대표(최고관리자) 권한이 필요합니다.');
+
+        const reqRef = db.collection('leave_requests').doc(reqId);
+        const now = nowISO();
+
+        let leaveReq;
+        let finalStatus = '';
+
+        await db.runTransaction(async (tx) => {
+            const reqSnap = await tx.get(reqRef);
+            if (!reqSnap.exists) throw new HttpsError('not-found', '연차 신청을 찾을 수 없습니다.');
+            leaveReq = reqSnap.data();
+
+            if (leaveReq.status !== 'CEO_PENDING') {
+                throw new HttpsError('failed-precondition', `현재 상태(${leaveReq.status})에서는 대표 결재를 진행할 수 없습니다.`);
+            }
+
+            if (action === 'REJECT') {
+                finalStatus = 'REJECTED';
+                tx.update(reqRef, {
+                    status: finalStatus,
+                    updated_at: now,
+                    ceo_decision: { status: 'REJECTED', acted_at: now, note: note || '', name: actor.name }
+                });
+            } else {
+                finalStatus = 'FINAL_APPROVED';
+
+                // 연차 차감 로직 수행
+                const deduction = DEDUCTION_MAP[leaveReq.type] ?? 1.0;
+                const year = leaveReq.date?.slice(0, 4);
                 if (!year) throw new Error('연차 날짜 정보가 없습니다.');
-                balRef = db.collection('leave_balance').doc(`${leaveReq.user_id}_${year}`);
-                balSnap = await tx.get(balRef);
+
+                const balRef = db.collection('leave_balance').doc(`${leaveReq.user_id}_${year}`);
+                const balSnap = await tx.get(balRef);
 
                 const total = balSnap.exists ? (balSnap.data().total_days ?? 0) : 0;
                 const used = balSnap.exists ? (balSnap.data().used_days ?? 0) : 0;
@@ -175,14 +307,13 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
                 if (remaining < deduction) {
                     throw new HttpsError('failed-precondition', `잔여 연차 부족: 잔여 ${remaining}일 / 차감 필요 ${deduction}일`);
                 }
-            }
 
-            // 모든 WRITE 작업을 그 이후에 수행
-            const newStatus = action === 'APPROVE' ? 'FINAL_APPROVED' : 'REJECTED';
-            tx.update(reqRef, { status: newStatus, updated_at: now });
+                tx.update(reqRef, {
+                    status: finalStatus,
+                    updated_at: now,
+                    ceo_decision: { status: 'APPROVED', acted_at: now, note: note || '', name: actor.name }
+                });
 
-            if (action === 'APPROVE') {
-                const used = balSnap.exists ? (balSnap.data().used_days ?? 0) : 0;
                 if (balSnap.exists) {
                     tx.update(balRef, { used_days: used + deduction, updated_at: now });
                 } else {
@@ -196,9 +327,10 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
                 }
             }
 
+            // 공통 로깅
             tx.create(db.collection('approvals').doc(), {
                 leave_request_id: reqId,
-                stage: 'FINAL',
+                stage: 'CEO',
                 action,
                 actor_user_id: actorUid,
                 acted_at: now,
@@ -207,23 +339,23 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
             });
         });
 
+        // 알림 발송 (신청자에게 발송)
         try {
-            const notifType = action === 'APPROVE' ? 'LEAVE_FINAL_APPROVED' : 'LEAVE_REJECTED';
+            const notifType = finalStatus === 'FINAL_APPROVED' ? 'LEAVE_FINAL_APPROVED' : 'LEAVE_REJECTED';
             await sendNotification(leaveReq.user_id, notifType, {
                 leave_request_id: reqId,
                 date: leaveReq.date,
                 type: leaveReq.type,
                 actor_name: actor.name,
-                note: note || '',
+                note: note || (finalStatus === 'FINAL_APPROVED' ? '대표님 최종 승인 완료' : '대표 반려됨'),
             });
         } catch (ne) {
             console.warn('알림 발송 실패 (무시됨):', ne.message);
         }
 
-        const newStatus = action === 'APPROVE' ? 'FINAL_APPROVED' : 'REJECTED';
-        return { success: true, newStatus };
+        return { success: true, newStatus: finalStatus };
     } catch (error) {
-        console.error('approveFinalLeave ERROR:', error);
+        console.error('approveCEOLeave ERROR:', error);
         if (error instanceof HttpsError) throw error;
         throw new HttpsError('internal', error.message || '내부 서버 오류가 발생했습니다.');
     }
@@ -275,4 +407,83 @@ exports.adminApproveUser = onCall({ region: 'asia-northeast3' }, async (req) => 
     }
 
     return { success: true, action, uid };
+});
+
+// ─────────────────────────────────────────────────────────────
+// 임시 개발용 패스워드 일괄 변경 함수 (테스트 완료 후 삭제 요망)
+// ─────────────────────────────────────────────────────────────
+const { onRequest } = require('firebase-functions/v2/https');
+const { getAuth } = require('firebase-admin/auth');
+
+exports.devBulkSetPasswords = onRequest({ region: 'asia-northeast3' }, async (req, res) => {
+    try {
+        const auth = getAuth();
+        const results = [];
+
+        // 1. Set fmj@fairplay142.com as FINAL_APPROVER
+        const fmjSnap = await db.collection('users').where('email', '==', 'fmj@fairplay142.com').get();
+        if (!fmjSnap.empty) {
+            const doc = fmjSnap.docs[0];
+            await doc.ref.update({ role: 'FINAL_APPROVER' });
+            results.push('Updated fmj@fairplay142.com to FINAL_APPROVER');
+        }
+
+        // 2. Set or create admin_test2@fairplay142.com as FINAL_APPROVER
+        const admin2Snap = await db.collection('users').where('email', '==', 'admin_test2@fairplay142.com').get();
+        if (!admin2Snap.empty) {
+            const doc = admin2Snap.docs[0];
+            await doc.ref.update({ role: 'FINAL_APPROVER' });
+            results.push('Updated admin_test2@fairplay142.com to FINAL_APPROVER');
+        } else {
+            try {
+                const userRecord = await auth.createUser({
+                    email: 'admin_test2@fairplay142.com',
+                    password: 'password123',
+                    displayName: '테스트실장'
+                });
+                await db.collection('users').doc(userRecord.uid).set({
+                    user_id: userRecord.uid,
+                    email: 'admin_test2@fairplay142.com',
+                    name: '테스트실장',
+                    role: 'FINAL_APPROVER',
+                    status: 'ACTIVE',
+                    created_at: new Date().toISOString()
+                });
+                results.push('Created admin_test2@fairplay142.com as FINAL_APPROVER');
+            } catch (authErr) {
+                results.push('Error creating admin_test2: ' + authErr.message);
+            }
+        }
+
+        // 3. Set or create ceo@fairplay142.com as SUPER_ADMIN
+        const ceoSnap = await db.collection('users').where('email', '==', 'ceo@fairplay142.com').get();
+        if (!ceoSnap.empty) {
+            const doc = ceoSnap.docs[0];
+            await doc.ref.update({ role: 'SUPER_ADMIN' });
+            results.push('Updated ceo@fairplay142.com to SUPER_ADMIN');
+        } else {
+            try {
+                const userRecord = await auth.createUser({
+                    email: 'ceo@fairplay142.com',
+                    password: 'password123',
+                    displayName: '대표(테스트)'
+                });
+                await db.collection('users').doc(userRecord.uid).set({
+                    user_id: userRecord.uid,
+                    email: 'ceo@fairplay142.com',
+                    name: '대표(테스트)',
+                    role: 'SUPER_ADMIN',
+                    status: 'ACTIVE',
+                    created_at: new Date().toISOString()
+                });
+                results.push('Created ceo@fairplay142.com as SUPER_ADMIN');
+            } catch (authErr) {
+                results.push('Error creating ceo: ' + authErr.message);
+            }
+        }
+
+        res.json({ success: true, results });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
