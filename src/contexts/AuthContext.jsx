@@ -380,11 +380,11 @@ export function AuthProvider({ children }) {
     // ─── PHASE 3: APPROVAL + NOTIFICATION FUNCTIONS ─────────────────
 
     // 내부 알림 생성 (helper)
-    const sendNotification = async (toUserId, type, payload) => {
+    const sendNotification = async (toUserId, type, data) => {
         await addDoc(collection(db, 'notifications'), {
             to_user_id: toUserId,
             type,
-            payload,
+            data,
             is_read: false,
             created_at: new Date().toISOString(),
         });
