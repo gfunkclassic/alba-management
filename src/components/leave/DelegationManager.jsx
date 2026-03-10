@@ -87,7 +87,7 @@ export default function DelegationManager() {
                         <select value={form.toUserId} onChange={e => setForm(f => ({ ...f, toUserId: e.target.value }))} className={inputCls}>
                             <option value="">-- 팀원 선택</option>
                             {teamMembers.map(m => (
-                                <option key={m.uid} value={m.uid}>{m.name} ({m.role === 'ALBA' ? '아르바이트' : m.role})</option>
+                                <option key={m.uid} value={m.uid}>{m.name} ({m.position || (m.roleGroup === 'manager' ? '팀 관리자' : '아르바이트')})</option>
                             ))}
                         </select>
                     </div>

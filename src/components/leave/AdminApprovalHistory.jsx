@@ -4,6 +4,7 @@ import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'firebas
 import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import LeaveDetailModal from '../modals/LeaveDetailModal';
+import { canApprove } from '../../utils/roleUtils';
 
 const ACTION_LABEL = {
     APPROVE: '승인',
@@ -97,13 +98,13 @@ export default function AdminApprovalHistory() {
     };
 
     useEffect(() => {
-        if (userProfile?.role === 'FINAL_APPROVER' || userProfile?.role === 'TEAM_APPROVER') {
+        if (canApprove(userProfile?.roleGroup)) {
             loadHistory();
         }
     }, [userProfile]);
 
     if (!userProfile) return null;
-    if (userProfile.role !== 'FINAL_APPROVER' && userProfile.role !== 'TEAM_APPROVER') return null;
+    if (!canApprove(userProfile.roleGroup)) return null;
 
     return (
         <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] mt-8">

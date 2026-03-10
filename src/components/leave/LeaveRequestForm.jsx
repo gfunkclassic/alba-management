@@ -33,7 +33,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
                 const notifyPromises = [];
 
                 if (userProfile?.team_id) {
-                    const teamApprovers = allUsers.filter(u => u.team_id === userProfile.team_id && u.role === 'TEAM_APPROVER');
+                    const teamApprovers = allUsers.filter(u => u.team_id === userProfile.team_id && u.roleGroup === 'manager');
                     teamApprovers.forEach(ap => {
                         notifyPromises.push(sendNotification(ap.uid, 'LEAVE_SUBMITTED', {
                             user_name: userProfile.name,

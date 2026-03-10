@@ -11,6 +11,7 @@ const TYPE_LABEL = { FULL: '연차', HALF_AM: '반차(오전)', HALF_PM: '반차
 export default function LeaveDetailModal({ isOpen, onClose, request }) {
     const [history, setHistory] = useState([]);
     const [finalApproversList, setFinalApproversList] = useState([]);
+    const [teamApprover, setTeamApprover] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -27,9 +28,17 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                 );
                 const snap = await getDocs(q);
 
-                const faSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'FINAL_APPROVER'), where('status', '==', 'ACTIVE')));
+                const faSnap = await getDocs(query(collection(db, 'users'), where('roleGroup', 'in', ['approver_senior', 'approver_final']), where('status', '==', 'ACTIVE')));
                 const faList = faSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
                 setFinalApproversList(faList);
+
+                if (request.team_id) {
+                    const taSnap = await getDocs(query(collection(db, 'users'), where('roleGroup', '==', 'manager'), where('team_id', '==', request.team_id), where('status', '==', 'ACTIVE')));
+                    const taList = taSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+                    setTeamApprover(taList[0] || null);
+                } else {
+                    setTeamApprover(null);
+                }
 
                 const userCache = {};
                 const getUserName = async (uid) => {
@@ -119,66 +128,87 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                     </div>
 
                     {/* 결재선 요약 (Naver Works Style) */}
-                    {finalApproversList.length > 0 && (
-                        <div className="bg-white rounded-lg border border-[#c5c0b0] overflow-hidden">
-                            <div className="bg-[#f0e8d5] px-3 py-2 border-b border-[#c5c0b0]">
-                                <h3 className="text-xs font-bold text-[#5a5545]">결재선 요약</h3>
-                            </div>
-                            <div className="flex bg-[#faf8f0]">
-                                <div className="w-12 bg-[#e8e4d4] flex items-center justify-center font-bold text-xs text-[#5a5545] border-r border-[#d4dcc0]">결재</div>
-                                <div className="flex-1 flex text-center divide-x divide-[#d4dcc0]">
-                                    {finalApproversList.map(fa => {
-                                        const approval = request.final_approvals?.[fa.uid];
-                                        return (
-                                            <div key={fa.uid} className="flex-1 p-3 flex flex-col items-center justify-center bg-white hover:bg-[#f9f9f9] transition-colors">
-                                                <span className="text-[10px] text-[#7a7565] mb-2 font-bold">
-                                                    {approval?.status === 'APPROVED' ? '결재 / 승인'
-                                                        : approval?.status === 'REJECTED' ? '결재 / 반려' : '병렬 결재 / 대기'}
-                                                </span>
+                    <div className="bg-white rounded-lg border border-[#c5c0b0] overflow-x-auto">
+                        <div className="bg-[#f0e8d5] px-3 py-2 border-b border-[#c5c0b0]">
+                            <h3 className="text-xs font-bold text-[#5a5545]">결재선 요약</h3>
+                        </div>
+                        <div className="flex bg-[#faf8f0] min-w-[500px]">
+                            <div className="w-12 bg-[#e8e4d4] flex items-center justify-center font-bold text-xs text-[#5a5545] border-r border-[#d4dcc0] shrink-0">결재</div>
 
-                                                <div className="h-12 w-12 border rounded-full flex items-center justify-center mb-2 relative"
-                                                    style={{ borderColor: approval?.status === 'APPROVED' ? '#d8ceb8' : '#ebe8db' }}>
-                                                    {approval?.status === 'APPROVED' ? (
-                                                        <div className="text-[#a65d57] font-black text-[9px] leading-tight border-2 border-[#a65d57] rounded-full p-1.5 w-10 h-10 flex flex-col justify-center transform -rotate-12 bg-white shadow-sm opacity-90">
-                                                            <span>{fa.name.substring(0, 3)}</span>
-                                                            <span className="border-t border-[#a65d57] mt-0.5 pt-0.5">승인</span>
-                                                        </div>
-                                                    ) : approval?.status === 'REJECTED' ? (
-                                                        <span className="text-[#a65d57] font-black text-xs tracking-tighter">반려됨</span>
-                                                    ) : (
-                                                        <span className="text-[#c5c0b0] font-black text-xs">NO 결재</span>
-                                                    )}
-                                                </div>
-                                                <span className="text-xs font-black text-[#5d6c4a]">{fa.name}</span>
-                                            </div>
-                                        );
-                                    })}
-                                    {/* CEO Box */}
-                                    <div className="flex-1 p-3 flex flex-col items-center justify-center bg-white hover:bg-[#f9f9f9] transition-colors">
-                                        <span className="text-[10px] text-[#7a7565] mb-2 font-bold">
-                                            {request.ceo_decision?.status === 'APPROVED' ? '결재 / 승인'
-                                                : request.ceo_decision?.status === 'REJECTED' ? '결재 / 반려' : '최종 결재 / 대기'}
+                            {/* 1차: 팀 결재 */}
+                            <div className="flex-1 flex flex-col items-center justify-center p-3 bg-white border-r border-[#d4dcc0] hover:bg-[#f9f9f9] transition-colors relative">
+                                <span className="text-[10px] text-[#7a7565] mb-2 font-bold whitespace-nowrap">
+                                    {request.status === 'REJECTED' && !request.final_approvals && !request.ceo_decision ? '결재 / 반려'
+                                        : (request.status !== 'SUBMITTED' && request.status !== 'CANCELLED') ? '결재 / 승인' : '결재 / 대기'}
+                                </span>
+                                <div className="h-12 w-12 border rounded-full flex items-center justify-center mb-2 relative"
+                                    style={{ borderColor: (request.status !== 'SUBMITTED' && request.status !== 'CANCELLED') ? '#d8ceb8' : '#ebe8db' }}>
+                                    {(request.status !== 'SUBMITTED' && request.status !== 'CANCELLED' && request.status !== 'REJECTED') ? (
+                                        <div className="text-[#a65d57] font-black text-[9px] leading-tight border-2 border-[#a65d57] rounded-full p-1.5 w-10 h-10 flex flex-col justify-center transform -rotate-12 bg-white shadow-sm opacity-90">
+                                            <span>{teamApprover ? teamApprover.name.substring(0, 3) : '팀장'}</span>
+                                            <span className="border-t border-[#a65d57] mt-0.5 pt-0.5">승인</span>
+                                        </div>
+                                    ) : (request.status === 'REJECTED' && !request.final_approvals && !request.ceo_decision) ? (
+                                        <span className="text-[#a65d57] font-black text-xs tracking-tighter">반려됨</span>
+                                    ) : (
+                                        <span className="text-[#c5c0b0] font-black text-xs">NO 결재</span>
+                                    )}
+                                </div>
+                                <span className="text-xs font-black text-[#8b4d47]">{teamApprover ? teamApprover.name : '팀 관리자'}</span>
+                            </div>
+
+                            {/* 2차: 병렬 결재 (실장) */}
+                            {finalApproversList.map(fa => {
+                                const approval = request.final_approvals?.[fa.uid];
+                                return (
+                                    <div key={fa.uid} className="flex-1 p-3 flex flex-col items-center justify-center bg-white border-r border-[#d4dcc0] hover:bg-[#f9f9f9] transition-colors relative">
+                                        <span className="text-[10px] text-[#7a7565] mb-2 font-bold whitespace-nowrap">
+                                            {approval?.status === 'APPROVED' ? '병렬 결재 / 승인'
+                                                : approval?.status === 'REJECTED' ? '병렬 결재 / 반려' : '병렬 결재 / 대기'}
                                         </span>
 
                                         <div className="h-12 w-12 border rounded-full flex items-center justify-center mb-2 relative"
-                                            style={{ borderColor: request.ceo_decision?.status === 'APPROVED' ? '#d8ceb8' : '#ebe8db' }}>
-                                            {request.ceo_decision?.status === 'APPROVED' ? (
+                                            style={{ borderColor: approval?.status === 'APPROVED' ? '#d8ceb8' : '#ebe8db' }}>
+                                            {approval?.status === 'APPROVED' ? (
                                                 <div className="text-[#a65d57] font-black text-[9px] leading-tight border-2 border-[#a65d57] rounded-full p-1.5 w-10 h-10 flex flex-col justify-center transform -rotate-12 bg-white shadow-sm opacity-90">
-                                                    <span>{request.ceo_decision.name?.substring(0, 3) || '대표님'}</span>
+                                                    <span>{fa.name.substring(0, 3)}</span>
                                                     <span className="border-t border-[#a65d57] mt-0.5 pt-0.5">승인</span>
                                                 </div>
-                                            ) : request.ceo_decision?.status === 'REJECTED' ? (
+                                            ) : approval?.status === 'REJECTED' ? (
                                                 <span className="text-[#a65d57] font-black text-xs tracking-tighter">반려됨</span>
                                             ) : (
                                                 <span className="text-[#c5c0b0] font-black text-xs">NO 결재</span>
                                             )}
                                         </div>
-                                        <span className="text-xs font-black text-[#5d6c4a]">대표(CEO)</span>
+                                        <span className="text-xs font-black text-[#5d6c4a]">{fa.name}</span>
                                     </div>
+                                );
+                            })}
+
+                            {/* 3차: 최종 결재 (CEO) */}
+                            <div className="flex-1 p-3 flex flex-col items-center justify-center bg-white hover:bg-[#f9f9f9] transition-colors relative">
+                                <span className="text-[10px] text-[#7a7565] mb-2 font-bold whitespace-nowrap">
+                                    {request.ceo_decision?.status === 'APPROVED' ? '결재 / 승인'
+                                        : request.ceo_decision?.status === 'REJECTED' ? '결재 / 반려' : '결재 / 대기'}
+                                </span>
+
+                                <div className="h-12 w-12 border rounded-full flex items-center justify-center mb-2 relative"
+                                    style={{ borderColor: request.ceo_decision?.status === 'APPROVED' ? '#d8ceb8' : '#ebe8db' }}>
+                                    {request.ceo_decision?.status === 'APPROVED' ? (
+                                        <div className="text-[#a65d57] font-black text-[9px] leading-tight border-2 border-[#a65d57] rounded-full p-1.5 w-10 h-10 flex flex-col justify-center transform -rotate-12 bg-white shadow-sm opacity-90">
+                                            <span>{request.ceo_decision.name?.substring(0, 3) || '대표님'}</span>
+                                            <span className="border-t border-[#a65d57] mt-0.5 pt-0.5">승인</span>
+                                        </div>
+                                    ) : request.ceo_decision?.status === 'REJECTED' ? (
+                                        <span className="text-[#a65d57] font-black text-xs tracking-tighter">반려됨</span>
+                                    ) : (
+                                        <span className="text-[#c5c0b0] font-black text-xs">NO 결재</span>
+                                    )}
                                 </div>
+                                <span className="text-xs font-black text-[#3d472f]">강일훈(대표)</span>
                             </div>
                         </div>
-                    )}
+                    </div>
 
                     {/* 처리 이력 */}
                     <div>

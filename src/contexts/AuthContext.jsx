@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, orderBy, runTransaction, onSnapshot, writeBatch } from 'firebase/firestore';
 import { auth, db, functions, httpsCallable } from '../firebase';
+import { normalizeProfile } from '../utils/roleUtils';
 
 // Cloud Functions 참조
 const fnApproveTeamLeave = httpsCallable(functions, 'approveTeamLeave');
@@ -59,7 +60,7 @@ export function AuthProvider({ children }) {
                 try {
                     const profileSnap = await getDoc(doc(db, 'users', user.uid));
                     if (profileSnap.exists()) {
-                        setUserProfile({ uid: user.uid, ...profileSnap.data() });
+                        setUserProfile(normalizeProfile({ uid: user.uid, ...profileSnap.data() }));
                     } else {
                         // Auth는 됐지만 Firestore 문서 없음
                         setUserProfile({ uid: user.uid, _noProfile: true });
@@ -157,9 +158,17 @@ export function AuthProvider({ children }) {
     };
 
     // 가입 승인
-    const approveUser = async (uid, { role, team_id }) => {
+    const approveUser = async (uid, { role, roleGroup, position, team_id }) => {
+        // role: 하위호환용 (ALBA, TEAM_APPROVER 등)
+        // roleGroup: 새 권한 구조 ('employee', 'manager' 등)
+        // 둘 중 하나만 있어도 저장 (어댑터가 보완)
+        const finalRoleGroup = roleGroup || role; // role이 이미 roleGroup값일 수 있음
         await updateDoc(doc(db, 'users', uid), {
-            status: 'ACTIVE', role, team_id,
+            status: 'ACTIVE',
+            role: finalRoleGroup,         // 하위호환
+            roleGroup: finalRoleGroup,    // 새 권한
+            ...(position ? { position } : {}),
+            team_id,
             updated_at: new Date().toISOString(),
         });
     };
@@ -181,9 +190,14 @@ export function AuthProvider({ children }) {
     };
 
     // 계정 역할/팀 즉시 수정 (ACTIVE 유저 대상)
-    const updateUserRoleAndTeam = async (uid, role, team_id) => {
+    const updateUserRoleAndTeam = async (uid, roleGroup, team_id, position, contact_email) => {
         await updateDoc(doc(db, 'users', uid), {
-            role, team_id,
+            role: roleGroup,        // 하위호환
+            roleGroup,              // 새 권한
+            ...(position !== undefined ? { position } : {}),
+            // 표시용 이메일: 비어있으면 필드 제거, 있으면 저장
+            ...(contact_email !== undefined ? { contact_email: contact_email || null } : {}),
+            team_id,
             updated_at: new Date().toISOString()
         });
     };
@@ -277,7 +291,11 @@ export function AuthProvider({ children }) {
             uid: newUid,
             name,
             email,
-            role,
+            // 표시용 이메일: 로그인 식별자와 다를 수 있음 (선택적)
+            ...(contact_email && contact_email !== email ? { contact_email } : {}),
+            role: roleGroup || role,        // 하위호환
+            roleGroup: roleGroup || role,   // 새 권한
+            ...(position ? { position } : {}),
             team_id: team_id || null,
             is_temp_password: true,
             created_at: new Date().toISOString(),

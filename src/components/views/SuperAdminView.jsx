@@ -32,7 +32,14 @@ export default function SuperAdminView({ onSwitchToHRSystem }) {
                     <div className="flex items-center gap-3">
                         <span className="text-[#e2ceab] text-xs font-bold mr-1">{userProfile?.name}님</span>
                         <div className="pt-1.5">
-                            <NotificationBell userId={userProfile?.uid} />
+                            <NotificationBell userId={userProfile?.uid} onNavigate={(tab) => {
+                                if (tab === 'APPROVALS') {
+                                    setActiveTab('APPROVAL');
+                                } else if (tab === 'HISTORY') {
+                                    localStorage.setItem('app_active_tab', 'LEAVE');
+                                    if (onSwitchToHRSystem) onSwitchToHRSystem();
+                                }
+                            }} />
                         </div>
                     </div>
                     <div className="w-px h-4 bg-[#d8973c]"></div>

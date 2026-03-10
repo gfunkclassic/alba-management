@@ -7,7 +7,24 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     function myRole() { return myProfile().role; }
+    function myRoleGroup() { return myProfile().roleGroup; }
     function myTeam() { return myProfile().team_id; }
+
+    // 관리자(최종 결재 권한): 구버전 role 및 신규 roleGroup 모두 허용
+    function isAdmin() {
+      return myRole() == 'FINAL_APPROVER' ||
+             myRoleGroup() == 'approver_final' ||
+             myRoleGroup() == 'approver_senior' ||
+             myRoleGroup() == 'sys_admin';
+    }
+    // 시스템 관리자
+    function isSysAdminUser() {
+      return myRole() == 'SUPER_ADMIN' || myRoleGroup() == 'sys_admin';
+    }
+    // 팀 관리자
+    function isTeamApproverUser() {
+      return myRole() == 'TEAM_APPROVER' || myRoleGroup() == 'manager';
+    }
 
     // 수임자 여부: delegations/{uid} 문서에서 is_active + 팀 확인
     function isActiveDelegatee(teamId) {
@@ -20,7 +37,7 @@ service cloud.firestore {
     // ─── settings ──────────────────────────────────────────────
     match /settings/{docId} {
       allow read: if true;  // 로그인/가입 페이지에서 팀 목록을 읽기 위해 비인증 허용
-      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+      allow write: if isAuthed() && isAdmin();
     }
 
     // ─── users ─────────────────────────────────────────────────
@@ -28,7 +45,7 @@ service cloud.firestore {
       allow read: if isAuthed();
       // 가입등록: 본인 UID로 PENDING 상태 문서 생성
       allow create: if isAuthed() && request.auth.uid == uid && (
-        myRole() == 'FINAL_APPROVER' ||
+        isAdmin() ||
         (request.resource.data.status == 'PENDING' &&
          !('role' in request.resource.data || request.resource.data.role == null) ||
          request.resource.data.get('role', null) == null)
@@ -37,7 +54,7 @@ service cloud.firestore {
       allow update: if isAuthed() && request.auth.uid == uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_temp_password']);
       // FINAL_APPROVER: 계정 관리 (status, role, team_id 등)
-      allow update: if isAuthed() && myRole() == 'FINAL_APPROVER';
+      allow update: if isAuthed() && isAdmin();
       allow delete: if false;
     }
 
@@ -46,19 +63,19 @@ service cloud.firestore {
     match /leave_balance/{docId} {
       allow read: if isAuthed() && (
         resource.data.user_id == request.auth.uid ||
-        myRole() == 'FINAL_APPROVER'
+        isAdmin()
       );
-      // 잔여 조정(수동)은 FINAL_APPROVER만 허용 (관리자 수동 조정 기능 보존)
-      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+      // 잔여 조정(수동)은 관리자 계정만 허용
+      allow write: if isAuthed() && isAdmin();
     }
 
     // ─── leave_requests ────────────────────────────────────────
     match /leave_requests/{reqId} {
       allow read: if isAuthed() && (
         resource.data.user_id == request.auth.uid ||
-        (myRole() == 'TEAM_APPROVER' && resource.data.team_id == myTeam()) ||
+        ((myRole() == 'TEAM_APPROVER' || myRoleGroup() == 'manager') && resource.data.team_id == myTeam()) ||
         isActiveDelegatee(resource.data.team_id) ||
-        myRole() == 'FINAL_APPROVER'
+        isAdmin()
       );
       // 생성: 본인이 본인 이름으로 SUBMITTED 상태로만 생성
       allow create: if isAuthed() &&
@@ -72,7 +89,7 @@ service cloud.firestore {
         request.resource.data.status == 'CANCELLED' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']);
       // team_id 동기화: FINAL_APPROVER만 (시스템 팀명 변경 시)
-      allow update: if isAuthed() && myRole() == 'FINAL_APPROVER' &&
+      allow update: if isAuthed() && isAdmin() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['team_id', 'updated_at']);
       allow delete: if false;
     }
@@ -82,7 +99,7 @@ service cloud.firestore {
     match /approvals/{docId} {
       allow read: if isAuthed() && (
         resource.data.actor_user_id == request.auth.uid ||
-        myRole() == 'FINAL_APPROVER'
+        isAdmin()
       );
       allow create, update, delete: if false;
     }
@@ -92,7 +109,7 @@ service cloud.firestore {
     match /delegations/{toUserId} {
       // 위임 생성: TEAM_APPROVER가 본인 팀에만, 허용 필드 제한
       allow create: if isAuthed() &&
-        myRole() == 'TEAM_APPROVER' &&
+        (myRole() == 'TEAM_APPROVER' || myRoleGroup() == 'manager') &&
         request.resource.data.from_user_id == request.auth.uid &&
         request.resource.data.team_id == myTeam() &&
         request.resource.data.keys().hasOnly([
@@ -102,17 +119,17 @@ service cloud.firestore {
         ]);
       // 업데이트: 위임자 본인이 활성/기간 필드만 수정 가능
       allow update: if isAuthed() && (
-        (myRole() == 'TEAM_APPROVER' &&
+        ((myRole() == 'TEAM_APPROVER' || myRoleGroup() == 'manager') &&
          resource.data.from_user_id == request.auth.uid &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_active', 'start_date', 'end_date', 'updated_at'])) ||
-        // FINAL_APPROVER 시스템 팀명 변경에 따른 연동 업데이트
-        (myRole() == 'FINAL_APPROVER' &&
+        // 관리자 시스템 팀명 변경에 따른 연동 업데이트
+        (isAdmin() &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['team_id', 'updated_at']))
       );
       allow read: if isAuthed() && (
         resource.data.from_user_id == request.auth.uid ||
         resource.data.to_user_id == request.auth.uid ||
-        myRole() == 'FINAL_APPROVER'
+        isAdmin()
       );
       allow delete: if false;
     }
@@ -132,32 +149,32 @@ service cloud.firestore {
     // ─── HR 직원 데이터 (인사 급여 시스템) ────────────────────────
     match /employees/{docId} {
       allow read: if isAuthed();
-      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+      allow write: if isAuthed() && isAdmin();
     }
 
     match /attendance/{docId} {
       allow read: if isAuthed();
-      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+      allow write: if isAuthed() && isAdmin();
     }
 
     match /leave_records/{docId} {
       allow read: if isAuthed();
-      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+      allow write: if isAuthed() && isAdmin();
     }
 
     match /leave_adjustments/{docId} {
       allow read: if isAuthed();
-      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+      allow write: if isAuthed() && isAdmin();
     }
 
     match /leave_carryovers/{docId} {
       allow read: if isAuthed();
-      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+      allow write: if isAuthed() && isAdmin();
     }
 
     match /payroll_status/{docId} {
       allow read: if isAuthed();
-      allow write: if isAuthed() && myRole() == 'FINAL_APPROVER';
+      allow write: if isAuthed() && isAdmin();
     }
   }
 }

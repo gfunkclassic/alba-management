@@ -5,11 +5,12 @@ import AdminApprovalHistory from './AdminApprovalHistory';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]', HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]' };
-const STATUS_LABEL = { SUBMITTED: '승인대기', TEAM_APPROVED: '1차승인', FINAL_PENDING: '최종대기', FINAL_APPROVED: '최종승인', REJECTED: '반려', CANCELLED: '취소' };
+const STATUS_LABEL = { SUBMITTED: '승인대기', TEAM_APPROVED: '1차승인', FINAL_PENDING: '최종대기', CEO_PENDING: '승인대기(대표)', FINAL_APPROVED: '최종승인', REJECTED: '반려', CANCELLED: '취소' };
 const STATUS_COLOR = {
     SUBMITTED: 'bg-[#d8973c] text-white',
     TEAM_APPROVED: 'bg-[#7a8c5f] text-white',
     FINAL_PENDING: 'bg-[#5d6c4a] text-white',
+    CEO_PENDING: 'bg-[#4a6070] text-white',
     FINAL_APPROVED: 'bg-[#3d6b5e] text-white',
     REJECTED: 'bg-[#a65d57] text-white',
     CANCELLED: 'bg-[#c5c0b0] text-[#5a5545]',
