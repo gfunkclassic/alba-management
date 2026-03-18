@@ -127,6 +127,58 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                         </div>
                     </div>
 
+                    {/* 반려 정보 — REJECTED 상태일 때만 표시 */}
+                    {request.status === 'REJECTED' && (() => {
+                        // 새 snake_case 필드 우선, 없으면 기존 필드에서 fallback (구 데이터 호환)
+                        const byName = request.rejected_by_name
+                            || request.ceo_decision?.name
+                            || (request.final_approvals
+                                ? (Object.values(request.final_approvals).find(v => v.status === 'REJECTED')?.name || null)
+                                : null)
+                            || '-';
+                        const reason = request.rejected_reason !== undefined
+                            ? request.rejected_reason
+                            : (request.ceo_decision?.note
+                                || (request.final_approvals
+                                    ? (Object.values(request.final_approvals).find(v => v.status === 'REJECTED')?.note || '')
+                                    : ''));
+                        const stageMap = { TEAM: '1차 (팀)', FINAL: '2차 (실장)', CEO: '3차 (대표)' };
+                        const stage = request.rejected_stage
+                            || (request.ceo_decision?.status === 'REJECTED' ? 'CEO'
+                                : (request.final_approvals && Object.values(request.final_approvals).some(v => v.status === 'REJECTED') ? 'FINAL'
+                                    : 'TEAM'));
+                        const at = request.rejected_at
+                            || request.ceo_decision?.acted_at
+                            || (request.final_approvals
+                                ? (Object.values(request.final_approvals).find(v => v.status === 'REJECTED')?.acted_at || null)
+                                : null);
+                        return (
+                            <div className="bg-[#f8f0ef] border border-[#dcc0bc] rounded-lg p-4">
+                                <h3 className="text-xs font-bold text-[#a65d57] mb-3 uppercase">반려 정보</h3>
+                                <div className="grid grid-cols-2 gap-y-3 text-sm">
+                                    <div>
+                                        <span className="text-xs text-[#7a7565] block mb-0.5">반려자</span>
+                                        <span className="font-bold text-[#a65d57]">{byName}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-xs text-[#7a7565] block mb-0.5">반려 단계</span>
+                                        <span className="font-bold">{stageMap[stage] || stage}</span>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <span className="text-xs text-[#7a7565] block mb-0.5">반려 사유</span>
+                                        <span className="font-medium whitespace-pre-wrap">{reason || '(사유 없음)'}</span>
+                                    </div>
+                                    {at && (
+                                        <div className="col-span-2">
+                                            <span className="text-xs text-[#7a7565] block mb-0.5">반려 일시</span>
+                                            <span className="text-xs font-mono">{new Date(at).toLocaleString('ko-KR')}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     {/* 결재선 요약 (Naver Works Style) */}
                     <div className="bg-white rounded-lg border border-[#c5c0b0] overflow-x-auto">
                         <div className="bg-[#f0e8d5] px-3 py-2 border-b border-[#c5c0b0]">

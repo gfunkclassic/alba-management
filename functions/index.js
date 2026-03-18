@@ -89,7 +89,15 @@ exports.approveTeamLeave = onCall({ region: 'asia-northeast3' }, async (req) => 
             if (freshSnap.data().status !== 'SUBMITTED') {
                 throw new HttpsError('failed-precondition', '이미 처리된 신청입니다.');
             }
-            tx.update(reqRef, { status: newStatus, updated_at: now });
+            const teamUpdate = { status: newStatus, updated_at: now };
+            if (action === 'REJECT') {
+                teamUpdate.rejected_by_uid = actorUid;
+                teamUpdate.rejected_by_name = actor.name;
+                teamUpdate.rejected_reason = noteText || '';
+                teamUpdate.rejected_stage = 'TEAM';
+                teamUpdate.rejected_at = now;
+            }
+            tx.update(reqRef, teamUpdate);
             tx.create(db.collection('approvals').doc(), {
                 leave_request_id: reqId,
                 stage: 'TEAM',
@@ -229,7 +237,12 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
                 tx.update(reqRef, {
                     status: finalStatus,
                     updated_at: now,
-                    final_approvals: newFinalApprovals
+                    final_approvals: newFinalApprovals,
+                    rejected_by_uid: actorUid,
+                    rejected_by_name: actor.name,
+                    rejected_reason: note || '',
+                    rejected_stage: 'FINAL',
+                    rejected_at: now,
                 });
             } else {
                 // 승인 처리
@@ -333,7 +346,12 @@ exports.approveCEOLeave = onCall({ region: 'asia-northeast3' }, async (req) => {
                 tx.update(reqRef, {
                     status: finalStatus,
                     updated_at: now,
-                    ceo_decision: { status: 'REJECTED', acted_at: now, note: note || '', name: actor.name }
+                    ceo_decision: { status: 'REJECTED', acted_at: now, note: note || '', name: actor.name },
+                    rejected_by_uid: actorUid,
+                    rejected_by_name: actor.name,
+                    rejected_reason: note || '',
+                    rejected_stage: 'CEO',
+                    rejected_at: now,
                 });
             } else {
                 finalStatus = 'FINAL_APPROVED';

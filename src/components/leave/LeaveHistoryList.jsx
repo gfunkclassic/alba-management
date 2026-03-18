@@ -30,7 +30,7 @@ const STATUS_COLOR = {
 };
 
 export default function LeaveHistoryList({ refreshKey }) {
-    const { getMyLeaveRequests, cancelLeaveRequest } = useAuth();
+    const { getMyLeaveRequests, cancelLeaveRequest, userProfile } = useAuth();
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterYear, setFilterYear] = useState(new Date().getFullYear());
@@ -107,7 +107,7 @@ export default function LeaveHistoryList({ refreshKey }) {
                         {loading ? (
                             <tr><td colSpan={5} className="p-8 text-center"><Loader size={16} className="animate-spin mx-auto text-[#9a9585]" /></td></tr>
                         ) : filtered.map(req => (
-                            <tr key={req.id} onClick={() => setDetailTarget(req)} className={`hover:bg-[#f4f5eb] cursor-pointer ${req.status === 'CANCELLED' ? 'opacity-50' : ''}`}>
+                            <tr key={req.id} onClick={() => setDetailTarget({ ...req, _userName: req._userName || userProfile?.name })} className={`hover:bg-[#f4f5eb] cursor-pointer ${req.status === 'CANCELLED' ? 'opacity-50' : ''}`}>
                                 <td className="p-3 pl-4 font-bold text-[#3d472f] font-mono whitespace-nowrap">{req.date}</td>
                                 <td className="p-3 text-center whitespace-nowrap">
                                     <span className={`text-[10px] font-bold px-2 py-0.5 ${TYPE_COLOR[req.type] || 'bg-[#e8e4d4] text-[#5a5545]'}`}>

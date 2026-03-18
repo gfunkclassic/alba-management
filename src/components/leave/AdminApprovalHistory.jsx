@@ -17,6 +17,7 @@ const ACTION_COLOR = {
 const STAGE_LABEL = {
     TEAM: '1차 (팀)',
     FINAL: '2차 (최종)',
+    CEO: '3차 (대표)',
 };
 
 export default function AdminApprovalHistory() {
