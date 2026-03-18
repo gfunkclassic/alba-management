@@ -47,7 +47,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
 
             setDate('');
             setReason('');
-            onSubmitted?.();
+            onSubmitted?.(type);
         } catch (err) {
             const isDuplicate = err.message?.startsWith('DUPLICATE');
             setResult({

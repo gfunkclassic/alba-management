@@ -136,7 +136,12 @@ export default function AlbaView() {
                 {tab === 'REQUEST' && (
                     <>
                         <LeaveBalanceCard balance={balance} pendingDeduction={pendingDeduction} loading={balanceLoading} />
-                        <LeaveRequestForm onSubmitted={() => { setRefreshKey(k => k + 1); loadBalance(); }} userProfile={profile} />
+                        <LeaveRequestForm onSubmitted={(submittedType) => {
+                            const DEDUCTION_MAP = { FULL: 1.0, HALF_AM: 0.5, HALF_PM: 0.5 };
+                            setPendingDeduction(p => p + (DEDUCTION_MAP[submittedType] ?? 1.0));
+                            setRefreshKey(k => k + 1);
+                            loadBalance();
+                        }} userProfile={profile} />
                     </>
                 )}
 
