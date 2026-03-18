@@ -10,7 +10,7 @@ import {
     createUserWithEmailAndPassword,
     getAuth,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, orderBy, runTransaction, onSnapshot, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, getDocsFromServer, addDoc, orderBy, runTransaction, onSnapshot, writeBatch } from 'firebase/firestore';
 import { auth, db, functions, httpsCallable } from '../firebase';
 import { normalizeProfile } from '../utils/roleUtils';
 
@@ -378,7 +378,7 @@ export function AuthProvider({ children }) {
     const getMyLeaveRequests = async (year = null) => {
         const uid = auth.currentUser.uid;
         let q = query(collection(db, 'leave_requests'), where('user_id', '==', uid));
-        const snap = await getDocs(q);
+        const snap = await getDocsFromServer(q);
         let results = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         if (year) results = results.filter(r => r.date?.startsWith(String(year)));
         return results.sort((a, b) => b.date?.localeCompare(a.date));
@@ -431,7 +431,7 @@ export function AuthProvider({ children }) {
         const teamId = profileSnap.data()?.team_id;
         if (!teamId) return [];
         const q = query(collection(db, 'leave_requests'), where('team_id', '==', teamId));
-        const snap = await getDocs(q);
+        const snap = await getDocsFromServer(q);
         const reqs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         // 신청자 추가 정보
         const userIds = [...new Set(reqs.map(r => r.user_id))];
@@ -481,7 +481,7 @@ export function AuthProvider({ children }) {
     // 전체 TEAM_APPROVED 요청 조회 (FINAL_APPROVER용)
     const getAllTeamApprovedRequests = async () => {
         const q = query(collection(db, 'leave_requests'), where('status', 'in', ['TEAM_APPROVED', 'FINAL_PENDING', 'FINAL_APPROVED', 'REJECTED']));
-        const snap = await getDocs(q);
+        const snap = await getDocsFromServer(q);
         const reqs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         // 신청자 이름 enrichment
         const userIds = [...new Set(reqs.map(r => r.user_id))];
@@ -514,7 +514,7 @@ export function AuthProvider({ children }) {
     // 대표 대기(CEO_PENDING) 상태 조회
     const getCEOApprovalRequests = async () => {
         const q = query(collection(db, 'leave_requests'), where('status', 'in', ['CEO_PENDING', 'FINAL_APPROVED', 'REJECTED']));
-        const snap = await getDocs(q);
+        const snap = await getDocsFromServer(q);
         const reqs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         // 신청자 이름 enrichment
         const userIds = [...new Set(reqs.map(r => r.user_id))];
