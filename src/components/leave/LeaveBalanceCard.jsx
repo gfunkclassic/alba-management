@@ -1,7 +1,7 @@
 import React from 'react';
 import { Sun, AlertCircle } from 'lucide-react';
 
-export default function LeaveBalanceCard({ balance, loading }) {
+export default function LeaveBalanceCard({ balance, pendingDeduction = 0, loading }) {
     if (loading) {
         return (
             <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] p-6 animate-pulse">
@@ -11,10 +11,10 @@ export default function LeaveBalanceCard({ balance, loading }) {
         );
     }
 
-    const remaining = (balance?.total_days ?? 0) - (balance?.used_days ?? 0);
     const total = balance?.total_days ?? 0;
     const used = balance?.used_days ?? 0;
-    const percent = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+    const remaining = Math.max(0, total - used - pendingDeduction);
+    const percent = total > 0 ? Math.min(100, ((used + pendingDeduction) / total) * 100) : 0;
 
     return (
         <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] p-6">
@@ -51,6 +51,9 @@ export default function LeaveBalanceCard({ balance, loading }) {
                         />
                     </div>
                     <p className="text-[10px] text-[#9a9585] mt-1 text-right">{percent.toFixed(0)}% 사용</p>
+                    {pendingDeduction > 0 && (
+                        <p className="text-[10px] text-[#d8973c] font-bold mt-1">* 승인 대기 중 {pendingDeduction}일 포함 (반려 시 자동 복구)</p>
+                    )}
                 </>
             )}
         </div>
