@@ -232,6 +232,11 @@ export default function FinalApprovalInbox() {
                                                 <button onClick={() => setConfirmApproveTarget(req)} className="flex items-center gap-1 bg-[#5d6c4a] text-white px-2 py-1 text-xs hover:bg-[#4a5639] transition-colors"><CheckCircle size={12} /> {approveLabel}</button>
                                                 <button onClick={() => setRejectTarget(req)} className="flex items-center gap-1 bg-[#a65d57] text-white px-2 py-1 text-xs hover:bg-[#8b4d47] transition-colors"><XCircle size={12} /> 반려</button>
                                             </div>
+                                        ) : req.status === 'REJECTED' ? (
+                                            <div className="text-left text-[10px] text-[#a65d57] space-y-0.5">
+                                                <div className="font-bold">{req.rejected_by_name || req.ceo_decision?.name || (req.final_approvals ? (Object.values(req.final_approvals).find(v => v.status === 'REJECTED')?.name || null) : null) || '-'}</div>
+                                                <div className="text-[#7a7565] break-all whitespace-pre-wrap">{req.rejected_reason !== undefined ? (req.rejected_reason || '(사유 없음)') : (req.ceo_decision?.note || (req.final_approvals ? (Object.values(req.final_approvals).find(v => v.status === 'REJECTED')?.note || '') : '') || '(사유 없음)')}</div>
+                                            </div>
                                         ) : '-'}
                                     </td>
                                 </tr>
