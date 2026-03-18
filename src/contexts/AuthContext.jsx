@@ -321,30 +321,45 @@ export function AuthProvider({ children }) {
 
     // ─── LEAVE FUNCTIONS ─────────────────────────────────
 
-    // 연차 신청 (ALBA) — 중복 체크 포함
+    // 연차 신청 (ALBA) — 중복 체크 포함 + 카페 팀 skipTeamApproval 처리
     const submitLeaveRequest = async ({ date, type, reason = '' }) => {
         const uid = auth.currentUser.uid;
-        // 중복 체크: 동일 user_id + date + SUBMITTED
+        // 중복 체크: 동일 user_id + date + (SUBMITTED 또는 TEAM_APPROVED 상태)
         const dupQ = query(
             collection(db, 'leave_requests'),
             where('user_id', '==', uid),
             where('date', '==', date),
-            where('status', '==', 'SUBMITTED')
         );
         const dupSnap = await getDocs(dupQ);
-        if (!dupSnap.empty) {
+        const activeDup = dupSnap.docs.find(d => ['SUBMITTED', 'TEAM_APPROVED', 'FINAL_PENDING', 'CEO_PENDING'].includes(d.data().status));
+        if (activeDup) {
             throw new Error('DUPLICATE: 해당 날짜에 이미 신청한 연차가 있습니다.');
         }
         const now = new Date().toISOString();
         const profileSnap = await getDoc(doc(db, 'users', uid));
         const teamId = profileSnap.data()?.team_id || '';
+
+        // 팀별 설정: skipTeamApproval이 true인 팀(예: 카페)은 바로 TEAM_APPROVED로 저장
+        let initialStatus = 'SUBMITTED';
+        try {
+            const configSnap = await getDoc(doc(db, 'settings', 'team_approval_config'));
+            if (configSnap.exists()) {
+                const teamConfig = configSnap.data()?.teams?.[teamId];
+                if (teamConfig?.skipTeamApproval === true) {
+                    initialStatus = 'TEAM_APPROVED';
+                }
+            }
+        } catch (ce) {
+            console.warn('team_approval_config 조회 실패 (기본 SUBMITTED 사용):', ce.message);
+        }
+
         const docRef = await addDoc(collection(db, 'leave_requests'), {
             user_id: uid,
             team_id: teamId,
             date,
             type,
             reason,
-            status: 'SUBMITTED',
+            status: initialStatus,
             created_at: now,
             updated_at: now,
         });

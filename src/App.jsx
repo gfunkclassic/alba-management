@@ -1333,8 +1333,36 @@ export default function App() {
 
     const { roleGroup, position } = userProfile;
 
-    // ── sys_admin / approver_senior / approver_final ─────────────────
-    if (roleGroup === 'sys_admin' || roleGroup === 'approver_senior' || roleGroup === 'approver_final') {
+    // ── approver_final (대표) → CEO 결재함이 있는 SuperAdminView
+    if (roleGroup === 'approver_final') {
+        if (showHRSystem) {
+            return (
+                <div className="min-h-screen flex flex-col">
+                    <div className="bg-[#302b25] border-b-2 border-[#1c1915] px-4 py-2 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setShowHRSystem(false)}
+                                className="text-[10px] bg-[#d8973c] border border-[#7a5a1a] text-[#f5f3e8] px-3 py-1.5 font-bold hover:bg-[#b07a30] flex items-center gap-1"
+                            >
+                                ← 대표 결재함
+                            </button>
+                            <span className="text-[#e2ceab] text-xs">인사 급여관리 시스템</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[10px] bg-[#d8973c] text-white font-bold px-2 py-0.5">{position || '대표'}</span>
+                            <span className="text-[#e2ceab] text-xs">{userProfile.name}</span>
+                            <button onClick={logout} className="text-[10px] text-[#e2ceab] hover:text-[#f5f3e8] font-bold">로그아웃</button>
+                        </div>
+                    </div>
+                    <div className="flex-1"><HRPayrollApp /></div>
+                </div>
+            );
+        }
+        return <SuperAdminView onSwitchToHRSystem={() => setShowHRSystem(true)} />;
+    }
+
+    // ── sys_admin / approver_senior → FinalApproverView (계정 관리 + 실장 승인함)
+    if (roleGroup === 'sys_admin' || roleGroup === 'approver_senior') {
         if (showHRSystem) {
             return (
                 <div className="min-h-screen flex flex-col">

@@ -57,11 +57,15 @@ exports.approveTeamLeave = onCall({ region: 'asia-northeast3' }, async (req) => 
         let isFinalProxy = false;
         let delegationFromUserId = null;
 
-        if (actor.role === 'TEAM_APPROVER') {
+        // 하위호환: role(구버전) 또는 roleGroup(신버전) 모두 허용
+        const isTeamApprover = actor.role === 'TEAM_APPROVER' || actor.roleGroup === 'manager';
+        const isFinalApproverActor = actor.role === 'FINAL_APPROVER' || actor.roleGroup === 'approver_senior' || actor.roleGroup === 'approver_final';
+
+        if (isTeamApprover) {
             if (actor.team_id !== leaveReq.team_id) {
                 throw new HttpsError('permission-denied', '본인 팀의 신청만 처리할 수 있습니다.');
             }
-        } else if (actor.role === 'FINAL_APPROVER') {
+        } else if (isFinalApproverActor) {
             isFinalProxy = true;
         } else {
             const delSnap = await db.collection('delegations').doc(actorUid).get();
@@ -108,9 +112,16 @@ exports.approveTeamLeave = onCall({ region: 'asia-northeast3' }, async (req) => 
             });
             if (action === 'APPROVE') {
                 const requesterSnap = await db.collection('users').doc(leaveReq.user_id).get();
-                const finalApprovers = await db.collection('users').where('role', '==', 'FINAL_APPROVER').get();
-                await Promise.all(finalApprovers.docs.map(fa =>
-                    sendNotification(fa.id, 'LEAVE_TEAM_APPROVED', {
+                // 하위호환: role(구버전) + roleGroup(신버전) 양쪽에서 최종승인자 조회
+                const [finalByRole, finalByRoleGroup] = await Promise.all([
+                    db.collection('users').where('role', '==', 'FINAL_APPROVER').get(),
+                    db.collection('users').where('roleGroup', 'in', ['approver_senior', 'approver_final']).get(),
+                ]);
+                const finalApproverIds = new Set();
+                finalByRole.docs.forEach(d => finalApproverIds.add(d.id));
+                finalByRoleGroup.docs.forEach(d => finalApproverIds.add(d.id));
+                await Promise.all([...finalApproverIds].map(fid =>
+                    sendNotification(fid, 'LEAVE_TEAM_APPROVED', {
                         leave_request_id: reqId,
                         user_name: requesterSnap.data()?.name,
                         date: leaveReq.date,
@@ -144,16 +155,47 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
 
         const actorUid = req.auth.uid;
         const actor = await getUserProfile(actorUid);
-        if (actor.role !== 'FINAL_APPROVER') throw new HttpsError('permission-denied', '최종 관리자만 처리할 수 있습니다.');
+        // 하위호환: role(구버전) 또는 roleGroup(신버전) 모두 허용
+        const isActorFinalApprover = actor.role === 'FINAL_APPROVER' || actor.roleGroup === 'approver_senior' || actor.roleGroup === 'approver_final';
+        if (!isActorFinalApprover) throw new HttpsError('permission-denied', '최종 관리자(실장/대표)만 처리할 수 있습니다.');
 
         const reqRef = db.collection('leave_requests').doc(reqId);
         const now = nowISO();
 
-        // 1. 활성화된 모든 최종 관리자(실장)의 목록을 가져옵니다. (트랜잭션 밖에서 수행)
-        const finalApproversSnap = await db.collection('users').where('role', '==', 'FINAL_APPROVER').where('status', '==', 'ACTIVE').get();
-        const requiredApprovers = finalApproversSnap.docs.map(d => ({ uid: d.id, name: d.data().name }));
+        // 1. 활성화된 모든 최종 관리자(실장) 목록. role(구버전) + roleGroup(신버전) 병합
+        const [snapByRole, snapByRoleGroup, reqPreSnap] = await Promise.all([
+            db.collection('users').where('role', '==', 'FINAL_APPROVER').where('status', '==', 'ACTIVE').get(),
+            db.collection('users').where('roleGroup', 'in', ['approver_senior', 'approver_final']).where('status', '==', 'ACTIVE').get(),
+            reqRef.get(), // 팀 ID 사전 조회
+        ]);
+        if (!reqPreSnap.exists) throw new HttpsError('not-found', '연차 신청을 찾을 수 없습니다.');
+        const leaveReqTeamId = reqPreSnap.data()?.team_id || '';
+
+        const approverMap = new Map();
+        snapByRole.docs.forEach(d => approverMap.set(d.id, { uid: d.id, name: d.data().name }));
+        snapByRoleGroup.docs.forEach(d => approverMap.set(d.id, { uid: d.id, name: d.data().name }));
+        // 대표(approver_final)는 실장 병렬 결재 대상에서 제외 (CEO 단계는 별도 처리)
+        const requiredApprovers = [...approverMap.values()].filter(a => {
+            const snap = snapByRoleGroup.docs.find(d => d.id === a.uid);
+            if (snap && snap.data().roleGroup === 'approver_final') return false;
+            return true;
+        });
         if (requiredApprovers.length === 0) {
-            throw new HttpsError('failed-precondition', '설정된 최종 결재자가 없습니다.');
+            throw new HttpsError('failed-precondition', '설정된 최종 결재자(실장)가 없습니다.');
+        }
+
+        // 팀별 설정에서 seniorApprovalMinCount 조회 (기본값: 1명 승인 시 통과)
+        let seniorApprovalMinCount = 1;
+        try {
+            const configSnap = await db.collection('settings').doc('team_approval_config').get();
+            if (configSnap.exists) {
+                const teamConfig = configSnap.data()?.teams?.[leaveReqTeamId];
+                if (teamConfig?.seniorApprovalMinCount != null) {
+                    seniorApprovalMinCount = teamConfig.seniorApprovalMinCount;
+                }
+            }
+        } catch (ce) {
+            console.warn('team_approval_config 조회 실패 (기본값 1 사용):', ce.message);
         }
 
         let leaveReq;
@@ -193,12 +235,13 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
                 // 승인 처리
                 newFinalApprovals[actorUid] = { status: 'APPROVED', acted_at: now, note: note || '', name: actor.name };
 
-                // 모든 필수 결재자가 승인했는지 확인
-                const allApproved = requiredApprovers.every(fa => newFinalApprovals[fa.uid]?.status === 'APPROVED');
+                // seniorApprovalMinCount명 이상 승인 시 CEO_PENDING으로 전환 (기본값: 1명)
+                const approvedCount = requiredApprovers.filter(fa => newFinalApprovals[fa.uid]?.status === 'APPROVED').length;
+                const minReached = approvedCount >= seniorApprovalMinCount;
 
-                if (allApproved) {
+                if (minReached) {
                     finalStatus = 'CEO_PENDING';
-                    isFullyResolved = true; // 실장 단계 종결
+                    isFullyResolved = true;
 
                     tx.update(reqRef, {
                         status: finalStatus,
@@ -266,7 +309,9 @@ exports.approveCEOLeave = onCall({ region: 'asia-northeast3' }, async (req) => {
 
         const actorUid = req.auth.uid;
         const actor = await getUserProfile(actorUid);
-        if (actor.role !== 'SUPER_ADMIN' && actor.role !== 'VIEWER') throw new HttpsError('permission-denied', '대표(최고관리자) 권한이 필요합니다.');
+        // 하위호환: role(구버전 SUPER_ADMIN/VIEWER) 또는 roleGroup(신버전 approver_final) 모두 허용
+        const isCEO = actor.role === 'SUPER_ADMIN' || actor.role === 'VIEWER' || actor.roleGroup === 'approver_final';
+        if (!isCEO) throw new HttpsError('permission-denied', '대표(최고관리자) 권한이 필요합니다.');
 
         const reqRef = db.collection('leave_requests').doc(reqId);
         const now = nowISO();
