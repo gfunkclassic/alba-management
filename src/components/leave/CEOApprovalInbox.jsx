@@ -13,11 +13,11 @@ function RejectModal({ title, onConfirm, onCancel }) {
             <div className="bg-[#f5f3e8] border-2 border-[#a65d57] w-full max-w-sm p-6">
                 <h3 className="font-bold text-[#3d472f] mb-3">{title || '반려 사유 입력'}</h3>
                 <textarea value={note} onChange={e => setNote(e.target.value)}
-                    placeholder="반려 사유 (선택 입력)" rows={3}
+                    placeholder="반려 사유를 입력해주세요 (필수)" rows={3}
                     className="w-full p-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm resize-none outline-none focus:border-[#a65d57] mb-3" />
                 <div className="flex gap-2">
                     <button onClick={onCancel} className="flex-1 py-2 border-2 border-[#c5c0b0] text-xs font-bold text-[#5a5545] hover:bg-[#e8e4d4]">취소</button>
-                    <button onClick={() => onConfirm(note)} className="flex-1 py-2 bg-[#a65d57] border-2 border-[#7a3f3a] text-xs font-bold text-white hover:bg-[#7a3f3a]">반려 확정</button>
+                    <button onClick={() => onConfirm(note.trim())} disabled={!note.trim()} className="flex-1 py-2 bg-[#a65d57] border-2 border-[#7a3f3a] text-xs font-bold text-white hover:bg-[#7a3f3a] disabled:opacity-40 disabled:cursor-not-allowed">반려 확정</button>
                 </div>
             </div>
         </div>
