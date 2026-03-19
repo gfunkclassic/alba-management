@@ -525,9 +525,10 @@ export function AuthProvider({ children }) {
                 if (u.exists()) userMap[uid] = u.data().name;
             } catch { }
         }));
-        return reqs
+        const result = reqs
             .map(r => ({ ...r, _userName: userMap[r.user_id] || r.user_id }))
             .sort((a, b) => b.created_at?.localeCompare(a.created_at));
+        return result;
     };
 
     const ceoApproveLeaveRequest = async (reqId) => {

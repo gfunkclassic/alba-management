@@ -43,7 +43,7 @@ export default function CEOApprovalInbox() {
         try {
             const data = await getCEOApprovalRequests();
             setRequests(data);
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error('[DEBUG CEOInbox] load error:', e); }
         finally { setLoading(false); }
     }, [getCEOApprovalRequests]);
 

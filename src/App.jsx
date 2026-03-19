@@ -31,6 +31,7 @@ import HRView from './components/HRView';
 import PayrollView from './components/PayrollView';
 import LeaveView from './components/LeaveView';
 import FinalApprovalInbox from './components/leave/FinalApprovalInbox';
+import CEOApprovalInbox from './components/leave/CEOApprovalInbox';
 import NotificationBell from './components/notifications/NotificationBell';
 
 // Components & Modals
@@ -1212,7 +1213,10 @@ function HRPayrollApp() {
 
                 {activeTab === 'APPROVALS' && (userProfile?.roleGroup === 'approver_senior' || userProfile?.roleGroup === 'approver_final') && (
                     <div className="max-w-5xl mx-auto w-full pt-4">
-                        <FinalApprovalInbox />
+                        {userProfile?.roleGroup === 'approver_final'
+                            ? <CEOApprovalInbox />
+                            : <FinalApprovalInbox />
+                        }
                     </div>
                 )}
             </div>
