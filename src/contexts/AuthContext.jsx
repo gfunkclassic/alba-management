@@ -10,7 +10,7 @@ import {
     createUserWithEmailAndPassword,
     getAuth,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, getDocsFromServer, addDoc, orderBy, runTransaction, onSnapshot, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, getDocFromServer, setDoc, updateDoc, collection, query, where, getDocs, getDocsFromServer, addDoc, orderBy, runTransaction, onSnapshot, writeBatch } from 'firebase/firestore';
 import { auth, db, functions, httpsCallable } from '../firebase';
 import { normalizeProfile } from '../utils/roleUtils';
 
@@ -387,7 +387,7 @@ export function AuthProvider({ children }) {
     // 잔여 연차 조회 (ALBA)
     const getMyLeaveBalance = async (year = new Date().getFullYear()) => {
         const uid = auth.currentUser.uid;
-        const snap = await getDoc(doc(db, 'leave_balance', `${uid}_${year}`));
+        const snap = await getDocFromServer(doc(db, 'leave_balance', `${uid}_${year}`));
         if (snap.exists()) return snap.data();
         return { user_id: uid, year, total_days: 0, used_days: 0 };
     };
