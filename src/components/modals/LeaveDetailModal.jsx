@@ -5,7 +5,7 @@ import { db } from '../../firebase';
 
 const ACTION_LABEL = { APPROVE: '승인', REJECT: '반려' };
 const ACTION_COLOR = { APPROVE: 'text-[#5d6c4a]', REJECT: 'text-[#a65d57]' };
-const STAGE_LABEL = { TEAM: '1차 (팀)', FINAL: '2차 (최종)' };
+const STAGE_LABEL = { TEAM: '1차 (팀)', FINAL: '2차 (실장)', CEO: '3차 (대표)' };
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '반차(오전)', HALF_PM: '반차(오후)' };
 
 export default function LeaveDetailModal({ isOpen, onClose, request }) {
@@ -28,7 +28,7 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                 );
                 const snap = await getDocs(q);
 
-                const faSnap = await getDocs(query(collection(db, 'users'), where('roleGroup', 'in', ['approver_senior', 'approver_final']), where('status', '==', 'ACTIVE')));
+                const faSnap = await getDocs(query(collection(db, 'users'), where('roleGroup', '==', 'approver_senior'), where('status', '==', 'ACTIVE')));
                 const faList = faSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
                 setFinalApproversList(faList);
 

@@ -16,7 +16,7 @@ const ACTION_COLOR = {
 };
 const STAGE_LABEL = {
     TEAM: '1차 (팀)',
-    FINAL: '2차 (최종)',
+    FINAL: '2차 (실장)',
     CEO: '3차 (대표)',
 };
 
