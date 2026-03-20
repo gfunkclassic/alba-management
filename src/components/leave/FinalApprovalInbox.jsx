@@ -108,6 +108,9 @@ export default function FinalApprovalInbox() {
 
     const isFinalMode = mode === 'FINAL';
     const approveLabel = isFinalMode ? '최종 승인' : '팀 대행 승인';
+    const pendingCount = isFinalMode
+        ? requests.filter(r => r.status === 'TEAM_APPROVED' || r.status === 'FINAL_PENDING').length
+        : requests.filter(r => r.status === 'SUBMITTED').length;
 
     return (
         <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">
@@ -143,9 +146,9 @@ export default function FinalApprovalInbox() {
                     <span className="font-bold text-[#3d472f] text-sm">
                         {isFinalMode ? '최종 승인함' : '팀 승인 대행함'}
                     </span>
-                    {requests.length > 0 && (
+                    {pendingCount > 0 && (
                         <span className={`text-[10px] font-black text-white px-2 py-0.5 ${isFinalMode ? 'bg-[#5d6c4a]' : 'bg-[#d8973c]'}`}>
-                            {requests.length}건 대기
+                            {pendingCount}건 대기
                         </span>
                     )}
                 </div>

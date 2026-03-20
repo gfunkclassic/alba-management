@@ -25,6 +25,7 @@ export default function AdminApprovalHistory() {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [detailTarget, setDetailTarget] = useState(null);
+    const [isOpen, setIsOpen] = useState(false);
 
     const formatNote = (note) => {
         if (!note) return null;
@@ -99,10 +100,10 @@ export default function AdminApprovalHistory() {
     };
 
     useEffect(() => {
-        if (canApprove(userProfile?.roleGroup)) {
+        if (isOpen && canApprove(userProfile?.roleGroup)) {
             loadHistory();
         }
-    }, [userProfile]);
+    }, [isOpen, userProfile]);
 
     if (!userProfile) return null;
     if (!canApprove(userProfile.roleGroup)) return null;
@@ -111,13 +112,20 @@ export default function AdminApprovalHistory() {
         <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] mt-8">
             <LeaveDetailModal isOpen={!!detailTarget} onClose={() => setDetailTarget(null)} request={detailTarget} />
 
-            <div className="flex items-center justify-between p-4 border-b-2 border-[#c5c0b0]">
+            <button
+                onClick={() => setIsOpen(v => !v)}
+                className="w-full flex items-center justify-between p-4 hover:bg-[#eeece0] transition-colors">
                 <h3 className="font-bold text-[#3d472f] flex items-center gap-2">
                     <History size={18} className="text-[#5d6c4a]" /> 최근 승인/반려 내역 (50건)
                 </h3>
+                <span className="text-xs text-[#7a7565] font-bold">{isOpen ? '▲ 접기' : '▼ 펼치기'}</span>
+            </button>
+
+            {isOpen && (
+            <div className="border-t-2 border-[#c5c0b0]">
+            <div className="flex justify-end p-2 border-b border-[#e8e4d4]">
                 <button onClick={loadHistory} className="text-xs text-[#5d6c4a] font-bold border border-[#b8c4a0] px-2 py-1 hover:bg-[#e8e4d4]">새로고침</button>
             </div>
-
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead className="bg-[#e8e4d4] text-xs font-bold text-[#5d6c4a] uppercase">
@@ -177,6 +185,8 @@ export default function AdminApprovalHistory() {
                     </tbody>
                 </table>
             </div>
+            </div>
+            )}
         </div>
     );
 }
