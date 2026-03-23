@@ -99,7 +99,8 @@ service cloud.firestore {
     match /approvals/{docId} {
       allow read: if isAuthed() && (
         resource.data.actor_user_id == request.auth.uid ||
-        isAdmin()
+        isAdmin() ||
+        get(/databases/$(database)/documents/leave_requests/$(resource.data.leave_request_id)).data.user_id == request.auth.uid
       );
       allow create, update, delete: if false;
     }
