@@ -107,7 +107,7 @@ export default function FinalApprovalInbox() {
     };
 
     const isFinalMode = mode === 'FINAL';
-    const approveLabel = isFinalMode ? '최종 승인' : '팀 대행 승인';
+    const approveLabel = isFinalMode ? '승인' : '팀 대행 승인';
     const pendingCount = isFinalMode
         ? requests.filter(r => r.status === 'TEAM_APPROVED' || r.status === 'FINAL_PENDING').length
         : requests.filter(r => r.status === 'SUBMITTED').length;
@@ -127,11 +127,11 @@ export default function FinalApprovalInbox() {
                 isOpen={!!confirmApproveTarget}
                 onClose={() => setConfirmApproveTarget(null)}
                 onConfirm={executeApprove}
-                title={isFinalMode ? '최종 승인' : '팀 대행 승인'}
+                title={isFinalMode ? '승인' : '팀 대행 승인'}
                 message={
                     confirmApproveTarget
                         ? (isFinalMode
-                            ? `${confirmApproveTarget._userName}님의 ${confirmApproveTarget.date} 신청을 최종 승인하시겠습니까?\\n잔여 연차 ${DEDUCTION[confirmApproveTarget.type]}일이 차감됩니다.`
+                            ? `${confirmApproveTarget._userName}님의 ${confirmApproveTarget.date} 신청을 승인하시겠습니까?`
                             : `${confirmApproveTarget._userName}님의 ${confirmApproveTarget.date} 신청을 팀 승인 대행 처리하시겠습니까?`)
                         : ''
                 }
@@ -144,7 +144,7 @@ export default function FinalApprovalInbox() {
                 <div className="flex items-center gap-2">
                     <CheckCircle size={18} className="text-[#5d6c4a]" />
                     <span className="font-bold text-[#3d472f] text-sm">
-                        {isFinalMode ? '최종 승인함' : '팀 승인 대행함'}
+                        {isFinalMode ? '승인함 (실장)' : '팀 승인 대행함'}
                     </span>
                     {pendingCount > 0 && (
                         <span className={`text-[10px] font-black text-white px-2 py-0.5 ${isFinalMode ? 'bg-[#5d6c4a]' : 'bg-[#d8973c]'}`}>
@@ -156,7 +156,7 @@ export default function FinalApprovalInbox() {
                     {/* 모드 토글 */}
                     <div className="flex border-2 border-[#3d472f] bg-[#f5f3e8]">
                         {[
-                            { key: 'FINAL', label: '최종 승인' },
+                            { key: 'FINAL', label: '승인' },
                             { key: 'PROXY', label: '팀 대행' },
                         ].map(m => (
                             <button key={m.key} onClick={() => setMode(m.key)}
