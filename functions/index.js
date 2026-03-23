@@ -192,20 +192,6 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
             throw new HttpsError('failed-precondition', '설정된 최종 결재자(실장)가 없습니다.');
         }
 
-        // 팀별 설정에서 seniorApprovalMinCount 조회 (기본값: 1명 승인 시 통과)
-        let seniorApprovalMinCount = 1;
-        try {
-            const configSnap = await db.collection('settings').doc('team_approval_config').get();
-            if (configSnap.exists) {
-                const teamConfig = configSnap.data()?.teams?.[leaveReqTeamId];
-                if (teamConfig?.seniorApprovalMinCount != null) {
-                    seniorApprovalMinCount = teamConfig.seniorApprovalMinCount;
-                }
-            }
-        } catch (ce) {
-            console.warn('team_approval_config 조회 실패 (기본값 1 사용):', ce.message);
-        }
-
         let leaveReq;
         let isFullyResolved = false;
         let finalStatus = '';
@@ -248,9 +234,9 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
                 // 승인 처리
                 newFinalApprovals[actorUid] = { status: 'APPROVED', acted_at: now, note: note || '', name: actor.name };
 
-                // seniorApprovalMinCount명 이상 승인 시 CEO_PENDING으로 전환 (기본값: 1명)
+                // 실장 전원 승인 시에만 CEO_PENDING으로 전환
                 const approvedCount = requiredApprovers.filter(fa => newFinalApprovals[fa.uid]?.status === 'APPROVED').length;
-                const minReached = approvedCount >= seniorApprovalMinCount;
+                const minReached = approvedCount >= requiredApprovers.length;
 
                 if (minReached) {
                     finalStatus = 'CEO_PENDING';
