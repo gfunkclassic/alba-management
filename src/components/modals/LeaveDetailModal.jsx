@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, History, Loader, AlertTriangle, User } from 'lucide-react';
-import { collection, query, where, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, getDocsFromServer, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 const ACTION_LABEL = { APPROVE: '승인', REJECT: '반려' };
@@ -43,7 +43,7 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                     where('leave_request_id', '==', targetRequestId),
                     orderBy('acted_at', 'desc')
                 );
-                const snap = await getDocs(q);
+                const snap = await getDocsFromServer(q);
 
                 const userCache = {};
                 const getUserName = async (uid) => {
