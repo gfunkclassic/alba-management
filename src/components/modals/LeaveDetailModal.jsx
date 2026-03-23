@@ -19,6 +19,23 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
 
         const loadDetails = async () => {
             setLoading(true);
+
+            // 결재선 패널용 users 조회 — approvals 쿼리와 독립 실행
+            try {
+                const faSnap = await getDocs(query(collection(db, 'users'), where('roleGroup', '==', 'approver_senior'), where('status', '==', 'ACTIVE')));
+                setFinalApproversList(faSnap.docs.map(d => ({ uid: d.id, ...d.data() })));
+
+                if (request.team_id) {
+                    const taSnap = await getDocs(query(collection(db, 'users'), where('roleGroup', '==', 'manager'), where('team_id', '==', request.team_id), where('status', '==', 'ACTIVE')));
+                    setTeamApprover(taSnap.docs[0] ? { uid: taSnap.docs[0].id, ...taSnap.docs[0].data() } : null);
+                } else {
+                    setTeamApprover(null);
+                }
+            } catch (err) {
+                console.error('결재선 사용자 로드 실패', err);
+            }
+
+            // 처리 이력 조회 — 복합 인덱스 필요, 실패해도 결재선 패널에 영향 없음
             try {
                 const targetRequestId = request.leave_request_id || request.id;
                 const q = query(
@@ -27,18 +44,6 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                     orderBy('acted_at', 'desc')
                 );
                 const snap = await getDocs(q);
-
-                const faSnap = await getDocs(query(collection(db, 'users'), where('roleGroup', '==', 'approver_senior'), where('status', '==', 'ACTIVE')));
-                const faList = faSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
-                setFinalApproversList(faList);
-
-                if (request.team_id) {
-                    const taSnap = await getDocs(query(collection(db, 'users'), where('roleGroup', '==', 'manager'), where('team_id', '==', request.team_id), where('status', '==', 'ACTIVE')));
-                    const taList = taSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
-                    setTeamApprover(taList[0] || null);
-                } else {
-                    setTeamApprover(null);
-                }
 
                 const userCache = {};
                 const getUserName = async (uid) => {
@@ -66,7 +71,7 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
 
                 setHistory(enriched);
             } catch (err) {
-                console.error('상세 내역 로드 실패', err);
+                console.error('처리 이력 로드 실패', err);
             } finally {
                 setLoading(false);
             }
