@@ -144,7 +144,7 @@ service cloud.firestore {
         resource.data.to_user_id == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
       allow create: if isAuthed();
-      allow delete: if false;
+      allow delete: if isAuthed() && resource.data.to_user_id == request.auth.uid;
     }
 
     // ─── HR 직원 데이터 (인사 급여 시스템) ────────────────────────
