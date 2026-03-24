@@ -135,6 +135,30 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ─── senior_delegations (실장 위임) ────────────────────────
+    // 실장(approver_senior)이 수임자를 지정해 자신의 슬롯을 대결 위임하는 구조
+    match /senior_delegations/{toUserId} {
+      // 실장 본인만 위임 생성/수정 가능 (from_user_id == 본인)
+      allow create: if isAuthed() && isAdmin() &&
+        request.resource.data.from_user_id == request.auth.uid &&
+        request.resource.data.to_user_id == toUserId &&
+        request.resource.data.keys().hasOnly([
+          'from_user_id', 'to_user_id',
+          'is_active', 'start_date', 'end_date',
+          'created_at', 'updated_at'
+        ]);
+      allow update: if isAuthed() && isAdmin() &&
+        resource.data.from_user_id == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_active', 'start_date', 'end_date', 'updated_at']);
+      // 위임자(실장) 또는 수임자 본인만 읽기 가능
+      allow read: if isAuthed() && (
+        resource.data.from_user_id == request.auth.uid ||
+        resource.data.to_user_id == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if false;
+    }
+
     // ─── notifications ─────────────────────────────────────────
     // create/delete 클라이언트 차단. Cloud Functions에서만 생성.
     // 읽음 처리(is_read 업데이트)만 클라이언트 허용.

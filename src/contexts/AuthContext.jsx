@@ -497,16 +497,21 @@ export function AuthProvider({ children }) {
             .sort((a, b) => b.created_at?.localeCompare(a.created_at));
     };
 
-    // 최종 승인 (FINAL_APPROVER) → Cloud Function 호출
-    const finalApproveLeaveRequest = async (reqId) => {
-        const result = await fnApproveFinalLeave({ reqId, action: 'APPROVE' });
-        if (!result.data.success) throw new Error('최종 승인 처리 중 오류가 발생했습니다.');
+    // 최종 승인 (FINAL_APPROVER 또는 위임 수임자) → Cloud Function 호출
+    // delegatedForUid: 대결 시 슬롯 주인(실장) uid, 직접 처리 시 null
+    const finalApproveLeaveRequest = async (reqId, delegatedForUid = null) => {
+        const payload = { reqId, action: 'APPROVE' };
+        if (delegatedForUid) payload.delegatedForUid = delegatedForUid;
+        const result = await fnApproveFinalLeave(payload);
+        if (!result.data.success) throw new Error('승인 처리 중 오류가 발생했습니다.');
     };
 
-    // 최종 반려 (FINAL_APPROVER) → Cloud Function 호출
-    const finalRejectLeaveRequest = async (reqId, _requestorUid, _date, _leaveType, note = '') => {
-        const result = await fnApproveFinalLeave({ reqId, action: 'REJECT', note });
-        if (!result.data.success) throw new Error('최종 반려 처리 중 오류가 발생했습니다.');
+    // 최종 반려 (FINAL_APPROVER 또는 위임 수임자) → Cloud Function 호출
+    const finalRejectLeaveRequest = async (reqId, _requestorUid, _date, _leaveType, note = '', delegatedForUid = null) => {
+        const payload = { reqId, action: 'REJECT', note };
+        if (delegatedForUid) payload.delegatedForUid = delegatedForUid;
+        const result = await fnApproveFinalLeave(payload);
+        if (!result.data.success) throw new Error('반려 처리 중 오류가 발생했습니다.');
     };
 
     // ─── PHASE 4.5: CEO APPROVAL (최종 확정) ──────────────

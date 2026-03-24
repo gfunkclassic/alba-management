@@ -157,15 +157,33 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
     try {
         if (!req.auth) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
 
-        const { reqId, action, note } = req.data;
+        const { reqId, action, note, delegatedForUid } = req.data;
         if (!reqId || !action) throw new HttpsError('invalid-argument', 'reqId, action 필드가 필요합니다.');
         if (!['APPROVE', 'REJECT'].includes(action)) throw new HttpsError('invalid-argument', 'action은 APPROVE 또는 REJECT이어야 합니다.');
 
         const actorUid = req.auth.uid;
         const actor = await getUserProfile(actorUid);
+
         // 하위호환: role(구버전) 또는 roleGroup(신버전) 모두 허용
         const isActorFinalApprover = actor.role === 'FINAL_APPROVER' || actor.roleGroup === 'approver_senior' || actor.roleGroup === 'approver_final';
-        if (!isActorFinalApprover) throw new HttpsError('permission-denied', '최종 관리자(실장/대표)만 처리할 수 있습니다.');
+
+        // slotUid: final_approvals 맵에서 실제로 채울 슬롯 키 (실장 uid)
+        let slotUid = actorUid;
+        let isDelegated = false;
+
+        if (!isActorFinalApprover) {
+            // 실장이 아닌 경우 — senior_delegations 위임 검증
+            if (!delegatedForUid) throw new HttpsError('permission-denied', '최종 관리자(실장/대표)만 처리할 수 있습니다.');
+            const delSnap = await db.collection('senior_delegations').doc(actorUid).get();
+            if (!delSnap.exists) throw new HttpsError('permission-denied', '유효한 실장 위임 권한이 없습니다.');
+            const del = delSnap.data();
+            const today = new Date().toISOString().slice(0, 10);
+            if (!del.is_active || del.from_user_id !== delegatedForUid || today < del.start_date || today > del.end_date) {
+                throw new HttpsError('permission-denied', '유효한 실장 위임 권한이 없습니다.');
+            }
+            slotUid = delegatedForUid;
+            isDelegated = true;
+        }
 
         const reqRef = db.collection('leave_requests').doc(reqId);
         const now = nowISO();
@@ -207,16 +225,19 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
 
             const currentApprovals = leaveReq.final_approvals || {};
 
-            // 이미 내가 결재했는지 확인
-            if (currentApprovals[actorUid] && leaveReq.status === 'FINAL_PENDING') {
-                throw new HttpsError('already-exists', '이미 결재하셨습니다.');
+            // 이미 해당 슬롯이 처리됐는지 확인 (직접 처리 또는 대결 무관하게 슬롯 기준으로 차단)
+            if (currentApprovals[slotUid] && leaveReq.status === 'FINAL_PENDING') {
+                throw new HttpsError('already-exists', '이미 결재된 슬롯입니다.');
             }
 
             let newFinalApprovals = { ...currentApprovals };
 
             if (action === 'REJECT') {
                 // 한 명이라도 반려하면 즉시 전체 신청을 REJECTED 처리
-                newFinalApprovals[actorUid] = { status: 'REJECTED', acted_at: now, note: note || '', name: actor.name };
+                newFinalApprovals[slotUid] = {
+                    status: 'REJECTED', acted_at: now, note: note || '', name: actor.name,
+                    actual_actor_uid: actorUid, actual_actor_name: actor.name, delegated: isDelegated,
+                };
                 finalStatus = 'REJECTED';
                 isFullyResolved = true;
 
@@ -232,7 +253,10 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
                 });
             } else {
                 // 승인 처리
-                newFinalApprovals[actorUid] = { status: 'APPROVED', acted_at: now, note: note || '', name: actor.name };
+                newFinalApprovals[slotUid] = {
+                    status: 'APPROVED', acted_at: now, note: note || '', name: actor.name,
+                    actual_actor_uid: actorUid, actual_actor_name: actor.name, delegated: isDelegated,
+                };
 
                 // 실장 전원 승인 시에만 CEO_PENDING으로 전환
                 const approvedCount = requiredApprovers.filter(fa => newFinalApprovals[fa.uid]?.status === 'APPROVED').length;
@@ -259,7 +283,7 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
                 }
             }
 
-            // 공통 로깅
+            // 공통 로깅 — actor_user_id: 실제 처리자, delegation_from_user_id: 슬롯 주인(대결 시 실장 uid)
             tx.create(db.collection('approvals').doc(), {
                 leave_request_id: reqId,
                 stage: 'FINAL',
@@ -267,7 +291,7 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
                 actor_user_id: actorUid,
                 acted_at: now,
                 note: note || '',
-                delegation_from_user_id: null,
+                delegation_from_user_id: isDelegated ? slotUid : null,
             });
         });
 
