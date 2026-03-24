@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { History, Loader } from 'lucide-react';
-import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocsFromServer, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import LeaveDetailModal from '../modals/LeaveDetailModal';
@@ -21,7 +21,7 @@ const STAGE_LABEL = {
 };
 
 export default function AdminApprovalHistory() {
-    const { userProfile } = useAuth();
+    const { currentUser, userProfile } = useAuth();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [detailTarget, setDetailTarget] = useState(null);
@@ -36,9 +36,12 @@ export default function AdminApprovalHistory() {
     const loadHistory = async () => {
         setLoading(true);
         try {
-            // approvals 컬렉션 최신 50개 가져오기
-            const q = query(collection(db, 'approvals'), orderBy('acted_at', 'desc'), limit(50));
-            const snap = await getDocs(q);
+            // 팀장: 본인 처리 이력만 / 실장·대표: 전체 이력
+            const isManager = userProfile?.roleGroup === 'manager';
+            const q = isManager
+                ? query(collection(db, 'approvals'), where('actor_user_id', '==', currentUser.uid), orderBy('acted_at', 'desc'), limit(50))
+                : query(collection(db, 'approvals'), orderBy('acted_at', 'desc'), limit(50));
+            const snap = await getDocsFromServer(q);
             const rawApprovals = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
             // 관련된 사용자 정보 (신청자, 승인자) 캐싱 및 매핑
