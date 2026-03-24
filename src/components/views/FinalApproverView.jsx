@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw, CheckCircle, Clock, ShieldOff, Edit2 } from 'lucide-react';
+import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw, CheckCircle, Clock, ShieldOff, Edit2, UserCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ROLE_GROUP_OPTIONS, ROLE_GROUP_LABEL, ROLE_GROUP_BADGE, normalizeProfile } from '../../utils/roleUtils';
 import LeaveBalanceManager from '../leave/LeaveBalanceManager';
+import SeniorDelegationManager from '../leave/SeniorDelegationManager';
 import { ConfirmModal, AlertModal } from '../modals/DialogModals';
 import NotificationBell from '../notifications/NotificationBell';
 
@@ -502,8 +503,10 @@ export default function FinalApproverView({ onSwitchToHRSystem, roleGroup: propR
         { key: 'TEAMS', label: '시스템 팀 관리', icon: <AlertCircle size={15} /> },
         { key: 'LEAVE', label: '연차 잔여 관리', icon: <Sun size={15} /> },
     ];
-    // sys_admin은 계정/팀/연차 잔여 관리만. 결재 관련 라우팅 없음 → 탭 구조 동일
-    const TABS = ALL_TABS;
+    // approver_senior(실장)에게만 대결 위임 탭 추가. sys_admin은 제외.
+    const TABS = isSysAdmin
+        ? ALL_TABS
+        : [...ALL_TABS, { key: 'DELEGATION', label: '대결 위임', icon: <UserCheck size={15} /> }];
 
     return (
         <div className="min-h-screen bg-[#e8e4d4]">
@@ -668,6 +671,10 @@ export default function FinalApproverView({ onSwitchToHRSystem, roleGroup: propR
                 {/* ── 연차 잔여 관리 ──────────── */}
                 {activeTab === 'LEAVE' && (
                     <LeaveBalanceManager users={users.filter(u => normalizeProfile(u).roleGroup === 'employee')} />
+                )}
+                {/* ── 대결 위임 (approver_senior 전용) ─ */}
+                {activeTab === 'DELEGATION' && !isSysAdmin && (
+                    <SeniorDelegationManager />
                 )}
 
             </main>
