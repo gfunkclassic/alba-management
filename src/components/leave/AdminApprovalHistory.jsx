@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { History, Loader } from 'lucide-react';
-import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocsFromServer, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import LeaveDetailModal from '../modals/LeaveDetailModal';
+import { canApprove } from '../../utils/roleUtils';
 
 const ACTION_LABEL = {
     APPROVE: '승인',
@@ -15,14 +16,16 @@ const ACTION_COLOR = {
 };
 const STAGE_LABEL = {
     TEAM: '1차 (팀)',
-    FINAL: '2차 (최종)',
+    FINAL: '2차 (실장)',
+    CEO: '3차 (대표)',
 };
 
 export default function AdminApprovalHistory() {
-    const { userProfile } = useAuth();
+    const { currentUser, userProfile } = useAuth();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [detailTarget, setDetailTarget] = useState(null);
+    const [isOpen, setIsOpen] = useState(false);
 
     const formatNote = (note) => {
         if (!note) return null;
@@ -33,9 +36,12 @@ export default function AdminApprovalHistory() {
     const loadHistory = async () => {
         setLoading(true);
         try {
-            // approvals 컬렉션 최신 50개 가져오기
-            const q = query(collection(db, 'approvals'), orderBy('acted_at', 'desc'), limit(50));
-            const snap = await getDocs(q);
+            // 팀장: 본인 처리 이력만 / 실장·대표: 전체 이력
+            const isManager = userProfile?.roleGroup === 'manager';
+            const q = isManager
+                ? query(collection(db, 'approvals'), where('actor_user_id', '==', currentUser.uid), orderBy('acted_at', 'desc'), limit(50))
+                : query(collection(db, 'approvals'), orderBy('acted_at', 'desc'), limit(50));
+            const snap = await getDocsFromServer(q);
             const rawApprovals = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
             // 관련된 사용자 정보 (신청자, 승인자) 캐싱 및 매핑
@@ -97,25 +103,32 @@ export default function AdminApprovalHistory() {
     };
 
     useEffect(() => {
-        if (userProfile?.role === 'FINAL_APPROVER' || userProfile?.role === 'TEAM_APPROVER') {
+        if (isOpen && canApprove(userProfile?.roleGroup)) {
             loadHistory();
         }
-    }, [userProfile]);
+    }, [isOpen, userProfile]);
 
     if (!userProfile) return null;
-    if (userProfile.role !== 'FINAL_APPROVER' && userProfile.role !== 'TEAM_APPROVER') return null;
+    if (!canApprove(userProfile.roleGroup)) return null;
 
     return (
         <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] mt-8">
             <LeaveDetailModal isOpen={!!detailTarget} onClose={() => setDetailTarget(null)} request={detailTarget} />
 
-            <div className="flex items-center justify-between p-4 border-b-2 border-[#c5c0b0]">
+            <button
+                onClick={() => setIsOpen(v => !v)}
+                className="w-full flex items-center justify-between p-4 hover:bg-[#eeece0] transition-colors">
                 <h3 className="font-bold text-[#3d472f] flex items-center gap-2">
                     <History size={18} className="text-[#5d6c4a]" /> 최근 승인/반려 내역 (50건)
                 </h3>
+                <span className="text-xs text-[#7a7565] font-bold">{isOpen ? '▲ 접기' : '▼ 펼치기'}</span>
+            </button>
+
+            {isOpen && (
+            <div className="border-t-2 border-[#c5c0b0]">
+            <div className="flex justify-end p-2 border-b border-[#e8e4d4]">
                 <button onClick={loadHistory} className="text-xs text-[#5d6c4a] font-bold border border-[#b8c4a0] px-2 py-1 hover:bg-[#e8e4d4]">새로고침</button>
             </div>
-
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead className="bg-[#e8e4d4] text-xs font-bold text-[#5d6c4a] uppercase">
@@ -162,7 +175,11 @@ export default function AdminApprovalHistory() {
                                 <td className="p-3 text-xs">
                                     <div className="font-bold text-[#3d472f]">
                                         {item._actorName}
-                                        {item._proxyForName && <span className="font-normal text-[#9a9585]"> ({item._proxyForName} 대행)</span>}
+                                        {item._proxyForName && (
+                                            <span className="font-normal text-[#9a9585]">
+                                                {' '}({item._proxyForName} {(item.stage === 'FINAL' || item.stage === 'CEO') ? '위임 처리' : '대행'})
+                                            </span>
+                                        )}
                                     </div>
                                     {item.note && formatNote(item.note) && (
                                         <div className="text-[#7a7565] mt-0.5 truncate max-w-[200px]" title={formatNote(item.note)}>
@@ -175,6 +192,8 @@ export default function AdminApprovalHistory() {
                     </tbody>
                 </table>
             </div>
+            </div>
+            )}
         </div>
     );
 }

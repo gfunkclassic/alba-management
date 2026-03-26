@@ -33,7 +33,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
                 const notifyPromises = [];
 
                 if (userProfile?.team_id) {
-                    const teamApprovers = allUsers.filter(u => u.team_id === userProfile.team_id && u.role === 'TEAM_APPROVER');
+                    const teamApprovers = allUsers.filter(u => u.team_id === userProfile.team_id && u.roleGroup === 'manager');
                     teamApprovers.forEach(ap => {
                         notifyPromises.push(sendNotification(ap.uid, 'LEAVE_SUBMITTED', {
                             user_name: userProfile.name,
@@ -42,21 +42,12 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
                     });
                 }
 
-                // 관리자(FINAL_APPROVER)에게도 항상 알림 발송하여 전체 현황을 파악할 수 있도록 함
-                const finalApprovers = allUsers.filter(u => u.role === 'FINAL_APPROVER');
-                finalApprovers.forEach(ap => {
-                    notifyPromises.push(sendNotification(ap.uid, 'LEAVE_SUBMITTED', {
-                        user_name: userProfile.name,
-                        date, type,
-                    }));
-                });
-
                 await Promise.all(notifyPromises);
             } catch (ne) { console.warn('알림 발송 실패:', ne); }
 
             setDate('');
             setReason('');
-            onSubmitted?.();
+            onSubmitted?.(type);
         } catch (err) {
             const isDuplicate = err.message?.startsWith('DUPLICATE');
             setResult({

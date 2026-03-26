@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw, CheckCircle, Clock, ShieldOff, Edit2 } from 'lucide-react';
+import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw, CheckCircle, Clock, ShieldOff, Edit2, UserCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { ROLES, ROLE_LABELS } from '../../firebase';
+import { ROLE_GROUP_OPTIONS, ROLE_GROUP_LABEL, ROLE_GROUP_BADGE, normalizeProfile } from '../../utils/roleUtils';
 import LeaveBalanceManager from '../leave/LeaveBalanceManager';
+import SeniorDelegationManager from '../leave/SeniorDelegationManager';
+import SeniorDelegateInbox from '../leave/SeniorDelegateInbox';
+import CEODelegateInbox from '../leave/CEODelegateInbox';
 import { ConfirmModal, AlertModal } from '../modals/DialogModals';
 import NotificationBell from '../notifications/NotificationBell';
 
 
 function CreateUserPanel({ onCreated }) {
     const { createUser, teams, addTeam } = useAuth();
-    const [form, setForm] = useState({ name: '', email: '', role: 'ALBA', team_id: '' });
+    const [form, setForm] = useState({ name: '', email: '', contact_email: '', roleGroup: 'employee', position: '아르바이트', team_id: '' });
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [isAddingNewTeam, setIsAddingNewTeam] = useState(false);
@@ -22,7 +25,7 @@ function CreateUserPanel({ onCreated }) {
         try {
             await createUser(form);
             setResult({ success: true, message: `${form.name} (${form.email}) 계정 생성 완료. 초기 비밀번호: 123456` });
-            setForm({ name: '', email: '', role: 'ALBA', team_id: '카페' });
+            setForm({ name: '', email: '', contact_email: '', roleGroup: 'employee', position: '아르바이트', team_id: '카페' });
             onCreated?.();
         } catch (err) {
             if (err.code === 'auth/email-already-in-use') {
@@ -61,16 +64,28 @@ function CreateUserPanel({ onCreated }) {
                     <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required placeholder="홍길동" className={inputCls} />
                 </div>
                 <div>
-                    <label className="text-[10px] font-bold text-[#7a7565] block mb-1">이메일 *</label>
-                    <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required placeholder="hong@company.com" className={inputCls} />
+                    <label className="text-[10px] font-bold text-[#7a7565] block mb-1">로그인 이메일 *</label>
+                    <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required placeholder="hong-login@company.com" className={inputCls} />
                 </div>
                 <div>
-                    <label className="text-[10px] font-bold text-[#7a7565] block mb-1">역할 *</label>
-                    <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className={inputCls}>
-                        {Object.entries(ROLE_LABELS).map(([key, label]) => (
-                            <option key={key} value={key}>{label}</option>
+                    <label className="text-[10px] font-bold text-[#7a7565] block mb-1">표시용 이메일 <span className="text-[#9a9585] font-normal">(= 회사메일, 선택)</span></label>
+                    <input type="email" value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} placeholder="hong@company.com (비어두면 로그인이메일 사용)" className={inputCls} />
+                </div>
+                <div>
+                    <label className="text-[10px] font-bold text-[#7a7565] block mb-1">권한 그룹 *</label>
+                    <select value={form.roleGroup} onChange={e => {
+                        const rg = e.target.value;
+                        const defaultPos = ROLE_GROUP_OPTIONS.find(o => o.value === rg)?.label.split(' ')[0] || '';
+                        setForm(f => ({ ...f, roleGroup: rg }));
+                    }} className={inputCls}>
+                        {ROLE_GROUP_OPTIONS.map(o => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                     </select>
+                </div>
+                <div>
+                    <label className="text-[10px] font-bold text-[#7a7565] block mb-1">직책 (표시용)</label>
+                    <input value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} placeholder="예: 아르바이트, 팀 관리자, 실장" className={inputCls} />
                 </div>
                 <div>
                     <div className="flex items-center justify-between mb-1">
@@ -124,13 +139,15 @@ function PendingUsersPanel({ onApproved }) {
 
     useEffect(() => { load(); }, [load]);
 
-    const sel = (uid) => selections[uid] || { role: 'ALBA', team_id: teams[0] || '' };
+    const sel = (uid) => selections[uid] || { roleGroup: 'employee', team_id: teams[0] || '' };
     const setSel = (uid, key, val) => setSelections(s => ({ ...s, [uid]: { ...sel(uid), [key]: val } }));
 
     const handleApprove = async (uid) => {
         setApproving(a => ({ ...a, [uid]: 'approving' }));
         try {
-            await approveUser(uid, sel(uid));
+            // approveUser에 roleGroup + position 전달 (AuthContext 호환)
+            const s = sel(uid);
+            await approveUser(uid, { role: s.roleGroup, roleGroup: s.roleGroup, team_id: s.team_id });
             onApproved?.();
             await load();
         } catch (e) { alert('승인 실패: ' + e.message); }
@@ -161,13 +178,13 @@ function PendingUsersPanel({ onApproved }) {
                     <div key={u.uid} className="p-4 flex flex-wrap gap-3 items-center">
                         <div className="flex-1 min-w-[140px]">
                             <p className="font-bold text-[#3d472f] text-sm">{u.name}</p>
-                            <p className="text-[10px] text-[#9a9585] font-mono">{u.email}</p>
+                            <p className="text-[10px] text-[#9a9585] font-mono">{u.contact_email || u.email}</p>
                             <p className="text-[10px] text-[#9a9585]">신청일: {u.created_at?.slice(0, 10)}</p>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                            <select value={sel(u.uid).role} onChange={e => setSel(u.uid, 'role', e.target.value)}
+                            <select value={sel(u.uid).roleGroup} onChange={e => setSel(u.uid, 'roleGroup', e.target.value)}
                                 className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#d8973c]">
-                                {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                                {ROLE_GROUP_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
                             <select value={sel(u.uid).team_id} onChange={e => setSel(u.uid, 'team_id', e.target.value)}
                                 className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#d8973c]">
@@ -346,7 +363,10 @@ function TeamsManagementPanel({ onTeamUpdated }) {
 
 function EditUserModal({ user, onClose, onSaved }) {
     const { updateUserRoleAndTeam, teams, addTeam } = useAuth();
-    const [role, setRole] = useState(user?.role || 'ALBA');
+    const normalized = normalizeProfile(user);
+    const [roleGroup, setRoleGroup] = useState(normalized?.roleGroup || 'employee');
+    const [position, setPosition] = useState(normalized?.position || '');
+    const [contactEmail, setContactEmail] = useState(user?.contact_email || '');
     const [team, setTeam] = useState(user?.team_id || '');
     const [saving, setSaving] = useState(false);
     const [isAddingNewTeam, setIsAddingNewTeam] = useState(false);
@@ -357,7 +377,7 @@ function EditUserModal({ user, onClose, onSaved }) {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await updateUserRoleAndTeam(user.uid, role, team);
+            await updateUserRoleAndTeam(user.uid, roleGroup, team, position, contactEmail || undefined);
             onSaved?.();
         } catch (e) { alert('수정 실패: ' + e.message); }
         finally { setSaving(false); }
@@ -389,11 +409,24 @@ function EditUserModal({ user, onClose, onSaved }) {
                         <p className="text-sm font-bold text-[#3d472f]">{user.name} <span className="text-xs font-normal text-[#9a9585]">({user.email})</span></p>
                     </div>
                     <div>
-                        <label className="text-xs font-bold text-[#7a7565] block mb-1">역할 변경</label>
-                        <select value={role} onChange={e => setRole(e.target.value)}
+                        <label className="text-xs font-bold text-[#7a7565] block mb-1">권한 그룹 변경</label>
+                        <select value={roleGroup} onChange={e => setRoleGroup(e.target.value)}
                             className="w-full border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm p-2 outline-none focus:border-[#5d6c4a]">
-                            {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                            {ROLE_GROUP_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-[#7a7565] block mb-1">직책 (표시용)</label>
+                        <input value={position} onChange={e => setPosition(e.target.value)}
+                            placeholder="예: 아르바이트, 팀 관리자, 실장"
+                            className="w-full border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm p-2 outline-none focus:border-[#5d6c4a]" />
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-[#7a7565] block mb-1">표시용 이메일 <span className="text-[10px] text-[#9a9585] font-normal">(비우면 로그인 이메일 사용)</span></label>
+                        <input value={contactEmail} onChange={e => setContactEmail(e.target.value)}
+                            type="email"
+                            placeholder="예: kgh@company.com"
+                            className="w-full border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm p-2 outline-none focus:border-[#5d6c4a]" />
                     </div>
                     <div>
                         <div className="flex items-center justify-between mb-1">
@@ -427,8 +460,11 @@ function EditUserModal({ user, onClose, onSaved }) {
     );
 }
 
-export default function FinalApproverView({ onSwitchToHRSystem }) {
-    const { userProfile, logout, getAllUsers, suspendUser, teams, updateUserRoleAndTeam, addTeam, removeTeam } = useAuth();
+export default function FinalApproverView({ onSwitchToHRSystem, roleGroup: propRoleGroup }) {
+    const { userProfile, logout, getAllUsers, suspendUser, teams, updateUserRoleAndTeam, addTeam, removeTeam, getMyActiveSeniorDelegation, getMyActiveCEODelegation } = useAuth();
+    // prop으로 받은 roleGroup 우선, 없으면 userProfile에서 추출
+    const viewRoleGroup = propRoleGroup || userProfile?.roleGroup || '';
+    const isSysAdmin = viewRoleGroup === 'sys_admin';
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -438,10 +474,25 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
         return localStorage.getItem('final_approver_active_tab') || 'ACCOUNTS';
     });
     const [editingUser, setEditingUser] = useState(null);
+    const [seniorDelegation, setSeniorDelegation] = useState(null);
+    const [ceoDelegation, setCeoDelegation] = useState(null);
+    const [ceoDelegationChecked, setCeoDelegationChecked] = useState(false);
 
     useEffect(() => {
         localStorage.setItem('final_approver_active_tab', activeTab);
     }, [activeTab]);
+
+    useEffect(() => {
+        if (!isSysAdmin) {
+            getMyActiveSeniorDelegation().then(setSeniorDelegation).catch(() => setSeniorDelegation(null));
+            getMyActiveCEODelegation()
+                .then(d => { console.log('[CEODelegation]', d); setCeoDelegation(d); })
+                .catch(e => { console.error('[CEODelegation err]', e); setCeoDelegation(null); })
+                .finally(() => setCeoDelegationChecked(true));
+        } else {
+            setCeoDelegationChecked(true);
+        }
+    }, [isSysAdmin]);
 
     const loadUsers = async () => {
         setLoading(true);
@@ -455,20 +506,24 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
     useEffect(() => { loadUsers(); }, []);
 
     const filtered = users.filter(u => {
+        const nu = normalizeProfile(u);
         const matchSearch = u.name?.includes(search) || u.email?.includes(search);
         const matchTeam = filterTeam === '전체' || u.team_id === filterTeam;
-        const matchRole = filterRole === '전체' || u.role === filterRole;
+        const matchRole = filterRole === '전체' || nu.roleGroup === filterRole;
         return matchSearch && matchTeam && matchRole;
     });
 
-    const roleLabel = { ALBA: '아르바이트', TEAM_APPROVER: '팀 관리자', FINAL_APPROVER: '최종 관리자' };
-    const roleBadge = { ALBA: 'bg-[#e8e4d4] text-[#5a5545]', TEAM_APPROVER: 'bg-[#e8ebd8] text-[#5d6c4a]', FINAL_APPROVER: 'bg-[#f8f0ef] text-[#a65d57]' };
 
-    const TABS = [
+
+    const ALL_TABS = [
         { key: 'ACCOUNTS', label: '계정 관리', icon: <Users size={15} /> },
         { key: 'TEAMS', label: '시스템 팀 관리', icon: <AlertCircle size={15} /> },
         { key: 'LEAVE', label: '연차 잔여 관리', icon: <Sun size={15} /> },
     ];
+    // approver_senior(실장)에게만 대결 위임 탭 추가. sys_admin은 제외.
+    const TABS = isSysAdmin
+        ? ALL_TABS
+        : [...ALL_TABS, { key: 'DELEGATION', label: '대결 위임', icon: <UserCheck size={15} /> }];
 
     return (
         <div className="min-h-screen bg-[#e8e4d4]">
@@ -477,13 +532,18 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-[#5d6c4a] border-2 border-[#f5f3e8] flex items-center justify-center text-[#f5f3e8] font-black text-sm">A</div>
                     <span className="text-[#f5f3e8] font-bold text-sm">아르바이트 관리</span>
-                    <span className="text-[10px] bg-[#a65d57] text-white font-bold px-2 py-0.5">최종 관리자</span>
+                    <span className="text-[10px] bg-[#a65d57] text-white font-bold px-2 py-0.5">
+                        {isSysAdmin ? (userProfile?.position || '최종관리자') : (userProfile?.position || '승인자')}
+                    </span>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3">
                         <span className="text-[#b8c4a0] text-xs font-bold mr-1">{userProfile?.name}님</span>
                         <div className="pt-1.5">
-                            <NotificationBell userId={userProfile?.uid} />
+                            <NotificationBell userId={userProfile?.uid} onNavigate={(tab) => {
+                                localStorage.setItem('app_active_tab', tab === 'HISTORY' ? 'LEAVE' : tab);
+                                if (onSwitchToHRSystem) onSwitchToHRSystem();
+                            }} />
                         </div>
                     </div>
                     <div className="w-px h-4 bg-[#5d6c4a]"></div>
@@ -503,7 +563,7 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                 </div>
                 {onSwitchToHRSystem && (
                     <button onClick={onSwitchToHRSystem} className="mr-4 text-[10px] bg-[#5d6c4a] border border-[#3d472f] text-[#f5f3e8] px-3 py-1.5 font-bold hover:bg-[#4a5639]">
-                        ← 인사급여 시스템
+                        {isSysAdmin ? '← 인사급여 시스템' : '← 인사급여 시스템'}
                     </button>
                 )}
             </div>
@@ -522,8 +582,8 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
                             { label: '전체 계정', value: `${users.length}명` },
-                            { label: '아르바이트', value: `${users.filter(u => u.role === 'ALBA').length}명` },
-                            { label: '팀 관리자', value: `${users.filter(u => u.role === 'TEAM_APPROVER').length}명` },
+                            { label: '아르바이트', value: `${users.filter(u => normalizeProfile(u).roleGroup === 'employee').length}명` },
+                            { label: '팀 관리자', value: `${users.filter(u => normalizeProfile(u).roleGroup === 'manager').length}명` },
                             { label: '비번 변경 필요', value: `${users.filter(u => u.is_temp_password).length}명`, danger: true },
                         ].map(card => (
                             <div key={card.label} className={`border-2 p-4 ${card.danger ? 'bg-[#f8f0ef] border-[#dcc0bc]' : 'bg-[#f5f3e8] border-[#c5c0b0]'}`}>
@@ -546,8 +606,8 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                                     {teams.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
                                 <select value={filterRole} onChange={e => setFilterRole(e.target.value)} className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
-                                    <option value="전체">전체 역할</option>
-                                    {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                                    <option value="전체">전체 권한</option>
+                                    {ROLE_GROUP_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                 </select>
                                 <button onClick={loadUsers} className="flex items-center gap-1 border-2 border-[#c5c0b0] bg-[#f5f3e8] px-2 py-1.5 text-xs text-[#5a5545] hover:bg-[#e8e4d4]">
                                     <RefreshCw size={12} /> 새로고침
@@ -572,9 +632,20 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                                         : filtered.map(u => (
                                             <tr key={u.uid} className={`hover:bg-[#f4f5eb] ${u.status === 'SUSPENDED' ? 'opacity-60' : ''}`}>
                                                 <td className="p-3 pl-4 font-bold text-[#3d472f]">{u.name}</td>
-                                                <td className="p-3 text-[#5a5545] text-xs font-mono">{u.email}</td>
+                                                <td className="p-3 text-[#5a5545] text-xs font-mono">
+                                                    {u.contact_email || u.email}
+                                                    {u.contact_email && u.contact_email !== u.email && (
+                                                        <span className="block text-[10px] text-[#9a9585] mt-0.5">{u.email}</span>
+                                                    )}
+                                                </td>
                                                 <td className="p-3 text-center"><span className="text-xs bg-[#e8e4d4] px-2 py-0.5 font-bold text-[#5a5545]">{u.team_id || '-'}</span></td>
-                                                <td className="p-3 text-center"><span className={`text-xs font-bold px-2 py-0.5 ${roleBadge[u.role]}`}>{roleLabel[u.role] || '-'}</span></td>
+                                                <td className="p-3 text-center">
+                                                    <div>
+                                                        <span className={`text-xs font-bold px-2 py-0.5 ${ROLE_GROUP_BADGE[normalizeProfile(u).roleGroup] || 'bg-[#e8e4d4] text-[#5a5545]'}`}>
+                                                            {u.position || ROLE_GROUP_LABEL[normalizeProfile(u).roleGroup] || '-'}
+                                                        </span>
+                                                    </div>
+                                                </td>
                                                 <td className="p-3 text-center">
                                                     {u.is_temp_password
                                                         ? <span className="text-xs font-bold text-[#d8973c] flex items-center justify-center gap-1"><AlertCircle size={11} />변경 필요</span>
@@ -582,7 +653,8 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                                                 </td>
                                                 <td className="p-3 text-center text-xs text-[#7a7565]">{u.created_at?.slice(0, 10)}</td>
                                                 <td className="p-3 text-center flex items-center justify-center gap-1.5">
-                                                    <button onClick={() => setEditingUser(u)} disabled={u.status === 'SUSPENDED' || u.role === 'FINAL_APPROVER'}
+                                                    <button onClick={() => setEditingUser(u)}
+                                                        disabled={u.status === 'SUSPENDED' || (!isSysAdmin && normalizeProfile(u).roleGroup === 'sys_admin')}
                                                         className="text-[9px] font-bold px-2 py-1 border border-[#5d6c4a] text-[#5d6c4a] hover:bg-[#e8ebd8] flex items-center gap-0.5 disabled:opacity-50">
                                                         <Edit2 size={10} /> 수정
                                                     </button>
@@ -591,12 +663,14 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                                                             className="text-[9px] font-bold px-2 py-1 border border-[#d8973c] text-[#d8973c] hover:bg-[#fdf6e3]">
                                                             정지해제
                                                         </button>
-                                                    ) : u.role !== 'FINAL_APPROVER' ? (
+                                                    ) : (!isSysAdmin && normalizeProfile(u).roleGroup === 'sys_admin') ? (
+                                                        <span className="text-[10px] text-[#c5c0b0]">-</span>
+                                                    ) : (
                                                         <button onClick={() => { if (window.confirm(`${u.name} 계정을 정지하시겠습니까?`)) suspendUser(u.uid, true).then(loadUsers); }}
                                                             className="text-[9px] font-bold px-2 py-1 border border-[#a65d57] text-[#a65d57] hover:bg-[#f8f0ef] flex items-center gap-1">
                                                             <ShieldOff size={10} /> 정지
                                                         </button>
-                                                    ) : <span className="text-[10px] text-[#c5c0b0]">-</span>}
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}
@@ -613,7 +687,22 @@ export default function FinalApproverView({ onSwitchToHRSystem }) {
                 )}
                 {/* ── 연차 잔여 관리 ──────────── */}
                 {activeTab === 'LEAVE' && (
-                    <LeaveBalanceManager users={users.filter(u => u.role === 'ALBA')} />
+                    <LeaveBalanceManager users={users.filter(u => normalizeProfile(u).roleGroup === 'employee')} />
+                )}
+                {/* ── 대결 위임 (approver_senior 전용) ─ */}
+                {activeTab === 'DELEGATION' && !isSysAdmin && (
+                    <div className="space-y-6">
+                        <SeniorDelegationManager />
+                        {seniorDelegation && <SeniorDelegateInbox delegation={seniorDelegation} />}
+                        {ceoDelegation
+                            ? <CEODelegateInbox delegation={ceoDelegation} />
+                            : (
+                                <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] p-4 text-xs text-[#9a9585]">
+                                    대표 위임 승인함 — {ceoDelegationChecked ? '현재 활성 대표 위임 없음' : '확인 중...'}
+                                </div>
+                            )
+                        }
+                    </div>
                 )}
 
             </main>

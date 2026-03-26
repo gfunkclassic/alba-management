@@ -11,6 +11,7 @@ import ChangePasswordPage from './components/auth/ChangePasswordPage';
 import AlbaView from './components/views/AlbaView';
 import TeamApproverView from './components/views/TeamApproverView';
 import FinalApproverView from './components/views/FinalApproverView';
+import SuperAdminView from './components/views/SuperAdminView';
 
 // Data
 import { INITIAL_USERS } from './data/initialUsers';
@@ -30,6 +31,7 @@ import HRView from './components/HRView';
 import PayrollView from './components/PayrollView';
 import LeaveView from './components/LeaveView';
 import FinalApprovalInbox from './components/leave/FinalApprovalInbox';
+import CEOApprovalInbox from './components/leave/CEOApprovalInbox';
 import NotificationBell from './components/notifications/NotificationBell';
 
 // Components & Modals
@@ -117,11 +119,8 @@ function HRPayrollApp() {
         localStorage.setItem('alba_payrollMonth', payrollMonth);
     }, [payrollMonth]);
 
-    // 역할 모드: 'ADMIN' | 'STAFF' | 'VIEWER'
-    const [roleMode, setRoleMode] = useState(() => {
-        return localStorage.getItem('alba_role_mode') || 'ADMIN';
-    });
-    useEffect(() => { localStorage.setItem('alba_role_mode', roleMode); }, [roleMode]);
+    // 역할 모드: sys_admin은 조회전용(VIEWER), 나머지 승인자는 관리자(ADMIN)
+    const roleMode = userProfile?.roleGroup === 'sys_admin' ? 'VIEWER' : 'ADMIN';
     const maskPII = roleMode === 'VIEWER';
 
     const movePayrollMonth = useCallback((offset) => {
@@ -1141,33 +1140,14 @@ function HRPayrollApp() {
                             <button onClick={() => setActiveTab('HR')} className={`px-4 py-2 text-xs font-bold transition ${activeTab === 'HR' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>HR관리</button>
                             <button onClick={() => setActiveTab('PAYROLL')} className={`px-4 py-2 text-xs font-bold border-x-2 border-[#2d3721] transition ${activeTab === 'PAYROLL' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>급여정산</button>
                             <button onClick={() => setActiveTab('LEAVE')} className={`px-4 py-2 text-xs font-bold transition ${activeTab === 'LEAVE' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>연차관리</button>
-                            {userProfile?.role === 'FINAL_APPROVER' && (
+                            {(userProfile?.roleGroup === 'approver_senior' || userProfile?.roleGroup === 'approver_final') && (
                                 <button onClick={() => setActiveTab('APPROVALS')} className={`px-4 py-2 text-xs font-bold border-l-2 border-[#2d3721] transition ${activeTab === 'APPROVALS' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>연차결재</button>
                             )}
                         </div>
 
                         {/* 알림 벨 아이콘 */}
                         <div className="mr-3 flex items-center justify-center">
-                            <NotificationBell userId={userProfile?.uid} />
-                        </div>
-
-                        {/* 역할 모드 선택기 */}
-                        <div className="flex items-center border-2 border-[#2d3721] bg-[#3d472f] mr-2">
-                            {[
-                                { key: 'ADMIN', label: '관리자', icon: <ShieldCheck size={11} /> },
-                                { key: 'STAFF', label: '실무자', icon: <Eye size={11} /> },
-                                { key: 'VIEWER', label: '조회전용', icon: <EyeOff size={11} /> },
-                            ].map(({ key, label, icon }) => (
-                                <button
-                                    key={key}
-                                    onClick={() => setRoleMode(key)}
-                                    title={key === 'VIEWER' ? '개인정보 마스킹 적용' : ''}
-                                    className={`flex items-center gap-1 px-3 py-2 text-[10px] font-bold border-r border-[#2d3721] last:border-0 transition ${roleMode === key ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'
-                                        }`}
-                                >
-                                    {icon}{label}
-                                </button>
-                            ))}
+                            <NotificationBell userId={userProfile?.uid} onNavigate={(tab) => setActiveTab(tab === 'HISTORY' ? 'LEAVE' : tab)} />
                         </div>
 
                         <div className="relative" ref={dataMenuRef}>
@@ -1231,9 +1211,12 @@ function HRPayrollApp() {
                     />
                 )}
 
-                {activeTab === 'APPROVALS' && userProfile?.role === 'FINAL_APPROVER' && (
+                {activeTab === 'APPROVALS' && (userProfile?.roleGroup === 'approver_senior' || userProfile?.roleGroup === 'approver_final') && (
                     <div className="max-w-5xl mx-auto w-full pt-4">
-                        <FinalApprovalInbox />
+                        {userProfile?.roleGroup === 'approver_final'
+                            ? <CEOApprovalInbox />
+                            : <FinalApprovalInbox />
+                        }
                     </div>
                 )}
             </div>
@@ -1352,47 +1335,73 @@ export default function App() {
 
     if (userProfile.is_temp_password) return <ChangePasswordPage />;
 
-    const { role } = userProfile;
-    if (role === 'FINAL_APPROVER') {
+    const { roleGroup, position } = userProfile;
+
+    // ── approver_final (대표) → CEO 결재함이 있는 SuperAdminView
+    if (roleGroup === 'approver_final') {
         if (showHRSystem) {
             return (
                 <div className="min-h-screen flex flex-col">
-                    {/* 관리자 상단 바 */}
+                    <div className="bg-[#302b25] border-b-2 border-[#1c1915] px-4 py-2 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setShowHRSystem(false)}
+                                className="text-[10px] bg-[#d8973c] border border-[#7a5a1a] text-[#f5f3e8] px-3 py-1.5 font-bold hover:bg-[#b07a30] flex items-center gap-1"
+                            >
+                                ← 대표 결재함
+                            </button>
+                            <span className="text-[#e2ceab] text-xs">인사 급여관리 시스템</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[10px] bg-[#d8973c] text-white font-bold px-2 py-0.5">{position || '대표'}</span>
+                            <span className="text-[#e2ceab] text-xs">{userProfile.name}</span>
+                            <button onClick={logout} className="text-[10px] text-[#e2ceab] hover:text-[#f5f3e8] font-bold">로그아웃</button>
+                        </div>
+                    </div>
+                    <div className="flex-1"><HRPayrollApp /></div>
+                </div>
+            );
+        }
+        return <SuperAdminView onSwitchToHRSystem={() => setShowHRSystem(true)} />;
+    }
+
+    // ── sys_admin / approver_senior → FinalApproverView (계정 관리 + 실장 승인함)
+    if (roleGroup === 'sys_admin' || roleGroup === 'approver_senior') {
+        if (showHRSystem) {
+            return (
+                <div className="min-h-screen flex flex-col">
                     <div className="bg-[#2d3721] border-b-2 border-[#1e2516] px-4 py-2 flex items-center justify-between shrink-0">
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => setShowHRSystem(false)}
                                 className="text-[10px] bg-[#5d6c4a] border border-[#3d472f] text-[#f5f3e8] px-3 py-1.5 font-bold hover:bg-[#4a5639] flex items-center gap-1"
                             >
-                                ← 계정 관리
+                                ← {roleGroup === 'sys_admin' ? '계정 관리' : '계정 관리'}
                             </button>
                             <span className="text-[#b8c4a0] text-xs">인사 급여관리 시스템</span>
                         </div>
                         <div className="flex items-center gap-3">
-                            <span className="text-[10px] bg-[#a65d57] text-white font-bold px-2 py-0.5">최종 관리자</span>
+                            <span className="text-[10px] bg-[#a65d57] text-white font-bold px-2 py-0.5">{position || '승인자'}</span>
                             <span className="text-[#b8c4a0] text-xs">{userProfile.name}</span>
-                            <button
-                                onClick={logout}
-                                className="text-[10px] text-[#b8c4a0] hover:text-[#f5f3e8] font-bold"
-                            >
-                                로그아웃
-                            </button>
+                            <button onClick={logout} className="text-[10px] text-[#b8c4a0] hover:text-[#f5f3e8] font-bold">로그아웃</button>
                         </div>
                     </div>
-                    <div className="flex-1">
-                        <HRPayrollApp />
-                    </div>
+                    <div className="flex-1"><HRPayrollApp /></div>
                 </div>
             );
         }
-        return <FinalApproverView onSwitchToHRSystem={() => setShowHRSystem(true)} />;
+        return <FinalApproverView roleGroup={roleGroup} onSwitchToHRSystem={() => setShowHRSystem(true)} />;
     }
-    if (role === 'TEAM_APPROVER') return <TeamApproverView />;
-    if (role === 'ALBA') return <AlbaView />;
+
+    // ── manager (팀 승인자) ────────────────────────────────────────
+    if (roleGroup === 'manager') return <TeamApproverView />;
+
+    // ── employee (일반 사용자) ─────────────────────────────────────
+    if (roleGroup === 'employee') return <AlbaView />;
 
     return (
         <div className="min-h-screen bg-[#e8e4d4] flex items-center justify-center">
-            <p className="text-[#a65d57] font-bold">알 수 없는 역할: {role}</p>
+            <p className="text-[#a65d57] font-bold">알 수 없는 권한 그룹: {roleGroup || '(미설정)'}</p>
         </div>
     );
 }

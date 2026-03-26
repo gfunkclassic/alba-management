@@ -3,12 +3,23 @@ import { CheckCircle, XCircle, Loader, RefreshCw, AlertCircle } from 'lucide-rea
 import { useAuth } from '../../contexts/AuthContext';
 import { ConfirmModal } from '../modals/DialogModals';
 import AdminApprovalHistory from './AdminApprovalHistory';
+import CEODelegateInbox from './CEODelegateInbox';
 import LeaveDetailModal from '../modals/LeaveDetailModal';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]', HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]' };
 const DEDUCTION = { FULL: 1.0, HALF_AM: 0.5, HALF_PM: 0.5 };
 const TEAM_COLOR = { '카페': 'bg-[#d8973c]', '생산기획': 'bg-[#5d6c4a]', 'QC': 'bg-[#4a6070]', 'ER': 'bg-[#a65d57]', 'LM': 'bg-[#7a7565]' };
+const STATUS_LABEL = { SUBMITTED: '승인대기(팀)', TEAM_APPROVED: '1차승인', FINAL_PENDING: '최종대기', CEO_PENDING: '승인대기(대표)', FINAL_APPROVED: '최종승인', REJECTED: '반려', CANCELLED: '취소' };
+const STATUS_COLOR = {
+    SUBMITTED: 'bg-[#d8973c] text-white',
+    TEAM_APPROVED: 'bg-[#7a8c5f] text-white',
+    FINAL_PENDING: 'bg-[#5d6c4a] text-white',
+    CEO_PENDING: 'bg-[#4a6070] text-white',
+    FINAL_APPROVED: 'bg-[#3d6b5e] text-white',
+    REJECTED: 'bg-[#a65d57] text-white',
+    CANCELLED: 'bg-[#c5c0b0] text-[#5a5545]',
+};
 
 function RejectModal({ title, onConfirm, onCancel }) {
     const [note, setNote] = useState('');
@@ -17,11 +28,11 @@ function RejectModal({ title, onConfirm, onCancel }) {
             <div className="bg-[#f5f3e8] border-2 border-[#a65d57] w-full max-w-sm p-6">
                 <h3 className="font-bold text-[#3d472f] mb-3">{title || '반려 사유 입력'}</h3>
                 <textarea value={note} onChange={e => setNote(e.target.value)}
-                    placeholder="반려 사유 (선택 입력)" rows={3}
+                    placeholder="반려 사유를 입력해주세요 (필수)" rows={3}
                     className="w-full p-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm resize-none outline-none focus:border-[#a65d57] mb-3" />
                 <div className="flex gap-2">
                     <button onClick={onCancel} className="flex-1 py-2 border-2 border-[#c5c0b0] text-xs font-bold text-[#5a5545] hover:bg-[#e8e4d4]">취소</button>
-                    <button onClick={() => onConfirm(note)} className="flex-1 py-2 bg-[#a65d57] border-2 border-[#7a3f3a] text-xs font-bold text-white hover:bg-[#7a3f3a]">반려 확정</button>
+                    <button onClick={() => onConfirm(note.trim())} disabled={!note.trim()} className="flex-1 py-2 bg-[#a65d57] border-2 border-[#7a3f3a] text-xs font-bold text-white hover:bg-[#7a3f3a] disabled:opacity-40 disabled:cursor-not-allowed">반려 확정</button>
                 </div>
             </div>
         </div>
@@ -32,6 +43,7 @@ export default function FinalApprovalInbox() {
     const {
         getAllTeamApprovedRequests, finalApproveLeaveRequest, finalRejectLeaveRequest,
         getAllSubmittedRequests, proxyTeamApprove, proxyTeamReject,
+        getMyActiveGivenSeniorDelegation, getMyActiveCEODelegation, userProfile,
     } = useAuth();
 
     // mode: 'FINAL' = 최종 승인 (TEAM_APPROVED), 'PROXY' = 팀 대행 (SUBMITTED)
@@ -43,6 +55,16 @@ export default function FinalApprovalInbox() {
     const [confirmApproveTarget, setConfirmApproveTarget] = useState(null);
     const [detailTarget, setDetailTarget] = useState(null);
     const [errors, setErrors] = useState({});
+    const [activeGivenSeniorDelegation, setActiveGivenSeniorDelegation] = useState(null);
+    const [ceoDelegation, setCeoDelegation] = useState(null);
+    const [ceoRefreshKey, setCeoRefreshKey] = useState(0);
+
+    useEffect(() => {
+        getMyActiveGivenSeniorDelegation().then(setActiveGivenSeniorDelegation).catch(() => {});
+        getMyActiveCEODelegation()
+            .then(d => { console.warn('[CEODelegation result]', d); setCeoDelegation(d); })
+            .catch(e => { console.warn('[CEODelegation error]', e?.code, e?.message); setCeoDelegation(null); });
+    }, []);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -51,10 +73,18 @@ export default function FinalApprovalInbox() {
             const data = mode === 'FINAL'
                 ? await getAllTeamApprovedRequests()
                 : await getAllSubmittedRequests();
-            setRequests(data);
+            if (mode === 'FINAL') {
+                const uid = userProfile?.uid;
+                // 내가 이미 승인/반려 처리한 FINAL_PENDING 건은 숨김
+                setRequests(data.filter(r =>
+                    r.status !== 'FINAL_PENDING' || !r.final_approvals?.[uid]
+                ));
+            } else {
+                setRequests(data);
+            }
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
-    }, [mode, getAllTeamApprovedRequests, getAllSubmittedRequests]);
+    }, [mode, getAllTeamApprovedRequests, getAllSubmittedRequests, userProfile]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -70,7 +100,8 @@ export default function FinalApprovalInbox() {
         setErrors(e => ({ ...e, [req.id]: null }));
         try {
             if (isFinal) {
-                await finalApproveLeaveRequest(req.id, req.user_id, req.date, req.type);
+                await finalApproveLeaveRequest(req.id);
+                setCeoRefreshKey(k => k + 1);
             } else {
                 await proxyTeamApprove(req.id, req.user_id, req.date, req.type, null, true);
             }
@@ -97,7 +128,10 @@ export default function FinalApprovalInbox() {
     };
 
     const isFinalMode = mode === 'FINAL';
-    const approveLabel = isFinalMode ? '최종 승인' : '팀 대행 승인';
+    const approveLabel = isFinalMode ? '승인' : '팀 대행 승인';
+    const pendingCount = isFinalMode
+        ? requests.filter(r => r.status === 'TEAM_APPROVED' || r.status === 'FINAL_PENDING').length
+        : requests.filter(r => r.status === 'SUBMITTED').length;
 
     return (
         <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">
@@ -114,11 +148,11 @@ export default function FinalApprovalInbox() {
                 isOpen={!!confirmApproveTarget}
                 onClose={() => setConfirmApproveTarget(null)}
                 onConfirm={executeApprove}
-                title={isFinalMode ? '최종 승인' : '팀 대행 승인'}
+                title={isFinalMode ? '승인' : '팀 대행 승인'}
                 message={
                     confirmApproveTarget
                         ? (isFinalMode
-                            ? `${confirmApproveTarget._userName}님의 ${confirmApproveTarget.date} 신청을 최종 승인하시겠습니까?\\n잔여 연차 ${DEDUCTION[confirmApproveTarget.type]}일이 차감됩니다.`
+                            ? `${confirmApproveTarget._userName}님의 ${confirmApproveTarget.date} 신청을 승인하시겠습니까?`
                             : `${confirmApproveTarget._userName}님의 ${confirmApproveTarget.date} 신청을 팀 승인 대행 처리하시겠습니까?`)
                         : ''
                 }
@@ -131,11 +165,11 @@ export default function FinalApprovalInbox() {
                 <div className="flex items-center gap-2">
                     <CheckCircle size={18} className="text-[#5d6c4a]" />
                     <span className="font-bold text-[#3d472f] text-sm">
-                        {isFinalMode ? '최종 승인함' : '팀 승인 대행함'}
+                        {isFinalMode ? '승인함 (실장)' : '팀 승인 대행함'}
                     </span>
-                    {requests.length > 0 && (
+                    {pendingCount > 0 && (
                         <span className={`text-[10px] font-black text-white px-2 py-0.5 ${isFinalMode ? 'bg-[#5d6c4a]' : 'bg-[#d8973c]'}`}>
-                            {requests.length}건 대기
+                            {pendingCount}건 대기
                         </span>
                     )}
                 </div>
@@ -143,7 +177,7 @@ export default function FinalApprovalInbox() {
                     {/* 모드 토글 */}
                     <div className="flex border-2 border-[#3d472f] bg-[#f5f3e8]">
                         {[
-                            { key: 'FINAL', label: '최종 승인' },
+                            { key: 'FINAL', label: '승인' },
                             { key: 'PROXY', label: '팀 대행' },
                         ].map(m => (
                             <button key={m.key} onClick={() => setMode(m.key)}
@@ -176,6 +210,7 @@ export default function FinalApprovalInbox() {
                             <th className="p-3 text-center">유형</th>
                             <th className="p-3 text-left">사유</th>
                             <th className="p-3 text-center">신청일</th>
+                            <th className="p-3 text-center">상태</th>
                             <th className="p-3 text-center">처리</th>
                         </tr>
                     </thead>
@@ -184,7 +219,9 @@ export default function FinalApprovalInbox() {
                             <tr><td colSpan={7} className="p-8 text-center"><Loader size={16} className="animate-spin mx-auto text-[#9a9585]" /></td></tr>
                         ) : requests.length === 0 ? (
                             <tr><td colSpan={7} className="p-8 text-center text-xs text-[#9a9585]">
-                                {isFinalMode ? '팀 승인 완료된 대기 신청이 없습니다.' : 'SUBMITTED 상태 신청이 없습니다.'}
+                                {isFinalMode
+                                    ? <span>팀 승인 완료된 대기 신청이 없습니다.<br /><span className="text-[#a65d57] font-bold mt-1 inline-block">💡 새로운 신청은 [팀 대행] 탭에서 확인하세요.</span></span>
+                                    : 'SUBMITTED 상태 신청이 없습니다.'}
                             </td></tr>
                         ) : requests.map(req => (
                             <React.Fragment key={req.id}>
@@ -209,10 +246,28 @@ export default function FinalApprovalInbox() {
                                     <td className="p-3 text-xs text-[#7a7565] whitespace-pre-wrap word-break">{req.reason || '-'}</td>
                                     <td className="p-3 text-center text-xs text-[#9a9585]">{req.created_at?.slice(0, 10)}</td>
                                     <td className="p-3 text-center">
-                                        <div className="flex justify-center gap-1">
-                                            <button onClick={() => setConfirmApproveTarget(req)} className="flex items-center gap-1 bg-[#5d6c4a] text-white px-2 py-1 text-xs hover:bg-[#4a5639] transition-colors"><CheckCircle size={12} /> {approveLabel}</button>
-                                            <button onClick={() => setRejectTarget(req)} className="flex items-center gap-1 bg-[#a65d57] text-white px-2 py-1 text-xs hover:bg-[#8b4d47] transition-colors"><XCircle size={12} /> 반려</button>
-                                        </div>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 ${STATUS_COLOR[req.status] || 'bg-[#e8e4d4] text-[#5a5545]'}`}>
+                                            {STATUS_LABEL[req.status] || req.status}
+                                        </span>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                        {(isFinalMode ? (req.status === 'TEAM_APPROVED' || req.status === 'FINAL_PENDING') : req.status === 'SUBMITTED') ? (
+                                            isFinalMode && activeGivenSeniorDelegation && !req.final_approvals?.[userProfile?.uid] ? (
+                                                <span className="text-[10px] font-bold px-2 py-1 bg-[#fdf6e3] border border-[#d8973c] text-[#a06820]">
+                                                    {activeGivenSeniorDelegation._toName} 위임 중
+                                                </span>
+                                            ) : (
+                                                <div className="flex justify-center gap-1">
+                                                    <button onClick={() => setConfirmApproveTarget(req)} className="flex items-center gap-1 bg-[#5d6c4a] text-white px-2 py-1 text-xs hover:bg-[#4a5639] transition-colors"><CheckCircle size={12} /> {approveLabel}</button>
+                                                    <button onClick={() => setRejectTarget(req)} className="flex items-center gap-1 bg-[#a65d57] text-white px-2 py-1 text-xs hover:bg-[#8b4d47] transition-colors"><XCircle size={12} /> 반려</button>
+                                                </div>
+                                            )
+                                        ) : req.status === 'REJECTED' ? (
+                                            <div className="text-left text-[10px] text-[#a65d57] space-y-0.5">
+                                                <div className="font-bold">{req.rejected_by_name || req.ceo_decision?.name || (req.final_approvals ? (Object.values(req.final_approvals).find(v => v.status === 'REJECTED')?.name || null) : null) || '-'}</div>
+                                                <div className="text-[#7a7565] break-all whitespace-pre-wrap">{req.rejected_reason !== undefined ? (req.rejected_reason || '(사유 없음)') : (req.ceo_decision?.note || (req.final_approvals ? (Object.values(req.final_approvals).find(v => v.status === 'REJECTED')?.note || '') : '') || '(사유 없음)')}</div>
+                                            </div>
+                                        ) : '-'}
                                     </td>
                                 </tr>
                                 {errors[req.id] && (
@@ -229,6 +284,14 @@ export default function FinalApprovalInbox() {
                         ))}
                     </tbody>
                 </table>
+            </div>
+
+            {/* 대표 위임 승인함 */}
+            <div className="border-t-2 border-[#c5c0b0] mt-2 pt-2">
+                {ceoDelegation
+                    ? <CEODelegateInbox delegation={ceoDelegation} refreshKey={ceoRefreshKey} />
+                    : <div className="p-4 text-xs text-[#9a9585] bg-[#f5f3e8]">대표 위임 승인함 — 현재 활성 대표 위임 없음</div>
+                }
             </div>
 
             {/* 결재 기록 내역 */}

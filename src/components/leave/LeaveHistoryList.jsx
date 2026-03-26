@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { List, X, ChevronDown, Loader } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ConfirmModal } from '../modals/DialogModals';
+import LeaveDetailModal from '../modals/LeaveDetailModal';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = {
@@ -9,20 +10,34 @@ const TYPE_COLOR = {
     HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]',
     HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]',
 };
-const STATUS_LABEL = { SUBMITTED: '승인대기', CANCELLED: '취소됨' };
+const STATUS_LABEL = {
+    SUBMITTED: '승인대기(팀)',
+    TEAM_APPROVED: '승인대기(실장)',
+    FINAL_PENDING: '승인대기(실장)',
+    CEO_PENDING: '승인대기(대표)',
+    FINAL_APPROVED: '최종승인',
+    REJECTED: '반려됨',
+    CANCELLED: '취소됨'
+};
 const STATUS_COLOR = {
     SUBMITTED: 'bg-[#d8973c] text-white',
+    TEAM_APPROVED: 'bg-[#7a8c5f] text-white',
+    FINAL_PENDING: 'bg-[#5d6c4a] text-white',
+    CEO_PENDING: 'bg-[#4a6070] text-white',
+    FINAL_APPROVED: 'bg-[#3d6b5e] text-white',
+    REJECTED: 'bg-[#a65d57] text-white',
     CANCELLED: 'bg-[#c5c0b0] text-[#5a5545]',
 };
 
 export default function LeaveHistoryList({ refreshKey }) {
-    const { getMyLeaveRequests, cancelLeaveRequest } = useAuth();
+    const { getMyLeaveRequests, cancelLeaveRequest, userProfile } = useAuth();
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterYear, setFilterYear] = useState(new Date().getFullYear());
     const [filterStatus, setFilterStatus] = useState('ALL');
     const [cancelling, setCancelling] = useState(null); // reqId
     const [confirmCancel, setConfirmCancel] = useState(null); // reqId for modal
+    const [detailTarget, setDetailTarget] = useState(null);
 
     const load = async () => {
         setLoading(true);
@@ -67,7 +82,12 @@ export default function LeaveHistoryList({ refreshKey }) {
                     </select>
                     <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
                         <option value="ALL">전체</option>
-                        <option value="SUBMITTED">승인대기</option>
+                        <option value="SUBMITTED">승인대기(팀)</option>
+                        <option value="TEAM_APPROVED">승인대기(실장)</option>
+                        <option value="FINAL_PENDING">승인진행중</option>
+                        <option value="CEO_PENDING">승인대기(대표)</option>
+                        <option value="FINAL_APPROVED">최종승인</option>
+                        <option value="REJECTED">반려됨</option>
                         <option value="CANCELLED">취소됨</option>
                     </select>
                 </div>
@@ -76,34 +96,34 @@ export default function LeaveHistoryList({ refreshKey }) {
                 <table className="w-full text-sm">
                     <thead className="bg-[#e8e4d4] text-xs font-bold text-[#5d6c4a] uppercase">
                         <tr>
-                            <th className="p-3 pl-4 text-left">날짜</th>
-                            <th className="p-3 text-center">유형</th>
+                            <th className="p-3 pl-4 text-left whitespace-nowrap">날짜</th>
+                            <th className="p-3 text-center whitespace-nowrap">유형</th>
                             <th className="p-3 text-left">사유</th>
-                            <th className="p-3 text-center">상태</th>
-                            <th className="p-3 text-center">취소</th>
+                            <th className="p-3 text-center whitespace-nowrap">상태</th>
+                            <th className="p-3 text-center whitespace-nowrap">취소</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[#ebe8db]">
                         {loading ? (
                             <tr><td colSpan={5} className="p-8 text-center"><Loader size={16} className="animate-spin mx-auto text-[#9a9585]" /></td></tr>
                         ) : filtered.map(req => (
-                            <tr key={req.id} className={`hover:bg-[#f4f5eb] ${req.status === 'CANCELLED' ? 'opacity-50' : ''}`}>
-                                <td className="p-3 pl-4 font-bold text-[#3d472f] font-mono">{req.date}</td>
-                                <td className="p-3 text-center">
+                            <tr key={req.id} onClick={() => setDetailTarget({ ...req, _userName: req._userName || userProfile?.name })} className={`hover:bg-[#f4f5eb] cursor-pointer ${req.status === 'CANCELLED' ? 'opacity-50' : ''}`}>
+                                <td className="p-3 pl-4 font-bold text-[#3d472f] font-mono whitespace-nowrap">{req.date}</td>
+                                <td className="p-3 text-center whitespace-nowrap">
                                     <span className={`text-[10px] font-bold px-2 py-0.5 ${TYPE_COLOR[req.type] || 'bg-[#e8e4d4] text-[#5a5545]'}`}>
                                         {TYPE_LABEL[req.type] || req.type}
                                     </span>
                                 </td>
-                                <td className="p-3 text-xs text-[#7a7565]">{req.reason || '-'}</td>
-                                <td className="p-3 text-center">
+                                <td className="p-3 text-xs text-[#7a7565] break-all">{req.reason || '-'}</td>
+                                <td className="p-3 text-center whitespace-nowrap">
                                     <span className={`text-[10px] font-bold px-2 py-0.5 ${STATUS_COLOR[req.status] || 'bg-[#e8e4d4]'}`}>
                                         {STATUS_LABEL[req.status] || req.status}
                                     </span>
                                 </td>
-                                <td className="p-3 text-center">
+                                <td className="p-3 text-center whitespace-nowrap">
                                     {req.status === 'SUBMITTED' ? (
                                         <button
-                                            onClick={() => requestCancel(req.id)}
+                                            onClick={(e) => { e.stopPropagation(); requestCancel(req.id); }}
                                             disabled={cancelling === req.id}
                                             className="text-[#a65d57] hover:bg-[#f8f0ef] p-1.5 border border-[#dcc0bc] text-xs font-bold disabled:opacity-50 transition-colors"
                                         >
@@ -134,6 +154,12 @@ export default function LeaveHistoryList({ refreshKey }) {
                 confirmText="신청 취소"
                 cancelText="돌아가기"
                 isDanger={true}
+            />
+
+            <LeaveDetailModal
+                isOpen={!!detailTarget}
+                onClose={() => setDetailTarget(null)}
+                request={detailTarget}
             />
         </div>
     );

@@ -10,10 +10,11 @@ import NotificationBell from '../notifications/NotificationBell';
 import DelegateApprovalInbox from '../leave/DelegateApprovalInbox';
 
 export default function AlbaView() {
-    const { userProfile, logout, getMyLeaveBalance, getMyActiveReceivedDelegation } = useAuth();
+    const { userProfile, logout, getMyLeaveBalance, getMyLeaveRequests, getMyActiveReceivedDelegation } = useAuth();
     const [profile, setProfile] = useState(userProfile);
     const [tab, setTab] = useState('INFO');
     const [balance, setBalance] = useState(null);
+    const [pendingDeduction, setPendingDeduction] = useState(0);
     const [balanceLoading, setBalanceLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [activeDelegation, setActiveDelegation] = useState(null);
@@ -32,13 +33,25 @@ export default function AlbaView() {
         getMyActiveReceivedDelegation().then(setActiveDelegation).catch(() => setActiveDelegation(null));
     }, []);
 
-    // 잔여 연차 로드
+    // 잔여 연차 로드 + 진행 중 신청 pending 차감 계산
+    const DEDUCTION_MAP = { FULL: 1.0, HALF_AM: 0.5, HALF_PM: 0.5 };
+    const PENDING_STATUSES = ['SUBMITTED', 'TEAM_APPROVED', 'FINAL_PENDING', 'CEO_PENDING'];
     const loadBalance = useCallback(async () => {
         setBalanceLoading(true);
-        try { setBalance(await getMyLeaveBalance(new Date().getFullYear())); }
-        catch (e) { console.error(e); }
+        try {
+            const year = new Date().getFullYear();
+            const [bal, reqs] = await Promise.all([
+                getMyLeaveBalance(year),
+                getMyLeaveRequests(year),
+            ]);
+            setBalance(bal);
+            const pending = reqs
+                .filter(r => PENDING_STATUSES.includes(r.status))
+                .reduce((sum, r) => sum + (DEDUCTION_MAP[r.type] ?? 1.0), 0);
+            setPendingDeduction(pending);
+        } catch (e) { console.error(e); }
         finally { setBalanceLoading(false); }
-    }, [getMyLeaveBalance]);
+    }, [getMyLeaveBalance, getMyLeaveRequests]);
 
     useEffect(() => { loadBalance(); }, [loadBalance, refreshKey]);
 
@@ -63,7 +76,7 @@ export default function AlbaView() {
                     )}
                 </div>
                 <div className="flex items-center gap-3">
-                    <NotificationBell userId={profile?.uid} />
+                    <NotificationBell userId={profile?.uid} onNavigate={(destination) => setTab(destination === 'APPROVALS' ? 'DELEGATE' : destination)} />
                     <span className="text-[#b8c4a0] text-xs">{profile?.name}</span>
                     <button onClick={logout} className="flex items-center gap-1 text-[#b8c4a0] hover:text-[#f5f3e8] text-xs"><LogOut size={14} /> 로그아웃</button>
                 </div>
@@ -115,15 +128,20 @@ export default function AlbaView() {
                                 )}
                             </div>
                         </div>
-                        <LeaveBalanceCard balance={balance} loading={balanceLoading} />
+                        <LeaveBalanceCard balance={balance} pendingDeduction={pendingDeduction} loading={balanceLoading} />
                     </>
                 )}
 
                 {/* 연차 신청 */}
                 {tab === 'REQUEST' && (
                     <>
-                        <LeaveBalanceCard balance={balance} loading={balanceLoading} />
-                        <LeaveRequestForm onSubmitted={() => { setRefreshKey(k => k + 1); loadBalance(); }} userProfile={profile} />
+                        <LeaveBalanceCard balance={balance} pendingDeduction={pendingDeduction} loading={balanceLoading} />
+                        <LeaveRequestForm onSubmitted={(submittedType) => {
+                            const DEDUCTION_MAP = { FULL: 1.0, HALF_AM: 0.5, HALF_PM: 0.5 };
+                            setPendingDeduction(p => p + (DEDUCTION_MAP[submittedType] ?? 1.0));
+                            setRefreshKey(k => k + 1);
+                            loadBalance();
+                        }} userProfile={profile} />
                     </>
                 )}
 
@@ -134,6 +152,7 @@ export default function AlbaView() {
                 {tab === 'DELEGATE' && activeDelegation && (
                     <DelegateApprovalInbox delegation={activeDelegation} />
                 )}
+
             </main>
         </div>
     );

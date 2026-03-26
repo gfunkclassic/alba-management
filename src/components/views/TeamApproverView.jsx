@@ -6,19 +6,13 @@ import { db } from '../../firebase';
 import NotificationBell from '../notifications/NotificationBell';
 import LeaveApprovalInbox from '../leave/LeaveApprovalInbox';
 import DelegationManager from '../leave/DelegationManager';
-
-const TABS = [
-    { key: 'INBOX', label: '승인함', icon: <Clock size={15} /> },
-    { key: 'DELEGATION', label: '위임 관리', icon: <UserCheck size={15} /> },
-    { key: 'MEMBERS', label: '팀원 목록', icon: <Users size={15} /> },
-];
-
 export default function TeamApproverView() {
-    const { userProfile, logout, getUsersByTeam } = useAuth();
+    const { userProfile, logout, getUsersByTeam, getMyActiveGivenDelegation } = useAuth();
     const [profile, setProfile] = useState(userProfile);
     const [tab, setTab] = useState('INBOX');
     const [members, setMembers] = useState([]);
     const [membersLoading, setMembersLoading] = useState(true);
+    const [activeGivenDelegation, setActiveGivenDelegation] = useState(undefined); // undefined = 아직 로딩 중
 
     useEffect(() => {
         if (!userProfile?.uid) return;
@@ -40,6 +34,28 @@ export default function TeamApproverView() {
 
     useEffect(() => { loadMembers(); }, [loadMembers]);
 
+    useEffect(() => {
+        console.log('[TeamApproverView] getMyActiveGivenDelegation 호출');
+        getMyActiveGivenDelegation()
+            .then(d => {
+                console.log('[TeamApproverView] activeGivenDelegation:', d);
+                setActiveGivenDelegation(d);
+            })
+            .catch(e => {
+                console.error('[TeamApproverView] activeGivenDelegation 오류:', e);
+                setActiveGivenDelegation(null);
+            });
+    // getMyActiveGivenDelegation은 useCallback 미적용으로 매 렌더마다 새 참조 생성
+    // → 의존성 배열에서 제외해 마운트 1회만 실행
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const TABS = [
+        { key: 'INBOX', label: '승인함', icon: <Clock size={15} /> },
+        { key: 'DELEGATION', label: '위임 관리', icon: <UserCheck size={15} /> },
+        { key: 'MEMBERS', label: '팀원 목록', icon: <Users size={15} /> },
+    ];
+
     const teamColor = { '카페': 'bg-[#d8973c]', '생산기획': 'bg-[#5d6c4a]', 'QC': 'bg-[#4a6070]', 'ER': 'bg-[#a65d57]', 'LM': 'bg-[#7a7565]' };
 
     return (
@@ -51,7 +67,7 @@ export default function TeamApproverView() {
                     <span className={`text-[10px] text-white font-bold px-2 py-0.5 ${teamColor[profile?.team_id] || 'bg-[#7a7565]'}`}>{profile?.team_id} 관리자</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <NotificationBell userId={profile?.uid} />
+                    <NotificationBell userId={profile?.uid} onNavigate={() => setTab('INBOX')} />
                     <span className="text-[#b8c4a0] text-xs">{profile?.name}</span>
                     <button onClick={logout} className="flex items-center gap-1 text-[#b8c4a0] hover:text-[#f5f3e8] text-xs"><LogOut size={14} /> 로그아웃</button>
                 </div>
@@ -67,7 +83,11 @@ export default function TeamApproverView() {
             </div>
 
             <main className="max-w-5xl mx-auto p-5 space-y-4">
-                {tab === 'INBOX' && <LeaveApprovalInbox />}
+                {tab === 'INBOX' && (
+                    activeGivenDelegation === undefined
+                        ? <div className="p-8 text-center"><Loader size={14} className="animate-spin mx-auto text-[#9a9585]" /></div>
+                        : <LeaveApprovalInbox activeGivenDelegation={activeGivenDelegation} />
+                )}
                 {tab === 'DELEGATION' && <DelegationManager />}
                 {tab === 'MEMBERS' && (
                     <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">

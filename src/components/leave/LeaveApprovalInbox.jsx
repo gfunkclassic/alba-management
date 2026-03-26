@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, Clock, Loader, RefreshCw, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import AdminApprovalHistory from './AdminApprovalHistory';
 import { ConfirmModal } from '../modals/DialogModals';
+import AdminApprovalHistory from './AdminApprovalHistory';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]', HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]' };
-const STATUS_LABEL = { SUBMITTED: '승인대기', TEAM_APPROVED: '팀 승인', REJECTED: '반려', CANCELLED: '취소' };
+const STATUS_LABEL = { SUBMITTED: '승인대기', TEAM_APPROVED: '1차승인', FINAL_PENDING: '최종대기', CEO_PENDING: '승인대기(대표)', FINAL_APPROVED: '최종승인', REJECTED: '반려', CANCELLED: '취소' };
 const STATUS_COLOR = {
     SUBMITTED: 'bg-[#d8973c] text-white',
-    TEAM_APPROVED: 'bg-[#5d6c4a] text-white',
+    TEAM_APPROVED: 'bg-[#7a8c5f] text-white',
+    FINAL_PENDING: 'bg-[#5d6c4a] text-white',
+    CEO_PENDING: 'bg-[#4a6070] text-white',
+    FINAL_APPROVED: 'bg-[#3d6b5e] text-white',
     REJECTED: 'bg-[#a65d57] text-white',
     CANCELLED: 'bg-[#c5c0b0] text-[#5a5545]',
 };
@@ -23,20 +26,20 @@ function RejectModal({ onConfirm, onCancel }) {
                 <textarea
                     value={note}
                     onChange={e => setNote(e.target.value)}
-                    placeholder="반려 사유 (선택 입력)"
+                    placeholder="반려 사유를 입력해주세요 (필수)"
                     rows={3}
                     className="w-full p-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm resize-none outline-none focus:border-[#a65d57] mb-3"
                 />
                 <div className="flex gap-2">
                     <button onClick={onCancel} className="flex-1 py-2 border-2 border-[#c5c0b0] text-xs font-bold text-[#5a5545] hover:bg-[#e8e4d4]">취소</button>
-                    <button onClick={() => onConfirm(note)} className="flex-1 py-2 bg-[#a65d57] border-2 border-[#7a3f3a] text-xs font-bold text-white hover:bg-[#7a3f3a]">반려 확정</button>
+                    <button onClick={() => onConfirm(note.trim())} disabled={!note.trim()} className="flex-1 py-2 bg-[#a65d57] border-2 border-[#7a3f3a] text-xs font-bold text-white hover:bg-[#7a3f3a] disabled:opacity-40 disabled:cursor-not-allowed">반려 확정</button>
                 </div>
             </div>
         </div>
     );
 }
 
-export default function LeaveApprovalInbox() {
+export default function LeaveApprovalInbox({ activeGivenDelegation = null }) {
     const { getTeamLeaveRequests, approveLeaveRequest, rejectLeaveRequest } = useAuth();
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -59,9 +62,11 @@ export default function LeaveApprovalInbox() {
     const filtered = filterStatus === 'ALL' ? requests : requests.filter(r => r.status === filterStatus);
 
     const handleApprove = (req) => setConfirmApproveTarget(req);
+
     const executeApprove = async () => {
         const req = confirmApproveTarget;
         setConfirmApproveTarget(null);
+        if (!req) return;
         setProcessing(req.id);
         try {
             await approveLeaveRequest(req.id, req.user_id, req.date, req.type);
@@ -90,9 +95,12 @@ export default function LeaveApprovalInbox() {
                 isOpen={!!confirmApproveTarget}
                 onClose={() => setConfirmApproveTarget(null)}
                 onConfirm={executeApprove}
-                title="연차 승인"
-                message={confirmApproveTarget ? `${confirmApproveTarget._userName || confirmApproveTarget.user_id}님의 ${confirmApproveTarget.date} 연차 신청을 승인하시겠습니까?` : ''}
-                confirmText="승인"
+                title="승인 확인"
+                message={confirmApproveTarget
+                    ? `${confirmApproveTarget._userName || confirmApproveTarget.user_id.slice(0, 6)}님의 ${confirmApproveTarget.date} ${TYPE_LABEL[confirmApproveTarget.type] || ''} 신청을 승인하시겠습니까?`
+                    : ''}
+                confirmText="승인하기"
+                cancelText="취소"
             />
 
             <div className="p-4 border-b-2 border-[#c5c0b0] flex flex-wrap gap-2 items-center justify-between">
@@ -107,8 +115,10 @@ export default function LeaveApprovalInbox() {
                     <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
                         className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
                         <option value="ALL">전체</option>
-                        <option value="SUBMITTED">승인대기</option>
-                        <option value="TEAM_APPROVED">팀 승인</option>
+                        <option value="SUBMITTED">승인대기(팀)</option>
+                        <option value="TEAM_APPROVED">1차 승인</option>
+                        <option value="FINAL_PENDING">최종 대기</option>
+                        <option value="FINAL_APPROVED">최종 승인</option>
                         <option value="REJECTED">반려</option>
                     </select>
                     <button onClick={load} className="border-2 border-[#c5c0b0] p-1.5 text-[#5a5545] hover:bg-[#e8e4d4]">
@@ -156,16 +166,22 @@ export default function LeaveApprovalInbox() {
                                 </td>
                                 <td className="p-3 text-center">
                                     {req.status === 'SUBMITTED' ? (
-                                        <div className="flex gap-1 justify-center">
-                                            <button onClick={() => handleApprove(req)} disabled={!!processing}
-                                                className="flex items-center gap-1 px-2 py-1 bg-[#5d6c4a] border border-[#3d472f] text-[#f5f3e8] text-[10px] font-bold hover:bg-[#4a5639] disabled:opacity-50">
-                                                {processing === req.id ? <Loader size={10} className="animate-spin" /> : <CheckCircle size={12} />} 승인
-                                            </button>
-                                            <button onClick={() => handleReject(req)} disabled={!!processing}
-                                                className="flex items-center gap-1 px-2 py-1 bg-[#a65d57] border border-[#7a3f3a] text-white text-[10px] font-bold hover:bg-[#7a3f3a] disabled:opacity-50">
-                                                <XCircle size={12} /> 반려
-                                            </button>
-                                        </div>
+                                        activeGivenDelegation ? (
+                                            <span className="text-[10px] font-bold px-2 py-1 bg-[#fdf6e3] border border-[#d8973c] text-[#a06820]">
+                                                {activeGivenDelegation._toName} 위임 중
+                                            </span>
+                                        ) : (
+                                            <div className="flex gap-1 justify-center">
+                                                <button onClick={() => handleApprove(req)} disabled={!!processing}
+                                                    className="flex items-center gap-1 px-2 py-1 bg-[#5d6c4a] border border-[#3d472f] text-[#f5f3e8] text-[10px] font-bold hover:bg-[#4a5639] disabled:opacity-50">
+                                                    {processing === req.id ? <Loader size={10} className="animate-spin" /> : <CheckCircle size={12} />} 승인
+                                                </button>
+                                                <button onClick={() => handleReject(req)} disabled={!!processing}
+                                                    className="flex items-center gap-1 px-2 py-1 bg-[#a65d57] border border-[#7a3f3a] text-white text-[10px] font-bold hover:bg-[#7a3f3a] disabled:opacity-50">
+                                                    <XCircle size={12} /> 반려
+                                                </button>
+                                            </div>
+                                        )
                                     ) : '-'}
                                 </td>
                             </tr>
