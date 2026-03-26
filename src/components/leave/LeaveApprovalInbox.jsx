@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, Clock, Loader, RefreshCw, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { ConfirmModal } from '../modals/DialogModals';
 import AdminApprovalHistory from './AdminApprovalHistory';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
@@ -38,13 +39,14 @@ function RejectModal({ onConfirm, onCancel }) {
     );
 }
 
-export default function LeaveApprovalInbox() {
+export default function LeaveApprovalInbox({ activeGivenDelegation = null }) {
     const { getTeamLeaveRequests, approveLeaveRequest, rejectLeaveRequest } = useAuth();
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('SUBMITTED');
     const [processing, setProcessing] = useState(null);
     const [rejectTarget, setRejectTarget] = useState(null);
+    const [confirmApproveTarget, setConfirmApproveTarget] = useState(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -59,8 +61,12 @@ export default function LeaveApprovalInbox() {
 
     const filtered = filterStatus === 'ALL' ? requests : requests.filter(r => r.status === filterStatus);
 
-    const handleApprove = async (req) => {
-        if (!window.confirm(`${req.date} 연차 신청을 승인하시겠습니까?`)) return;
+    const handleApprove = (req) => setConfirmApproveTarget(req);
+
+    const executeApprove = async () => {
+        const req = confirmApproveTarget;
+        setConfirmApproveTarget(null);
+        if (!req) return;
         setProcessing(req.id);
         try {
             await approveLeaveRequest(req.id, req.user_id, req.date, req.type);
@@ -85,6 +91,17 @@ export default function LeaveApprovalInbox() {
     return (
         <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">
             {rejectTarget && <RejectModal onConfirm={confirmReject} onCancel={() => setRejectTarget(null)} />}
+            <ConfirmModal
+                isOpen={!!confirmApproveTarget}
+                onClose={() => setConfirmApproveTarget(null)}
+                onConfirm={executeApprove}
+                title="승인 확인"
+                message={confirmApproveTarget
+                    ? `${confirmApproveTarget._userName || confirmApproveTarget.user_id.slice(0, 6)}님의 ${confirmApproveTarget.date} ${TYPE_LABEL[confirmApproveTarget.type] || ''} 신청을 승인하시겠습니까?`
+                    : ''}
+                confirmText="승인하기"
+                cancelText="취소"
+            />
 
             <div className="p-4 border-b-2 border-[#c5c0b0] flex flex-wrap gap-2 items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -149,16 +166,22 @@ export default function LeaveApprovalInbox() {
                                 </td>
                                 <td className="p-3 text-center">
                                     {req.status === 'SUBMITTED' ? (
-                                        <div className="flex gap-1 justify-center">
-                                            <button onClick={() => handleApprove(req)} disabled={!!processing}
-                                                className="flex items-center gap-1 px-2 py-1 bg-[#5d6c4a] border border-[#3d472f] text-[#f5f3e8] text-[10px] font-bold hover:bg-[#4a5639] disabled:opacity-50">
-                                                {processing === req.id ? <Loader size={10} className="animate-spin" /> : <CheckCircle size={12} />} 승인
-                                            </button>
-                                            <button onClick={() => handleReject(req)} disabled={!!processing}
-                                                className="flex items-center gap-1 px-2 py-1 bg-[#a65d57] border border-[#7a3f3a] text-white text-[10px] font-bold hover:bg-[#7a3f3a] disabled:opacity-50">
-                                                <XCircle size={12} /> 반려
-                                            </button>
-                                        </div>
+                                        activeGivenDelegation ? (
+                                            <span className="text-[10px] font-bold px-2 py-1 bg-[#fdf6e3] border border-[#d8973c] text-[#a06820]">
+                                                {activeGivenDelegation._toName} 위임 중
+                                            </span>
+                                        ) : (
+                                            <div className="flex gap-1 justify-center">
+                                                <button onClick={() => handleApprove(req)} disabled={!!processing}
+                                                    className="flex items-center gap-1 px-2 py-1 bg-[#5d6c4a] border border-[#3d472f] text-[#f5f3e8] text-[10px] font-bold hover:bg-[#4a5639] disabled:opacity-50">
+                                                    {processing === req.id ? <Loader size={10} className="animate-spin" /> : <CheckCircle size={12} />} 승인
+                                                </button>
+                                                <button onClick={() => handleReject(req)} disabled={!!processing}
+                                                    className="flex items-center gap-1 px-2 py-1 bg-[#a65d57] border border-[#7a3f3a] text-white text-[10px] font-bold hover:bg-[#7a3f3a] disabled:opacity-50">
+                                                    <XCircle size={12} /> 반려
+                                                </button>
+                                            </div>
+                                        )
                                     ) : '-'}
                                 </td>
                             </tr>

@@ -26,7 +26,8 @@ function RejectModal({ title, onConfirm, onCancel }) {
 
 export default function CEOApprovalInbox() {
     const {
-        getCEOApprovalRequests, ceoApproveLeaveRequest, ceoRejectLeaveRequest
+        getCEOApprovalRequests, ceoApproveLeaveRequest, ceoRejectLeaveRequest,
+        getMyActiveGivenCEODelegation,
     } = useAuth();
 
     const [requests, setRequests] = useState([]);
@@ -37,6 +38,11 @@ export default function CEOApprovalInbox() {
     const [detailTarget, setDetailTarget] = useState(null);
     const [errors, setErrors] = useState({});
     const [showDone, setShowDone] = useState(false);
+    const [activeGivenCEODelegation, setActiveGivenCEODelegation] = useState(null);
+
+    useEffect(() => {
+        getMyActiveGivenCEODelegation().then(setActiveGivenCEODelegation).catch(() => {});
+    }, []);
 
     const pending = requests.filter(r => r.status === 'CEO_PENDING');
     const done = requests.filter(r => r.status !== 'CEO_PENDING');
@@ -177,6 +183,11 @@ export default function CEOApprovalInbox() {
                                     <div className="flex items-center justify-center gap-1.5 flex-wrap">
                                         {processing === req.id ? (
                                             <Loader size={14} className="animate-spin text-[#d8973c]" />
+                                        ) : activeGivenCEODelegation ? (
+                                            <span className="inline-flex flex-col items-center text-[10px] font-bold px-2 py-1 bg-[#fdf6e3] border border-[#d8973c] text-[#a06820]">
+                                                <span>{activeGivenCEODelegation._toName} 위임 중</span>
+                                                <span className="text-[9px] font-normal mt-0.5">{activeGivenCEODelegation.start_date} ~ {activeGivenCEODelegation.end_date}</span>
+                                            </span>
                                         ) : (
                                             <>
                                                 <button onClick={() => handleApprove(req)}
