@@ -376,7 +376,7 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                                         <div className="bg-white p-3 rounded shadow-sm border border-[#e8d5b5]">
                                             <div className="flex justify-between items-start mb-2">
                                                 <div className="flex items-center gap-2">
-                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${item.stage === 'FINAL' ? 'bg-[#3d6b5e] text-white' : 'bg-[#5d6c4a] text-white'}`}>
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${item.stage === 'CEO' ? 'bg-[#8b4d47] text-white' : item.stage === 'FINAL' ? 'bg-[#3d6b5e] text-white' : 'bg-[#5d6c4a] text-white'}`}>
                                                         {STAGE_LABEL[item.stage] || item.stage}
                                                     </span>
                                                     <span className={`font-black text-xs ${ACTION_COLOR[item.action]}`}>
