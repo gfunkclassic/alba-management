@@ -33,11 +33,10 @@ export default function SeniorDelegationManager() {
 
             setDelegations(enriched);
 
-            // 수임자 후보: 실장/대표 제외, 활성 계정만
+            // 수임자 후보: 다른 실장(approver_senior)만 가능
             setCandidates(allUsers.filter(u =>
                 u.uid !== currentUser.uid &&
-                u.roleGroup !== 'approver_senior' &&
-                u.roleGroup !== 'approver_final' &&
+                u.roleGroup === 'approver_senior' &&
                 u.status === 'ACTIVE'
             ));
         } catch (e) { console.error('위임 목록 로드 실패:', e); }

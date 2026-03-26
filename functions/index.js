@@ -167,13 +167,12 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
         // 하위호환: role(구버전) 또는 roleGroup(신버전) 모두 허용
         const isActorFinalApprover = actor.role === 'FINAL_APPROVER' || actor.roleGroup === 'approver_senior' || actor.roleGroup === 'approver_final';
 
-        // slotUid: final_approvals 맵에서 실제로 채울 슬롯 키 (실장 uid)
+        // slotUid: final_approvals 맵에서 실제로 채울 슬롯 키 (원 실장 uid)
         let slotUid = actorUid;
         let isDelegated = false;
 
-        if (!isActorFinalApprover) {
-            // 실장이 아닌 경우 — senior_delegations 위임 검증
-            if (!delegatedForUid) throw new HttpsError('permission-denied', '최종 관리자(실장/대표)만 처리할 수 있습니다.');
+        if (delegatedForUid && delegatedForUid !== actorUid) {
+            // 위임 처리: approver_senior 수임자 포함하여 delegatedForUid가 명시된 경우 검증
             const delSnap = await db.collection('senior_delegations').doc(actorUid).get();
             if (!delSnap.exists) throw new HttpsError('permission-denied', '유효한 실장 위임 권한이 없습니다.');
             const del = delSnap.data();
@@ -183,6 +182,9 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
             }
             slotUid = delegatedForUid;
             isDelegated = true;
+        } else if (!isActorFinalApprover) {
+            // 실장이 아닌 일반 사용자가 직접 접근하는 경우 차단
+            throw new HttpsError('permission-denied', '최종 관리자(실장/대표)만 처리할 수 있습니다.');
         }
 
         const reqRef = db.collection('leave_requests').doc(reqId);
@@ -232,11 +234,15 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
 
             let newFinalApprovals = { ...currentApprovals };
 
+            // 슬롯 주인 이름 (결재선 표시용 — "김기해 (김혜준 위임 처리)" 형태에 사용)
+            const slotOwnerName = requiredApprovers.find(a => a.uid === slotUid)?.name || slotUid;
+
             if (action === 'REJECT') {
                 // 한 명이라도 반려하면 즉시 전체 신청을 REJECTED 처리
                 newFinalApprovals[slotUid] = {
                     status: 'REJECTED', acted_at: now, note: note || '', name: actor.name,
-                    actual_actor_uid: actorUid, actual_actor_name: actor.name, delegated: isDelegated,
+                    actual_actor_uid: actorUid, actual_actor_name: actor.name,
+                    delegated: isDelegated, slot_owner_name: slotOwnerName,
                 };
                 finalStatus = 'REJECTED';
                 isFullyResolved = true;
@@ -255,7 +261,8 @@ exports.approveFinalLeave = onCall({ region: 'asia-northeast3' }, async (req) =>
                 // 승인 처리
                 newFinalApprovals[slotUid] = {
                     status: 'APPROVED', acted_at: now, note: note || '', name: actor.name,
-                    actual_actor_uid: actorUid, actual_actor_name: actor.name, delegated: isDelegated,
+                    actual_actor_uid: actorUid, actual_actor_name: actor.name,
+                    delegated: isDelegated, slot_owner_name: slotOwnerName,
                 };
 
                 // 실장 전원 승인 시에만 CEO_PENDING으로 전환
@@ -326,7 +333,7 @@ exports.approveCEOLeave = onCall({ region: 'asia-northeast3' }, async (req) => {
     try {
         if (!req.auth) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
 
-        const { reqId, action, note } = req.data;
+        const { reqId, action, note, delegatedForUid } = req.data;
         if (!reqId || !action) throw new HttpsError('invalid-argument', 'reqId, action 필드가 필요합니다.');
         if (!['APPROVE', 'REJECT'].includes(action)) throw new HttpsError('invalid-argument', 'action은 APPROVE 또는 REJECT이어야 합니다.');
 
@@ -334,7 +341,25 @@ exports.approveCEOLeave = onCall({ region: 'asia-northeast3' }, async (req) => {
         const actor = await getUserProfile(actorUid);
         // 하위호환: role(구버전 SUPER_ADMIN/VIEWER) 또는 roleGroup(신버전 approver_final) 모두 허용
         const isCEO = actor.role === 'SUPER_ADMIN' || actor.role === 'VIEWER' || actor.roleGroup === 'approver_final';
-        if (!isCEO) throw new HttpsError('permission-denied', '대표(최고관리자) 권한이 필요합니다.');
+
+        let slotOwnerName = actor.name;
+        let isDelegated = false;
+
+        if (delegatedForUid && delegatedForUid !== actorUid) {
+            // 대표 위임 처리: ceo_delegations 검증
+            const delSnap = await db.collection('ceo_delegations').doc(actorUid).get();
+            if (!delSnap.exists) throw new HttpsError('permission-denied', '유효한 대표 위임 권한이 없습니다.');
+            const del = delSnap.data();
+            const today = new Date().toISOString().slice(0, 10);
+            if (!del.is_active || del.from_user_id !== delegatedForUid || today < del.start_date || today > del.end_date) {
+                throw new HttpsError('permission-denied', '유효한 대표 위임 권한이 없습니다.');
+            }
+            isDelegated = true;
+            const fromSnap = await db.collection('users').doc(delegatedForUid).get();
+            slotOwnerName = fromSnap.data()?.name || delegatedForUid;
+        } else if (!isCEO) {
+            throw new HttpsError('permission-denied', '대표(최고관리자) 권한이 필요합니다.');
+        }
 
         const reqRef = db.collection('leave_requests').doc(reqId);
         const now = nowISO();
@@ -356,7 +381,11 @@ exports.approveCEOLeave = onCall({ region: 'asia-northeast3' }, async (req) => {
                 tx.update(reqRef, {
                     status: finalStatus,
                     updated_at: now,
-                    ceo_decision: { status: 'REJECTED', acted_at: now, note: note || '', name: actor.name },
+                    ceo_decision: {
+                        status: 'REJECTED', acted_at: now, note: note || '', name: actor.name,
+                        actual_actor_uid: actorUid, actual_actor_name: actor.name,
+                        delegated: isDelegated, slot_owner_name: slotOwnerName,
+                    },
                     rejected_by_uid: actorUid,
                     rejected_by_name: actor.name,
                     rejected_reason: note || '',
@@ -384,7 +413,11 @@ exports.approveCEOLeave = onCall({ region: 'asia-northeast3' }, async (req) => {
                 tx.update(reqRef, {
                     status: finalStatus,
                     updated_at: now,
-                    ceo_decision: { status: 'APPROVED', acted_at: now, note: note || '', name: actor.name }
+                    ceo_decision: {
+                        status: 'APPROVED', acted_at: now, note: note || '', name: actor.name,
+                        actual_actor_uid: actorUid, actual_actor_name: actor.name,
+                        delegated: isDelegated, slot_owner_name: slotOwnerName,
+                    },
                 });
 
                 if (balSnap.exists) {
@@ -408,7 +441,7 @@ exports.approveCEOLeave = onCall({ region: 'asia-northeast3' }, async (req) => {
                 actor_user_id: actorUid,
                 acted_at: now,
                 note: note || '',
-                delegation_from_user_id: null,
+                delegation_from_user_id: isDelegated ? delegatedForUid : null,
             });
         });
 

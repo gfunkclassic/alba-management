@@ -4,6 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ROLE_GROUP_OPTIONS, ROLE_GROUP_LABEL, ROLE_GROUP_BADGE, normalizeProfile } from '../../utils/roleUtils';
 import LeaveBalanceManager from '../leave/LeaveBalanceManager';
 import SeniorDelegationManager from '../leave/SeniorDelegationManager';
+import SeniorDelegateInbox from '../leave/SeniorDelegateInbox';
+import CEODelegateInbox from '../leave/CEODelegateInbox';
 import { ConfirmModal, AlertModal } from '../modals/DialogModals';
 import NotificationBell from '../notifications/NotificationBell';
 
@@ -459,7 +461,7 @@ function EditUserModal({ user, onClose, onSaved }) {
 }
 
 export default function FinalApproverView({ onSwitchToHRSystem, roleGroup: propRoleGroup }) {
-    const { userProfile, logout, getAllUsers, suspendUser, teams, updateUserRoleAndTeam, addTeam, removeTeam } = useAuth();
+    const { userProfile, logout, getAllUsers, suspendUser, teams, updateUserRoleAndTeam, addTeam, removeTeam, getMyActiveSeniorDelegation, getMyActiveCEODelegation } = useAuth();
     // prop으로 받은 roleGroup 우선, 없으면 userProfile에서 추출
     const viewRoleGroup = propRoleGroup || userProfile?.roleGroup || '';
     const isSysAdmin = viewRoleGroup === 'sys_admin';
@@ -472,10 +474,25 @@ export default function FinalApproverView({ onSwitchToHRSystem, roleGroup: propR
         return localStorage.getItem('final_approver_active_tab') || 'ACCOUNTS';
     });
     const [editingUser, setEditingUser] = useState(null);
+    const [seniorDelegation, setSeniorDelegation] = useState(null);
+    const [ceoDelegation, setCeoDelegation] = useState(null);
+    const [ceoDelegationChecked, setCeoDelegationChecked] = useState(false);
 
     useEffect(() => {
         localStorage.setItem('final_approver_active_tab', activeTab);
     }, [activeTab]);
+
+    useEffect(() => {
+        if (!isSysAdmin) {
+            getMyActiveSeniorDelegation().then(setSeniorDelegation).catch(() => setSeniorDelegation(null));
+            getMyActiveCEODelegation()
+                .then(d => { console.log('[CEODelegation]', d); setCeoDelegation(d); })
+                .catch(e => { console.error('[CEODelegation err]', e); setCeoDelegation(null); })
+                .finally(() => setCeoDelegationChecked(true));
+        } else {
+            setCeoDelegationChecked(true);
+        }
+    }, [isSysAdmin]);
 
     const loadUsers = async () => {
         setLoading(true);
@@ -674,7 +691,18 @@ export default function FinalApproverView({ onSwitchToHRSystem, roleGroup: propR
                 )}
                 {/* ── 대결 위임 (approver_senior 전용) ─ */}
                 {activeTab === 'DELEGATION' && !isSysAdmin && (
-                    <SeniorDelegationManager />
+                    <div className="space-y-6">
+                        <SeniorDelegationManager />
+                        {seniorDelegation && <SeniorDelegateInbox delegation={seniorDelegation} />}
+                        {ceoDelegation
+                            ? <CEODelegateInbox delegation={ceoDelegation} />
+                            : (
+                                <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] p-4 text-xs text-[#9a9585]">
+                                    대표 위임 승인함 — {ceoDelegationChecked ? '현재 활성 대표 위임 없음' : '확인 중...'}
+                                </div>
+                            )
+                        }
+                    </div>
                 )}
 
             </main>

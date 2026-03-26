@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, Loader, RefreshCw, AlertCircle } from 'lucide-rea
 import { useAuth } from '../../contexts/AuthContext';
 import { ConfirmModal } from '../modals/DialogModals';
 import AdminApprovalHistory from './AdminApprovalHistory';
+import CEODelegateInbox from './CEODelegateInbox';
 import LeaveDetailModal from '../modals/LeaveDetailModal';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
@@ -42,6 +43,7 @@ export default function FinalApprovalInbox() {
     const {
         getAllTeamApprovedRequests, finalApproveLeaveRequest, finalRejectLeaveRequest,
         getAllSubmittedRequests, proxyTeamApprove, proxyTeamReject,
+        getMyActiveGivenSeniorDelegation, getMyActiveCEODelegation, userProfile,
     } = useAuth();
 
     // mode: 'FINAL' = 최종 승인 (TEAM_APPROVED), 'PROXY' = 팀 대행 (SUBMITTED)
@@ -53,6 +55,16 @@ export default function FinalApprovalInbox() {
     const [confirmApproveTarget, setConfirmApproveTarget] = useState(null);
     const [detailTarget, setDetailTarget] = useState(null);
     const [errors, setErrors] = useState({});
+    const [activeGivenSeniorDelegation, setActiveGivenSeniorDelegation] = useState(null);
+    const [ceoDelegation, setCeoDelegation] = useState(null);
+    const [ceoRefreshKey, setCeoRefreshKey] = useState(0);
+
+    useEffect(() => {
+        getMyActiveGivenSeniorDelegation().then(setActiveGivenSeniorDelegation).catch(() => {});
+        getMyActiveCEODelegation()
+            .then(d => { console.warn('[CEODelegation result]', d); setCeoDelegation(d); })
+            .catch(e => { console.warn('[CEODelegation error]', e?.code, e?.message); setCeoDelegation(null); });
+    }, []);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -61,10 +73,18 @@ export default function FinalApprovalInbox() {
             const data = mode === 'FINAL'
                 ? await getAllTeamApprovedRequests()
                 : await getAllSubmittedRequests();
-            setRequests(data);
+            if (mode === 'FINAL') {
+                const uid = userProfile?.uid;
+                // 내가 이미 승인/반려 처리한 FINAL_PENDING 건은 숨김
+                setRequests(data.filter(r =>
+                    r.status !== 'FINAL_PENDING' || !r.final_approvals?.[uid]
+                ));
+            } else {
+                setRequests(data);
+            }
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
-    }, [mode, getAllTeamApprovedRequests, getAllSubmittedRequests]);
+    }, [mode, getAllTeamApprovedRequests, getAllSubmittedRequests, userProfile]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -80,7 +100,8 @@ export default function FinalApprovalInbox() {
         setErrors(e => ({ ...e, [req.id]: null }));
         try {
             if (isFinal) {
-                await finalApproveLeaveRequest(req.id, req.user_id, req.date, req.type);
+                await finalApproveLeaveRequest(req.id);
+                setCeoRefreshKey(k => k + 1);
             } else {
                 await proxyTeamApprove(req.id, req.user_id, req.date, req.type, null, true);
             }
@@ -231,10 +252,16 @@ export default function FinalApprovalInbox() {
                                     </td>
                                     <td className="p-3 text-center">
                                         {(isFinalMode ? (req.status === 'TEAM_APPROVED' || req.status === 'FINAL_PENDING') : req.status === 'SUBMITTED') ? (
-                                            <div className="flex justify-center gap-1">
-                                                <button onClick={() => setConfirmApproveTarget(req)} className="flex items-center gap-1 bg-[#5d6c4a] text-white px-2 py-1 text-xs hover:bg-[#4a5639] transition-colors"><CheckCircle size={12} /> {approveLabel}</button>
-                                                <button onClick={() => setRejectTarget(req)} className="flex items-center gap-1 bg-[#a65d57] text-white px-2 py-1 text-xs hover:bg-[#8b4d47] transition-colors"><XCircle size={12} /> 반려</button>
-                                            </div>
+                                            isFinalMode && activeGivenSeniorDelegation && !req.final_approvals?.[userProfile?.uid] ? (
+                                                <span className="text-[10px] font-bold px-2 py-1 bg-[#fdf6e3] border border-[#d8973c] text-[#a06820]">
+                                                    {activeGivenSeniorDelegation._toName} 위임 중
+                                                </span>
+                                            ) : (
+                                                <div className="flex justify-center gap-1">
+                                                    <button onClick={() => setConfirmApproveTarget(req)} className="flex items-center gap-1 bg-[#5d6c4a] text-white px-2 py-1 text-xs hover:bg-[#4a5639] transition-colors"><CheckCircle size={12} /> {approveLabel}</button>
+                                                    <button onClick={() => setRejectTarget(req)} className="flex items-center gap-1 bg-[#a65d57] text-white px-2 py-1 text-xs hover:bg-[#8b4d47] transition-colors"><XCircle size={12} /> 반려</button>
+                                                </div>
+                                            )
                                         ) : req.status === 'REJECTED' ? (
                                             <div className="text-left text-[10px] text-[#a65d57] space-y-0.5">
                                                 <div className="font-bold">{req.rejected_by_name || req.ceo_decision?.name || (req.final_approvals ? (Object.values(req.final_approvals).find(v => v.status === 'REJECTED')?.name || null) : null) || '-'}</div>
@@ -257,6 +284,14 @@ export default function FinalApprovalInbox() {
                         ))}
                     </tbody>
                 </table>
+            </div>
+
+            {/* 대표 위임 승인함 */}
+            <div className="border-t-2 border-[#c5c0b0] mt-2 pt-2">
+                {ceoDelegation
+                    ? <CEODelegateInbox delegation={ceoDelegation} refreshKey={ceoRefreshKey} />
+                    : <div className="p-4 text-xs text-[#9a9585] bg-[#f5f3e8]">대표 위임 승인함 — 현재 활성 대표 위임 없음</div>
+                }
             </div>
 
             {/* 결재 기록 내역 */}

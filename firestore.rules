@@ -159,6 +159,19 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ─── ceo_delegations (대표 위임) ────────────────────────────
+    // 대표(approver_final)가 실장(approver_senior)에게 위임하는 구조
+    // UI 없이 Firebase Console에서 직접 관리하므로 클라이언트 write는 모두 차단
+    match /ceo_delegations/{toUserId} {
+      allow create, update, delete: if false;
+      // 위임자(대표) 또는 수임자(실장) 본인만 읽기 가능
+      allow read: if isAuthed() && (
+        resource.data.from_user_id == request.auth.uid ||
+        resource.data.to_user_id == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
     // ─── notifications ─────────────────────────────────────────
     // create/delete 클라이언트 차단. Cloud Functions에서만 생성.
     // 읽음 처리(is_read 업데이트)만 클라이언트 허용.

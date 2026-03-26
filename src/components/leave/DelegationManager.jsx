@@ -3,9 +3,9 @@ import { UserCheck, UserMinus, Plus, Calendar, Loader, AlertCircle, Check, Refre
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function DelegationManager() {
-    const { userProfile, getMyDelegationsGiven, createDelegation, revokeDelegation, getUsersByTeam } = useAuth();
+    const { userProfile, getMyDelegationsGiven, createDelegation, revokeDelegation, getAllUsers } = useAuth();
     const [delegations, setDelegations] = useState([]);
-    const [teamMembers, setTeamMembers] = useState([]);
+    const [managerCandidates, setManagerCandidates] = useState([]);
     const [loading, setLoading] = useState(true);
     const [form, setForm] = useState({ toUserId: '', startDate: '', endDate: '' });
     const [submitting, setSubmitting] = useState(false);
@@ -16,16 +16,20 @@ export default function DelegationManager() {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const [delegs, members] = await Promise.all([
+            const [delegs, allUsers] = await Promise.all([
                 getMyDelegationsGiven(),
-                getUsersByTeam(userProfile?.team_id),
+                getAllUsers(),
             ]);
             setDelegations(delegs);
-            // 본인 제외한 팀원
-            setTeamMembers(members.filter(m => m.uid !== userProfile?.uid));
+            // 수임자 후보: 다른 팀관리자(manager)만 가능
+            setManagerCandidates(allUsers.filter(m =>
+                m.uid !== userProfile?.uid &&
+                m.roleGroup === 'manager' &&
+                m.status === 'ACTIVE'
+            ));
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
-    }, [getMyDelegationsGiven, getUsersByTeam, userProfile?.team_id, userProfile?.uid]);
+    }, [getMyDelegationsGiven, getAllUsers, userProfile?.uid]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -83,11 +87,11 @@ export default function DelegationManager() {
                 </h3>
                 <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
-                        <label className="text-[10px] font-bold text-[#7a7565] block mb-1">수임자 (같은 팀) *</label>
+                        <label className="text-[10px] font-bold text-[#7a7565] block mb-1">수임자 (팀관리자) *</label>
                         <select value={form.toUserId} onChange={e => setForm(f => ({ ...f, toUserId: e.target.value }))} className={inputCls}>
-                            <option value="">-- 팀원 선택</option>
-                            {teamMembers.map(m => (
-                                <option key={m.uid} value={m.uid}>{m.name} ({m.position || (m.roleGroup === 'manager' ? '팀 관리자' : '아르바이트')})</option>
+                            <option value="">-- 팀관리자 선택</option>
+                            {managerCandidates.map(m => (
+                                <option key={m.uid} value={m.uid}>{m.name} ({m.team_id || m.position || '팀관리자'})</option>
                             ))}
                         </select>
                     </div>

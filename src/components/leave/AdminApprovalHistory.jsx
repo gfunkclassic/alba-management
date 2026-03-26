@@ -175,7 +175,11 @@ export default function AdminApprovalHistory() {
                                 <td className="p-3 text-xs">
                                     <div className="font-bold text-[#3d472f]">
                                         {item._actorName}
-                                        {item._proxyForName && <span className="font-normal text-[#9a9585]"> ({item._proxyForName} 대행)</span>}
+                                        {item._proxyForName && (
+                                            <span className="font-normal text-[#9a9585]">
+                                                {' '}({item._proxyForName} {(item.stage === 'FINAL' || item.stage === 'CEO') ? '위임 처리' : '대행'})
+                                            </span>
+                                        )}
                                     </div>
                                     {item.note && formatNote(item.note) && (
                                         <div className="text-[#7a7565] mt-0.5 truncate max-w-[200px]" title={formatNote(item.note)}>

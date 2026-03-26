@@ -152,6 +152,7 @@ export default function AlbaView() {
                 {tab === 'DELEGATE' && activeDelegation && (
                     <DelegateApprovalInbox delegation={activeDelegation} />
                 )}
+
             </main>
         </div>
     );
