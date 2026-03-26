@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, Clock, Loader, RefreshCw, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import AdminApprovalHistory from './AdminApprovalHistory';
+import { ConfirmModal } from '../modals/DialogModals';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]', HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]' };
@@ -42,6 +43,7 @@ export default function LeaveApprovalInbox() {
     const [filterStatus, setFilterStatus] = useState('SUBMITTED');
     const [processing, setProcessing] = useState(null);
     const [rejectTarget, setRejectTarget] = useState(null);
+    const [confirmApproveTarget, setConfirmApproveTarget] = useState(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -56,8 +58,10 @@ export default function LeaveApprovalInbox() {
 
     const filtered = filterStatus === 'ALL' ? requests : requests.filter(r => r.status === filterStatus);
 
-    const handleApprove = async (req) => {
-        if (!window.confirm(`${req.date} 연차 신청을 승인하시겠습니까?`)) return;
+    const handleApprove = (req) => setConfirmApproveTarget(req);
+    const executeApprove = async () => {
+        const req = confirmApproveTarget;
+        setConfirmApproveTarget(null);
         setProcessing(req.id);
         try {
             await approveLeaveRequest(req.id, req.user_id, req.date, req.type);
@@ -82,6 +86,14 @@ export default function LeaveApprovalInbox() {
     return (
         <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">
             {rejectTarget && <RejectModal onConfirm={confirmReject} onCancel={() => setRejectTarget(null)} />}
+            <ConfirmModal
+                isOpen={!!confirmApproveTarget}
+                onClose={() => setConfirmApproveTarget(null)}
+                onConfirm={executeApprove}
+                title="연차 승인"
+                message={confirmApproveTarget ? `${confirmApproveTarget._userName || confirmApproveTarget.user_id}님의 ${confirmApproveTarget.date} 연차 신청을 승인하시겠습니까?` : ''}
+                confirmText="승인"
+            />
 
             <div className="p-4 border-b-2 border-[#c5c0b0] flex flex-wrap gap-2 items-center justify-between">
                 <div className="flex items-center gap-2">
