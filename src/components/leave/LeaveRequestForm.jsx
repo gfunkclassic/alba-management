@@ -192,8 +192,8 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
   const [singleDate, setSingleDate] = useState('');
 
   // FULL: 범위 선택
-  const [rangeStart,     setRangeStart]     = useState(null); // 첫 클릭 대기
-  const [selectedDates,  setSelectedDates]  = useState([]);   // 확정된 평일 배열
+  const [anchorDate,    setAnchorDate]    = useState(null); // 첫 클릭 기준일 (확장 가능 상태)
+  const [selectedDates, setSelectedDates] = useState([]);   // 확정된 평일 배열
 
   const handleMonthChange = (dir) => {
     let m = viewMonth + dir;
@@ -208,7 +208,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
     setType(newType);
     setSingleDate('');
     setSelectedDates([]);
-    setRangeStart(null);
+    setAnchorDate(null);
     setResult(null);
   };
 
@@ -221,21 +221,22 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
       return;
     }
 
-    // FULL: 두 번 클릭으로 범위 확정
-    if (rangeStart !== null) {
-      if (dateStr < rangeStart) {
-        // 더 이른 날짜 → 시작점 재설정
-        setRangeStart(dateStr);
-        setSelectedDates([dateStr]);
-      } else {
-        // 같은 날 또는 이후 날짜 → 범위 확정 (단일 포함)
-        const workdays = getWorkdays(rangeStart, dateStr);
-        setSelectedDates(workdays);
-        setRangeStart(null);
-      }
+    // FULL: 첫 클릭 → 1일 즉시 확정 / 두 번째 클릭 → 범위 확장
+    if (anchorDate === null) {
+      // 빈 상태 또는 범위 확정 후 재시작: 1일 즉시 선택 (제출 가능)
+      setAnchorDate(dateStr);
+      setSelectedDates([dateStr]);
+    } else if (dateStr === anchorDate) {
+      // 같은 날 재클릭 → 선택 해제
+      setAnchorDate(null);
+      setSelectedDates([]);
+    } else if (dateStr > anchorDate) {
+      // 이후 날짜 클릭 → 범위 확장 확정
+      setSelectedDates(getWorkdays(anchorDate, dateStr));
+      setAnchorDate(null);
     } else {
-      // 첫 클릭 (또는 확정 후 재시작)
-      setRangeStart(dateStr);
+      // 이전 날짜 클릭 → 새 기준일로 재설정
+      setAnchorDate(dateStr);
       setSelectedDates([dateStr]);
     }
   };
@@ -245,15 +246,16 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
     if (type !== 'FULL') {
       return singleDate;
     }
-    if (rangeStart !== null && selectedDates.length === 1) {
-      return `${rangeStart} 선택됨 — 종료일을 선택하세요`;
-    }
     if (selectedDates.length === 0) return '';
+    if (anchorDate !== null) {
+      // 1일 선택 완료, 범위 확장 가능 상태
+      return `${anchorDate} — 1일 연차가 설정되었습니다. 연속 신청하려면 마지막 날짜를 선택하세요.`;
+    }
     if (selectedDates.length === 1) return `${selectedDates[0]} (1일)`;
     return `${selectedDates[0]} ~ ${selectedDates[selectedDates.length - 1]} (평일 ${selectedDates.length}일)`;
-  }, [type, singleDate, rangeStart, selectedDates]);
+  }, [type, singleDate, anchorDate, selectedDates]);
 
-  const isPendingRange = rangeStart !== null; // 종료일 미선택 상태
+  const isExtendable = anchorDate !== null; // 1일 선택 완료, 범위 확장 가능 상태 (제출 가능)
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -263,10 +265,6 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
 
     if (datesToSubmit.length === 0) {
       setResult({ success: false, message: '날짜를 선택해주세요.' });
-      return;
-    }
-    if (isPendingRange) {
-      setResult({ success: false, message: '종료일을 선택해주세요.' });
       return;
     }
     if (!reason.trim()) {
@@ -317,7 +315,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
       // 선택 초기화
       setSingleDate('');
       setSelectedDates([]);
-      setRangeStart(null);
+      setAnchorDate(null);
       setReason('');
       onSubmitted?.(type, datesToSubmit.length);
     } catch (err) {
@@ -360,7 +358,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
             ))}
           </div>
           {type === 'FULL' && (
-            <p className="text-[10px] text-[#7a7565] mt-1">시작일 → 종료일 순으로 클릭하세요. 주말/공휴일은 자동 제외됩니다.</p>
+            <p className="text-[10px] text-[#7a7565] mt-1">날짜를 클릭하면 1일 연차로 설정됩니다. 연속 신청 시 마지막 날짜를 추가로 클릭하세요. 주말/공휴일은 자동 제외됩니다.</p>
           )}
           {type !== 'FULL' && (
             <p className="text-[10px] text-[#7a7565] mt-1">반차는 단일 날짜 선택만 가능합니다.</p>
@@ -387,7 +385,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
               type={type}
               singleDate={singleDate}
               selectedDates={selectedDates}
-              rangeStart={rangeStart}
+              rangeStart={null}
               onDayClick={handleDayClick}
               viewYear={viewYear}
               viewMonthIdx={viewMonth}
@@ -397,7 +395,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
           {/* 선택 요약 */}
           {selectionSummary && (
             <div className={`mt-1 px-2 py-1.5 text-xs font-bold border ${
-              isPendingRange
+              isExtendable
                 ? 'bg-[#fdf6e3] border-[#d8973c] text-[#a06820]'
                 : 'bg-[#e8ebd8] border-[#b8c4a0] text-[#5d6c4a]'
             }`}>
