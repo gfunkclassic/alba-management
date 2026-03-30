@@ -13,3 +13,6 @@ migrate_roles.js
 
 # Firebase 캐시
 .firebase
+
+# Claude Code 로컬 설정 (환경 전용, 저장소 공유 불필요)
+.claude/
