@@ -108,7 +108,11 @@ export default function LeaveHistoryList({ refreshKey }) {
                             <tr><td colSpan={5} className="p-8 text-center"><Loader size={16} className="animate-spin mx-auto text-[#9a9585]" /></td></tr>
                         ) : filtered.map(req => (
                             <tr key={req.id} onClick={() => setDetailTarget({ ...req, _userName: req._userName || userProfile?.name })} className={`hover:bg-[#f4f5eb] cursor-pointer ${req.status === 'CANCELLED' ? 'opacity-50' : ''}`}>
-                                <td className="p-3 pl-4 font-bold text-[#3d472f] font-mono whitespace-nowrap">{req.date}</td>
+                                <td className="p-3 pl-4 font-bold text-[#3d472f] font-mono whitespace-nowrap">
+                                    {req.applied_dates?.length > 1
+                                        ? `${req.start_date || req.applied_dates[0]} ~ ${req.end_date || req.applied_dates[req.applied_dates.length - 1]}`
+                                        : (req.applied_dates?.[0] || req.date || '-')}
+                                </td>
                                 <td className="p-3 text-center whitespace-nowrap">
                                     <span className={`text-[10px] font-bold px-2 py-0.5 ${TYPE_COLOR[req.type] || 'bg-[#e8e4d4] text-[#5a5545]'}`}>
                                         {TYPE_LABEL[req.type] || req.type}
