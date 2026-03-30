@@ -396,7 +396,8 @@ exports.approveCEOLeave = onCall({ region: 'asia-northeast3' }, async (req) => {
                 finalStatus = 'FINAL_APPROVED';
 
                 // 연차 차감 로직 수행
-                const deduction = DEDUCTION_MAP[leaveReq.type] ?? 1.0;
+                // day_count 우선 사용 (applied_dates 기반 연속 신청) — 없으면 type 기준 fallback (구 데이터 호환)
+                const deduction = leaveReq.day_count ?? (DEDUCTION_MAP[leaveReq.type] ?? 1.0);
                 const year = leaveReq.date?.slice(0, 4);
                 if (!year) throw new Error('연차 날짜 정보가 없습니다.');
 
