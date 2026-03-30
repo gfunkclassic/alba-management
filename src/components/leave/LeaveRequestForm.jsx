@@ -221,23 +221,22 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
       return;
     }
 
-    // FULL: 첫 클릭 → 1일 즉시 확정 / 두 번째 클릭 → 범위 확장
+    // FULL: 누적 선택 방식 — 시작일(anchorDate) 고정 후 클릭할수록 범위 자동 확장
     if (anchorDate === null) {
-      // 빈 상태 또는 범위 확정 후 재시작: 1일 즉시 선택 (제출 가능)
+      // 빈 상태: 첫 클릭 → 1일 즉시 선택 (제출 가능)
       setAnchorDate(dateStr);
       setSelectedDates([dateStr]);
-    } else if (dateStr === anchorDate) {
-      // 같은 날 재클릭 → 선택 해제
+    } else if (dateStr < anchorDate) {
+      // 시작일보다 이른 날짜 → 새 시작일로 재설정 (1일)
+      setAnchorDate(dateStr);
+      setSelectedDates([dateStr]);
+    } else if (dateStr === anchorDate && selectedDates.length === 1) {
+      // 단일 선택 상태에서 같은 날 재클릭 → 선택 해제
       setAnchorDate(null);
       setSelectedDates([]);
-    } else if (dateStr > anchorDate) {
-      // 이후 날짜 클릭 → 범위 확장 확정
-      setSelectedDates(getWorkdays(anchorDate, dateStr));
-      setAnchorDate(null);
     } else {
-      // 이전 날짜 클릭 → 새 기준일로 재설정
-      setAnchorDate(dateStr);
-      setSelectedDates([dateStr]);
+      // 같은 날(범위 상태) 또는 이후 날짜 → anchorDate 고정, 끝점만 이동하여 범위 재계산
+      setSelectedDates(getWorkdays(anchorDate, dateStr));
     }
   };
 
@@ -247,15 +246,14 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
       return singleDate;
     }
     if (selectedDates.length === 0) return '';
-    if (anchorDate !== null) {
-      // 1일 선택 완료, 범위 확장 가능 상태
-      return `${anchorDate} — 1일 연차가 설정되었습니다. 연속 신청하려면 마지막 날짜를 선택하세요.`;
+    if (selectedDates.length === 1) {
+      // 1일 선택 완료 — 누적 확장 가능 상태
+      return `${selectedDates[0]} — 1일 연차가 설정되었습니다. 연속 신청하려면 다음 날짜를 계속 선택하세요.`;
     }
-    if (selectedDates.length === 1) return `${selectedDates[0]} (1일)`;
     return `${selectedDates[0]} ~ ${selectedDates[selectedDates.length - 1]} (평일 ${selectedDates.length}일)`;
-  }, [type, singleDate, anchorDate, selectedDates]);
+  }, [type, singleDate, selectedDates]);
 
-  const isExtendable = anchorDate !== null; // 1일 선택 완료, 범위 확장 가능 상태 (제출 가능)
+  const isExtendable = selectedDates.length === 1; // 1일 선택 상태 → 오렌지 박스 (확장 가능)
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -358,7 +356,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
             ))}
           </div>
           {type === 'FULL' && (
-            <p className="text-[10px] text-[#7a7565] mt-1">날짜를 클릭하면 1일 연차로 설정됩니다. 연속 신청 시 마지막 날짜를 추가로 클릭하세요. 주말/공휴일은 자동 제외됩니다.</p>
+            <p className="text-[10px] text-[#7a7565] mt-1">날짜를 클릭해 선택하세요. 여러 날짜를 순서대로 클릭하면 범위가 자동 확장됩니다. 주말/공휴일은 자동 제외됩니다.</p>
           )}
           {type !== 'FULL' && (
             <p className="text-[10px] text-[#7a7565] mt-1">반차는 단일 날짜 선택만 가능합니다.</p>
