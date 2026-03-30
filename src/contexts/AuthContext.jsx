@@ -322,19 +322,48 @@ export function AuthProvider({ children }) {
     // ─── LEAVE FUNCTIONS ─────────────────────────────────
 
     // 연차 신청 (ALBA) — 중복 체크 포함 + 카페 팀 skipTeamApproval 처리
-    const submitLeaveRequest = async ({ date, type, reason = '' }) => {
-        const uid = auth.currentUser.uid;
-        // 중복 체크: 동일 user_id + date + (SUBMITTED 또는 TEAM_APPROVED 상태)
-        const dupQ = query(
-            collection(db, 'leave_requests'),
-            where('user_id', '==', uid),
-            where('date', '==', date),
-        );
-        const dupSnap = await getDocs(dupQ);
-        const activeDup = dupSnap.docs.find(d => ['SUBMITTED', 'TEAM_APPROVED', 'FINAL_PENDING', 'CEO_PENDING'].includes(d.data().status));
-        if (activeDup) {
-            throw new Error('DUPLICATE: 해당 날짜에 이미 신청한 연차가 있습니다.');
+    // dates[]: 복수 날짜 배열 (FULL 연속 신청) / date: 단일 날짜 문자열 (하위호환)
+    const submitLeaveRequest = async ({ dates, date, type, reason = '' }) => {
+        // dates[] 우선 사용, 없으면 단일 date를 배열로 변환 (하위호환)
+        const appliedDates = dates ?? (date ? [date] : []);
+        if (appliedDates.length === 0) throw new Error('날짜를 선택해주세요.');
+
+        // HALF 반차: 저장 직전 단일 날짜 재검증
+        if ((type === 'HALF_AM' || type === 'HALF_PM') && appliedDates.length !== 1) {
+            throw new Error('반차는 단일 날짜만 신청 가능합니다.');
         }
+
+        const uid = auth.currentUser.uid;
+        const startDate = appliedDates[0];
+        const endDate   = appliedDates[appliedDates.length - 1];
+
+        // day_count: FULL=선택된 평일 수, HALF=0.5 고정
+        const DAY_COUNT_MAP = { FULL: 1.0, HALF_AM: 0.5, HALF_PM: 0.5 };
+        const dayCount = type === 'FULL'
+            ? appliedDates.length
+            : (DAY_COUNT_MAP[type] ?? 1.0);
+
+        // 중복 체크: 해당 user의 활성 신청 전체를 조회해 날짜 교차 확인
+        // applied_dates 배열 신규 형식 + 구 date 단일 필드 모두 처리
+        const ACTIVE_STATUSES = ['SUBMITTED', 'TEAM_APPROVED', 'FINAL_PENDING', 'CEO_PENDING'];
+        const activeQ = query(collection(db, 'leave_requests'), where('user_id', '==', uid));
+        const activeSnap = await getDocs(activeQ);
+        const activeDateSet = new Set();
+        activeSnap.docs
+            .filter(d => ACTIVE_STATUSES.includes(d.data().status))
+            .forEach(d => {
+                const data = d.data();
+                if (data.applied_dates?.length) {
+                    data.applied_dates.forEach(ad => activeDateSet.add(ad));
+                } else if (data.date) {
+                    activeDateSet.add(data.date);
+                }
+            });
+        const dupDate = appliedDates.find(d => activeDateSet.has(d));
+        if (dupDate) {
+            throw new Error(`DUPLICATE: ${dupDate}에 이미 신청한 연차가 있습니다.`);
+        }
+
         const now = new Date().toISOString();
         const profileSnap = await getDoc(doc(db, 'users', uid));
         const teamId = profileSnap.data()?.team_id || '';
@@ -356,7 +385,11 @@ export function AuthProvider({ children }) {
         const docRef = await addDoc(collection(db, 'leave_requests'), {
             user_id: uid,
             team_id: teamId,
-            date,
+            date: startDate,          // 하위호환: 시작일 저장
+            applied_dates: appliedDates,
+            start_date: startDate,
+            end_date: endDate,
+            day_count: dayCount,
             type,
             reason,
             status: initialStatus,

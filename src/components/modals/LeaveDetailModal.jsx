@@ -191,7 +191,11 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                             </div>
                             <div>
                                 <span className="text-xs text-[#7a7565] block mb-0.5">날짜</span>
-                                <span className="font-mono font-bold">{request.date}</span>
+                                <span className="font-mono font-bold">
+                                    {request.applied_dates?.length > 1
+                                        ? `${request.start_date || request.applied_dates[0]} ~ ${request.end_date || request.applied_dates[request.applied_dates.length - 1]} (${request.applied_dates.length}일)`
+                                        : (request.applied_dates?.[0] || request.date || '-')}
+                                </span>
                             </div>
                             <div>
                                 <span className="text-xs text-[#7a7565] block mb-0.5">유형</span>
