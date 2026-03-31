@@ -192,7 +192,7 @@ function LeaveCalendar({ type, singleDate, selectedDates, onDayClick, viewYear, 
 }
 
 // ─── 메인 폼 ────────────────────────────────────────────────────────────────
-export default function LeaveRequestForm({ onSubmitted, userProfile }) {
+export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pendingDeduction = 0 }) {
   const { submitLeaveRequest, getAllUsers, sendNotification } = useAuth();
   const now = new Date();
 
@@ -231,17 +231,26 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
     setResult(null);
 
     if (type !== 'FULL') {
-      // HALF: 단일 토글
-      setSingleDate(prev => prev === dateStr ? '' : dateStr);
+      // HALF: 해제는 항상 허용, 신규 선택 시 잔여 검증
+      if (singleDate === dateStr) { setSingleDate(''); return; }
+      if (remaining !== null && remaining < 0.5) {
+        setResult({ success: false, message: '남은 연차를 초과하여 선택할 수 없습니다.' });
+        return;
+      }
+      setSingleDate(dateStr);
       return;
     }
 
-    // FULL: 개별 날짜 토글 — 클릭한 날짜만 추가/해제 (범위 자동 확장 없음)
-    setSelectedDates(prev =>
-      prev.includes(dateStr)
-        ? prev.filter(d => d !== dateStr)  // 재클릭 → 해당 날짜만 해제
-        : [...prev, dateStr].sort()        // 신규 클릭 → 추가 후 날짜순 정렬
-    );
+    // FULL: 해제는 항상 허용, 신규 추가 시 잔여 검증
+    if (selectedDates.includes(dateStr)) {
+      setSelectedDates(prev => prev.filter(d => d !== dateStr));
+      return;
+    }
+    if (remaining !== null && selectedDates.length >= remaining) {
+      setResult({ success: false, message: '남은 연차를 초과하여 선택할 수 없습니다.' });
+      return;
+    }
+    setSelectedDates(prev => [...prev, dateStr].sort());
   };
 
   // 선택 날짜들이 캘린더 기준 연속인지 확인 (dayDiff=1 연속)
@@ -274,6 +283,18 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
     return `${formattedDates} (${selectedDates.length}일)`;
   }, [type, singleDate, selectedDates, selectedIsConsecutive, formattedDates]);
 
+  // 잔여 연차 — balance 미로드 시 null (차단 비활성)
+  const remaining = useMemo(() => {
+    if (!balance) return null;
+    return Math.max(0, (balance.total_days ?? 0) - (balance.used_days ?? 0) - pendingDeduction);
+  }, [balance, pendingDeduction]);
+
+  // 현재 선택 기준 산정 일수 (FULL: 선택 개수, HALF: 0.5)
+  const selectionCost = useMemo(() => {
+    if (type === 'FULL') return selectedDates.length;
+    return singleDate ? 0.5 : 0;
+  }, [type, selectedDates.length, singleDate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -293,6 +314,12 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
     const invalidDate = datesToSubmit.find(d => isBlocked(d));
     if (invalidDate) {
       setResult({ success: false, message: `주말/공휴일이 포함되어 있습니다: ${invalidDate}` });
+      return;
+    }
+
+    // 저장 직전 잔여 연차 재검증
+    if (remaining !== null && selectionCost > remaining) {
+      setResult({ success: false, message: '남은 연차보다 많은 일수를 신청할 수 없습니다.' });
       return;
     }
 
@@ -349,9 +376,18 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
 
   return (
     <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] p-5">
-      <h3 className="font-bold text-[#3d472f] mb-4 flex items-center gap-2">
-        <CalendarPlus size={18} className="text-[#5d6c4a]" /> 연차 신청
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-[#3d472f] flex items-center gap-2">
+          <CalendarPlus size={18} className="text-[#5d6c4a]" /> 연차 신청
+        </h3>
+        {remaining !== null && (
+          <div className="text-xs flex items-center gap-1.5">
+            <span className="text-[#7a7565]">남은 연차 <strong className="text-[#3d472f]">{remaining}일</strong></span>
+            <span className="text-[#c8c3b8]">/</span>
+            <span className="text-[#7a7565]">산정 일수 <strong className={selectionCost > remaining ? 'text-[#a65d57]' : selectionCost > 0 ? 'text-[#d8973c]' : 'text-[#9a9585]'}>{selectionCost}일</strong></span>
+          </div>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* 연차 유형 */}
