@@ -84,7 +84,7 @@ function getWorkdays(startStr, endStr) {
 }
 
 // ─── 캘린더 컴포넌트 ────────────────────────────────────────────────────────
-function LeaveCalendar({ type, singleDate, selectedDates, rangeStart, onDayClick, viewYear, viewMonthIdx }) {
+function LeaveCalendar({ type, singleDate, selectedDates, onDayClick, viewYear, viewMonthIdx }) {
   const today = toStr(new Date());
 
   const firstOfMonth = new Date(viewYear, viewMonthIdx, 1);
@@ -98,10 +98,6 @@ function LeaveCalendar({ type, singleDate, selectedDates, rangeStart, onDayClick
     const num = i - startPad + 1;
     cells.push(num >= 1 && num <= totalDays ? toStr(new Date(viewYear, viewMonthIdx, num)) : null);
   }
-
-  // 확정된 범위 첫날 / 끝날 (rangeStart=null일 때만 의미 있음)
-  const rangeFirst = rangeStart === null && selectedDates.length > 0 ? selectedDates[0] : null;
-  const rangeLast  = rangeStart === null && selectedDates.length > 1 ? selectedDates[selectedDates.length - 1] : null;
 
   return (
     <div className="select-none">
@@ -128,19 +124,12 @@ function LeaveCalendar({ type, singleDate, selectedDates, rangeStart, onDayClick
 
           const isSingleSel  = type !== 'FULL' && singleDate === dateStr;
           const isWorkdaySel = type === 'FULL' && selectedDates.includes(dateStr);
-          const isStartMark  = type === 'FULL' && rangeStart === dateStr; // 첫 클릭 대기 중
-          const isBetween    = rangeFirst && rangeLast && dateStr > rangeFirst && dateStr < rangeLast;
-
-          const isSelected = isSingleSel || isWorkdaySel || isStartMark;
+          const isSelected = isSingleSel || isWorkdaySel;
 
           let cls = 'h-7 w-full flex items-center justify-center text-xs rounded relative transition-colors ';
 
           if (isSelected) {
             cls += 'bg-[#5d6c4a] text-[#f5f3e8] font-black ';
-          } else if (isBetween) {
-            cls += isDisabled
-              ? 'bg-[#e8ead8] text-[#c5c0b0] '
-              : 'bg-[#c8d4a8] text-[#3d472f] font-bold cursor-pointer ';
           } else if (isDisabled) {
             cls += 'cursor-not-allowed font-medium ';
             cls += isHol && !isWeekend(dateStr) ? 'text-[#c9a0a0] ' : 'text-[#c8c3b8] ';
@@ -191,9 +180,8 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
   // HALF: 단일 날짜
   const [singleDate, setSingleDate] = useState('');
 
-  // FULL: 범위 선택
-  const [anchorDate,    setAnchorDate]    = useState(null); // 첫 클릭 기준일 (확장 가능 상태)
-  const [selectedDates, setSelectedDates] = useState([]);   // 확정된 평일 배열
+  // FULL: 개별 날짜 누적 선택
+  const [selectedDates, setSelectedDates] = useState([]); // 선택된 날짜 배열 (정렬됨)
 
   const handleMonthChange = (dir) => {
     let m = viewMonth + dir;
@@ -208,7 +196,6 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
     setType(newType);
     setSingleDate('');
     setSelectedDates([]);
-    setAnchorDate(null);
     setResult(null);
   };
 
@@ -221,39 +208,31 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
       return;
     }
 
-    // FULL: 누적 선택 방식 — 시작일(anchorDate) 고정 후 클릭할수록 범위 자동 확장
-    if (anchorDate === null) {
-      // 빈 상태: 첫 클릭 → 1일 즉시 선택 (제출 가능)
-      setAnchorDate(dateStr);
-      setSelectedDates([dateStr]);
-    } else if (dateStr < anchorDate) {
-      // 시작일보다 이른 날짜 → 새 시작일로 재설정 (1일)
-      setAnchorDate(dateStr);
-      setSelectedDates([dateStr]);
-    } else if (dateStr === anchorDate && selectedDates.length === 1) {
-      // 단일 선택 상태에서 같은 날 재클릭 → 선택 해제
-      setAnchorDate(null);
-      setSelectedDates([]);
-    } else {
-      // 같은 날(범위 상태) 또는 이후 날짜 → anchorDate 고정, 끝점만 이동하여 범위 재계산
-      setSelectedDates(getWorkdays(anchorDate, dateStr));
-    }
+    // FULL: 개별 날짜 토글 — 클릭한 날짜만 추가/해제 (범위 자동 확장 없음)
+    setSelectedDates(prev =>
+      prev.includes(dateStr)
+        ? prev.filter(d => d !== dateStr)  // 재클릭 → 해당 날짜만 해제
+        : [...prev, dateStr].sort()        // 신규 클릭 → 추가 후 날짜순 정렬
+    );
   };
+
+  // 선택 날짜들이 연속 평일인지 확인
+  const selectedIsConsecutive = useMemo(() => {
+    if (selectedDates.length < 2) return true;
+    const workdays = getWorkdays(selectedDates[0], selectedDates[selectedDates.length - 1]);
+    return workdays.length === selectedDates.length && workdays.every((d, i) => d === selectedDates[i]);
+  }, [selectedDates]);
 
   // 선택 요약 텍스트
   const selectionSummary = useMemo(() => {
-    if (type !== 'FULL') {
-      return singleDate;
-    }
+    if (type !== 'FULL') return singleDate;
     if (selectedDates.length === 0) return '';
-    if (selectedDates.length === 1) {
-      // 1일 선택 완료 — 누적 확장 가능 상태
-      return `${selectedDates[0]} — 1일 연차가 설정되었습니다. 연속 신청하려면 다음 날짜를 계속 선택하세요.`;
+    if (selectedDates.length === 1) return `${selectedDates[0]} — 1일 연차가 설정되었습니다.`;
+    if (selectedIsConsecutive) {
+      return `${selectedDates[0]} ~ ${selectedDates[selectedDates.length - 1]} (평일 ${selectedDates.length}일)`;
     }
-    return `${selectedDates[0]} ~ ${selectedDates[selectedDates.length - 1]} (평일 ${selectedDates.length}일)`;
-  }, [type, singleDate, selectedDates]);
-
-  const isExtendable = selectedDates.length === 1; // 1일 선택 상태 → 오렌지 박스 (확장 가능)
+    return `연차 ${selectedDates.length}일 선택됨`;
+  }, [type, singleDate, selectedDates, selectedIsConsecutive]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -313,7 +292,6 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
       // 선택 초기화
       setSingleDate('');
       setSelectedDates([]);
-      setAnchorDate(null);
       setReason('');
       onSubmitted?.(type, datesToSubmit.length);
     } catch (err) {
@@ -356,7 +334,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
             ))}
           </div>
           {type === 'FULL' && (
-            <p className="text-[10px] text-[#7a7565] mt-1">날짜를 클릭해 선택하세요. 여러 날짜를 순서대로 클릭하면 범위가 자동 확장됩니다. 주말/공휴일은 자동 제외됩니다.</p>
+            <p className="text-[10px] text-[#7a7565] mt-1">날짜를 클릭해 개별 선택하세요. 다시 클릭하면 해제됩니다. 주말/공휴일은 선택 불가합니다.</p>
           )}
           {type !== 'FULL' && (
             <p className="text-[10px] text-[#7a7565] mt-1">반차는 단일 날짜 선택만 가능합니다.</p>
@@ -383,7 +361,6 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
               type={type}
               singleDate={singleDate}
               selectedDates={selectedDates}
-              rangeStart={null}
               onDayClick={handleDayClick}
               viewYear={viewYear}
               viewMonthIdx={viewMonth}
@@ -392,12 +369,25 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
 
           {/* 선택 요약 */}
           {selectionSummary && (
-            <div className={`mt-1 px-2 py-1.5 text-xs font-bold border ${
-              isExtendable
-                ? 'bg-[#fdf6e3] border-[#d8973c] text-[#a06820]'
-                : 'bg-[#e8ebd8] border-[#b8c4a0] text-[#5d6c4a]'
-            }`}>
+            <div className="mt-1 px-2 py-1.5 text-xs font-bold border bg-[#e8ebd8] border-[#b8c4a0] text-[#5d6c4a]">
               {selectionSummary}
+            </div>
+          )}
+
+          {/* FULL 선택일 chips */}
+          {type === 'FULL' && selectedDates.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {selectedDates.map(d => (
+                <span key={d} className="inline-flex items-center gap-1 text-xs font-bold px-2 py-1 bg-[#5d6c4a] text-[#f5f3e8] border border-[#3d472f]">
+                  {d}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDates(prev => prev.filter(x => x !== d))}
+                    className="hover:text-[#d4dcc0] leading-none ml-0.5"
+                    aria-label={`${d} 선택 해제`}
+                  >×</button>
+                </span>
+              ))}
             </div>
           )}
 
@@ -406,11 +396,6 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
             <span className="flex items-center gap-1">
               <span className="w-3 h-3 rounded bg-[#5d6c4a] inline-block" />선택
             </span>
-            {type === 'FULL' && (
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded bg-[#c8d4a8] inline-block" />범위(평일)
-              </span>
-            )}
             <span className="flex items-center gap-1">
               <span className="w-3 h-3 rounded bg-[#f0f0ee] border border-[#c8c3b8] inline-block" />주말
             </span>
