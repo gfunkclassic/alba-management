@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, History, Loader, AlertTriangle, User } from 'lucide-react';
 import { collection, query, where, orderBy, getDocs, getDocsFromServer, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { formatAppliedDates } from '../../utils/leaveUtils';
 
 const ACTION_LABEL = { APPROVE: '승인', REJECT: '반려' };
 const ACTION_COLOR = { APPROVE: 'text-[#5d6c4a]', REJECT: 'text-[#a65d57]' };
@@ -192,9 +193,8 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                             <div>
                                 <span className="text-xs text-[#7a7565] block mb-0.5">날짜</span>
                                 <span className="font-mono font-bold">
-                                    {request.applied_dates?.length > 1
-                                        ? `${request.start_date || request.applied_dates[0]} ~ ${request.end_date || request.applied_dates[request.applied_dates.length - 1]} (${request.applied_dates.length}일)`
-                                        : (request.applied_dates?.[0] || request.date || '-')}
+                                    {formatAppliedDates(request.applied_dates, request.date)}
+                                    {request.applied_dates?.length > 1 && ` (${request.applied_dates.length}일)`}
                                 </span>
                             </div>
                             <div>

@@ -83,6 +83,28 @@ function getWorkdays(startStr, endStr) {
   return result;
 }
 
+// 연속된 날짜를 구간으로 그룹화 [[start, end], ...]
+// 캘린더 기준 연속(dayDiff=1) — 금요일+월요일은 dayDiff=3이므로 별도 구간으로 처리됨
+function groupConsecutive(dates) {
+  if (dates.length === 0) return [];
+  const sorted = [...dates].sort();
+  const groups = [];
+  let start = sorted[0];
+  let prev = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    const diff = Math.round((parseLocal(sorted[i]) - parseLocal(prev)) / 86400000);
+    if (diff === 1) {
+      prev = sorted[i];
+    } else {
+      groups.push([start, prev]);
+      start = sorted[i];
+      prev = sorted[i];
+    }
+  }
+  groups.push([start, prev]);
+  return groups; // [[startStr, endStr], ...]
+}
+
 // ─── 캘린더 컴포넌트 ────────────────────────────────────────────────────────
 function LeaveCalendar({ type, singleDate, selectedDates, onDayClick, viewYear, viewMonthIdx }) {
   const today = toStr(new Date());
@@ -132,7 +154,13 @@ function LeaveCalendar({ type, singleDate, selectedDates, onDayClick, viewYear, 
             cls += 'bg-[#5d6c4a] text-[#f5f3e8] font-black ';
           } else if (isDisabled) {
             cls += 'cursor-not-allowed font-medium ';
-            cls += isHol && !isWeekend(dateStr) ? 'text-[#c9a0a0] ' : 'text-[#c8c3b8] ';
+            if (dow === 0 || (isHol && dow !== 6)) {
+              cls += 'text-[#c47a7a] '; // 일요일 또는 평일 공휴일: 붉은 계열
+            } else if (dow === 6) {
+              cls += 'text-[#8899b0] '; // 토요일: 청회색 계열
+            } else {
+              cls += 'text-[#c8c3b8] '; // 과거 평일: 연한 회색
+            }
           } else {
             cls += 'cursor-pointer font-bold ';
             if (dow === 0)      cls += 'text-[#a65d57] hover:bg-[#f8e8e4] ';
@@ -153,7 +181,7 @@ function LeaveCalendar({ type, singleDate, selectedDates, onDayClick, viewYear, 
             >
               {parseInt(dateStr.slice(8))}
               {isHol && !isWeekend(dateStr) && (
-                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#c9a0a0]" />
+                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#c47a7a]" />
               )}
             </button>
           );
@@ -216,23 +244,35 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
     );
   };
 
-  // 선택 날짜들이 연속 평일인지 확인
+  // 선택 날짜들이 캘린더 기준 연속인지 확인 (dayDiff=1 연속)
   const selectedIsConsecutive = useMemo(() => {
     if (selectedDates.length < 2) return true;
     const workdays = getWorkdays(selectedDates[0], selectedDates[selectedDates.length - 1]);
     return workdays.length === selectedDates.length && workdays.every((d, i) => d === selectedDates[i]);
   }, [selectedDates]);
 
+  // 선택 날짜를 연속 구간 묶음 포맷으로 변환 (표시 전용)
+  const formattedDates = useMemo(() => {
+    if (selectedDates.length === 0) return '';
+    return groupConsecutive(selectedDates)
+      .map(([s, e]) => {
+        const sf = s.replace(/-/g, '.');
+        const ef = e.replace(/-/g, '.');
+        return sf === ef ? sf : `${sf} ~ ${ef}`;
+      })
+      .join(', ');
+  }, [selectedDates]);
+
   // 선택 요약 텍스트
   const selectionSummary = useMemo(() => {
     if (type !== 'FULL') return singleDate;
     if (selectedDates.length === 0) return '';
-    if (selectedDates.length === 1) return `${selectedDates[0]} — 1일 연차가 설정되었습니다.`;
+    if (selectedDates.length === 1) return `${selectedDates[0].replace(/-/g, '.')} — 1일 연차가 설정되었습니다.`;
     if (selectedIsConsecutive) {
-      return `${selectedDates[0]} ~ ${selectedDates[selectedDates.length - 1]} (평일 ${selectedDates.length}일)`;
+      return `${selectedDates[0].replace(/-/g, '.')} ~ ${selectedDates[selectedDates.length - 1].replace(/-/g, '.')} (평일 ${selectedDates.length}일)`;
     }
-    return `연차 ${selectedDates.length}일 선택됨`;
-  }, [type, singleDate, selectedDates, selectedIsConsecutive]);
+    return `${formattedDates} (${selectedDates.length}일)`;
+  }, [type, singleDate, selectedDates, selectedIsConsecutive, formattedDates]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -374,20 +414,25 @@ export default function LeaveRequestForm({ onSubmitted, userProfile }) {
             </div>
           )}
 
-          {/* FULL 선택일 chips */}
+          {/* FULL 선택일 chips — 연속 구간 묶음으로 표시, × 클릭 시 해당 구간 전체 해제 */}
           {type === 'FULL' && selectedDates.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {selectedDates.map(d => (
-                <span key={d} className="inline-flex items-center gap-1 text-xs font-bold px-2 py-1 bg-[#5d6c4a] text-[#f5f3e8] border border-[#3d472f]">
-                  {d}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedDates(prev => prev.filter(x => x !== d))}
-                    className="hover:text-[#d4dcc0] leading-none ml-0.5"
-                    aria-label={`${d} 선택 해제`}
-                  >×</button>
-                </span>
-              ))}
+              {groupConsecutive(selectedDates).map(([start, end]) => {
+                const label = start === end
+                  ? start.replace(/-/g, '.')
+                  : `${start.replace(/-/g, '.')} ~ ${end.replace(/-/g, '.')}`;
+                return (
+                  <span key={start} className="inline-flex items-center gap-1 text-xs font-bold px-2 py-1 bg-[#5d6c4a] text-[#f5f3e8] border border-[#3d472f]">
+                    {label}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDates(prev => prev.filter(d => d < start || d > end))}
+                      className="hover:text-[#d4dcc0] leading-none ml-0.5"
+                      aria-label={`${label} 선택 해제`}
+                    >×</button>
+                  </span>
+                );
+              })}
             </div>
           )}
 
