@@ -145,7 +145,7 @@ export default function AlbaView() {
                             setPendingDeduction(p => p + (DEDUCTION_MAP[submittedType] ?? 1.0) * count);
                             setRefreshKey(k => k + 1);
                             loadBalance();
-                        }} userProfile={profile} />
+                        }} userProfile={profile} balance={balance} pendingDeduction={pendingDeduction} />
                     </>
                 )}
 
