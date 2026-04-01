@@ -16,3 +16,9 @@ migrate_roles.js
 
 # Claude Code 로컬 설정 (환경 전용, 저장소 공유 불필요)
 .claude/
+
+# 일별 handoff 체크리스트 (로컬 운영 문서, 저장소 누적 방지)
+tomorrow-checklist-*.md
+
+# 테스트 데이터 정리 스크립트 (로컬 경로 하드코딩 포함, 공용 부적절)
+functions/cleanup-test.js
