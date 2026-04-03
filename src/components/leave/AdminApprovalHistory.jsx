@@ -5,6 +5,7 @@ import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import LeaveDetailModal from '../modals/LeaveDetailModal';
 import { canApprove } from '../../utils/roleUtils';
+import { formatAppliedDates } from '../../utils/leaveUtils';
 
 const ACTION_LABEL = {
     APPROVE: '승인',
@@ -71,7 +72,7 @@ export default function AdminApprovalHistory() {
                         const reqData = reqSnap.data();
                         applicantName = await getUserName(reqData.user_id);
                         reqType = reqData.type;
-                        reqDate = reqData.date;
+                        reqDate = formatAppliedDates(reqData.applied_dates, reqData.date);
                         fullRequest = { id: reqSnap.id, ...reqData, _userName: applicantName };
                     }
                 } catch (e) { console.warn('req fetch fail', e); }

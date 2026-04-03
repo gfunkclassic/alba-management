@@ -3,6 +3,7 @@ import { List, X, ChevronDown, Loader } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ConfirmModal } from '../modals/DialogModals';
 import LeaveDetailModal from '../modals/LeaveDetailModal';
+import { formatAppliedDates } from '../../utils/leaveUtils';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = {
@@ -108,7 +109,9 @@ export default function LeaveHistoryList({ refreshKey }) {
                             <tr><td colSpan={5} className="p-8 text-center"><Loader size={16} className="animate-spin mx-auto text-[#9a9585]" /></td></tr>
                         ) : filtered.map(req => (
                             <tr key={req.id} onClick={() => setDetailTarget({ ...req, _userName: req._userName || userProfile?.name })} className={`hover:bg-[#f4f5eb] cursor-pointer ${req.status === 'CANCELLED' ? 'opacity-50' : ''}`}>
-                                <td className="px-3 py-2 pl-4 font-bold text-[#3d472f] font-mono whitespace-nowrap text-xs">{req.date}</td>
+                                <td className="px-3 py-2 pl-4 font-bold text-[#3d472f] font-mono whitespace-nowrap text-xs">
+                                    {formatAppliedDates(req.applied_dates, req.date)}
+                                </td>
                                 <td className="px-3 py-2 text-center whitespace-nowrap">
                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded inline-block leading-tight ${TYPE_COLOR[req.type] || 'bg-[#e8e4d4] text-[#5a5545]'}`}>
                                         {TYPE_LABEL[req.type] || req.type}

@@ -47,7 +47,11 @@ export default function AlbaView() {
             setBalance(bal);
             const pending = reqs
                 .filter(r => PENDING_STATUSES.includes(r.status))
-                .reduce((sum, r) => sum + (DEDUCTION_MAP[r.type] ?? 1.0), 0);
+                .reduce((sum, r) => {
+                    // day_count 있으면 우선 사용, 없으면 type 기준 fallback (구 데이터 호환)
+                    if (r.day_count !== undefined) return sum + r.day_count;
+                    return sum + (DEDUCTION_MAP[r.type] ?? 1.0);
+                }, 0);
             setPendingDeduction(pending);
         } catch (e) { console.error(e); }
         finally { setBalanceLoading(false); }
@@ -136,12 +140,12 @@ export default function AlbaView() {
                 {tab === 'REQUEST' && (
                     <>
                         <LeaveBalanceCard balance={balance} pendingDeduction={pendingDeduction} loading={balanceLoading} />
-                        <LeaveRequestForm onSubmitted={(submittedType) => {
+                        <LeaveRequestForm onSubmitted={(submittedType, count = 1) => {
                             const DEDUCTION_MAP = { FULL: 1.0, HALF_AM: 0.5, HALF_PM: 0.5 };
-                            setPendingDeduction(p => p + (DEDUCTION_MAP[submittedType] ?? 1.0));
+                            setPendingDeduction(p => p + (DEDUCTION_MAP[submittedType] ?? 1.0) * count);
                             setRefreshKey(k => k + 1);
                             loadBalance();
-                        }} userProfile={profile} />
+                        }} userProfile={profile} balance={balance} pendingDeduction={pendingDeduction} />
                     </>
                 )}
 
