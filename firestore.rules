@@ -214,5 +214,13 @@ service cloud.firestore {
       allow read: if isAuthed();
       allow write: if isAuthed() && isAdmin();
     }
+
+    // ─── 근태 수정 로그 ────────────────────────────────────────
+    // attendance 수정 가능 주체(admin)만 로그 생성 가능. 수정/삭제 불가(불변 로그).
+    match /attendance_edit_logs/{docId} {
+      allow read: if isAuthed() && isAdmin();
+      allow create: if isAuthed() && isAdmin();
+      allow update, delete: if false;
+    }
   }
 }
