@@ -97,11 +97,11 @@ export default function LeaveHistoryList({ refreshKey }) {
                 <table className="w-full text-sm" style={{ tableLayout: 'auto' }}>
                     <thead className="bg-[#e8e4d4] text-xs font-bold text-[#5d6c4a] uppercase">
                         <tr>
-                            <th className="px-3 py-2 pl-4 text-left whitespace-nowrap">날짜</th>
-                            <th className="px-3 py-2 text-center whitespace-nowrap w-[64px]">유형</th>
-                            <th className="px-3 py-2 text-left min-w-[160px]">사유</th>
-                            <th className="px-3 py-2 text-center whitespace-nowrap w-[76px]">상태</th>
-                            <th className="px-3 py-2 text-center whitespace-nowrap w-[40px]">취소</th>
+                            <th className="px-2 py-2 pl-3 text-left whitespace-nowrap">날짜</th>
+                            <th className="px-1 py-2 text-center whitespace-nowrap">유형</th>
+                            <th className="px-2 py-2 text-left min-w-[120px]">사유</th>
+                            <th className="px-1 py-2 text-center whitespace-nowrap">상태</th>
+                            <th className="px-1 py-2 text-center whitespace-nowrap">취소</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[#ebe8db]">
@@ -109,21 +109,21 @@ export default function LeaveHistoryList({ refreshKey }) {
                             <tr><td colSpan={5} className="p-8 text-center"><Loader size={16} className="animate-spin mx-auto text-[#9a9585]" /></td></tr>
                         ) : filtered.map(req => (
                             <tr key={req.id} onClick={() => setDetailTarget({ ...req, _userName: req._userName || userProfile?.name })} className={`hover:bg-[#f4f5eb] cursor-pointer ${req.status === 'CANCELLED' ? 'opacity-50' : ''}`}>
-                                <td className="px-3 py-2 pl-4 font-bold text-[#3d472f] font-mono text-xs">
+                                <td className="px-2 py-2 pl-3 font-bold text-[#3d472f] font-mono text-xs">
                                     {formatAppliedDates(req.applied_dates, req.date)}
                                 </td>
-                                <td className="px-3 py-2 text-center whitespace-nowrap">
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded inline-block leading-tight ${TYPE_COLOR[req.type] || 'bg-[#e8e4d4] text-[#5a5545]'}`}>
+                                <td className="px-1 py-2 text-center whitespace-nowrap">
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded inline-block leading-tight ${TYPE_COLOR[req.type] || 'bg-[#e8e4d4] text-[#5a5545]'}`}>
                                         {TYPE_LABEL[req.type] || req.type}
                                     </span>
                                 </td>
-                                <td className="px-3 py-2 text-xs text-[#7a7565]"><span className="line-clamp-2">{req.reason || '-'}</span></td>
-                                <td className="px-3 py-2 text-center whitespace-nowrap">
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded inline-block leading-tight ${STATUS_COLOR[req.status] || 'bg-[#e8e4d4]'}`}>
+                                <td className="px-2 py-2 text-xs text-[#7a7565]"><span className="line-clamp-2">{req.reason || '-'}</span></td>
+                                <td className="px-1 py-2 text-center whitespace-nowrap">
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded inline-block leading-tight ${STATUS_COLOR[req.status] || 'bg-[#e8e4d4]'}`}>
                                         {STATUS_LABEL[req.status] || req.status}
                                     </span>
                                 </td>
-                                <td className="px-3 py-2 text-center whitespace-nowrap">
+                                <td className="px-1 py-2 text-center whitespace-nowrap">
                                     {req.status === 'SUBMITTED' ? (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); requestCancel(req.id); }}
