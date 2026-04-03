@@ -97,11 +97,11 @@ export default function LeaveHistoryList({ refreshKey }) {
                 <table className="w-full text-sm" style={{ tableLayout: 'auto' }}>
                     <thead className="bg-[#e8e4d4] text-xs font-bold text-[#5d6c4a] uppercase">
                         <tr>
-                            <th className="px-3 py-2 pl-4 text-left whitespace-nowrap w-[140px]">날짜</th>
-                            <th className="px-3 py-2 text-center whitespace-nowrap w-[80px]">유형</th>
-                            <th className="px-3 py-2 text-left">사유</th>
-                            <th className="px-3 py-2 text-center whitespace-nowrap w-[100px]">상태</th>
-                            <th className="px-3 py-2 text-center whitespace-nowrap w-[60px]">취소</th>
+                            <th className="px-3 py-2 pl-4 text-left whitespace-nowrap">날짜</th>
+                            <th className="px-3 py-2 text-center whitespace-nowrap w-[64px]">유형</th>
+                            <th className="px-3 py-2 text-left min-w-[160px]">사유</th>
+                            <th className="px-3 py-2 text-center whitespace-nowrap w-[76px]">상태</th>
+                            <th className="px-3 py-2 text-center whitespace-nowrap w-[40px]">취소</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[#ebe8db]">
@@ -109,7 +109,7 @@ export default function LeaveHistoryList({ refreshKey }) {
                             <tr><td colSpan={5} className="p-8 text-center"><Loader size={16} className="animate-spin mx-auto text-[#9a9585]" /></td></tr>
                         ) : filtered.map(req => (
                             <tr key={req.id} onClick={() => setDetailTarget({ ...req, _userName: req._userName || userProfile?.name })} className={`hover:bg-[#f4f5eb] cursor-pointer ${req.status === 'CANCELLED' ? 'opacity-50' : ''}`}>
-                                <td className="px-3 py-2 pl-4 font-bold text-[#3d472f] font-mono whitespace-nowrap text-xs">
+                                <td className="px-3 py-2 pl-4 font-bold text-[#3d472f] font-mono text-xs">
                                     {formatAppliedDates(req.applied_dates, req.date)}
                                 </td>
                                 <td className="px-3 py-2 text-center whitespace-nowrap">
