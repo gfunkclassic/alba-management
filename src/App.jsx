@@ -571,13 +571,14 @@ function HRPayrollApp() {
         closeModal('userForm');
     }, [selectedUser, showNotificationMsg, closeModal, deleteEmployee]);
 
-    const saveAttendance = useCallback(async (userId, date, record) => {
+    const saveAttendance = useCallback(async (userId, date, record, editReason) => {
         const logMeta = {
             source: 'CALENDAR',
             editorUid: userProfile?.uid || '',
             editorName: userProfile?.name || '',
             editorRole: userProfile?.roleGroup || '',
-            employeeName: users.find(u => u.id === userId)?.name || ''
+            employeeName: users.find(u => u.id === userId)?.name || '',
+            editReason: editReason || ''
         };
         await saveAttendanceFn(userId, date, record, logMeta);
     }, [saveAttendanceFn, userProfile, users]);
@@ -1289,7 +1290,7 @@ function HRPayrollApp() {
             )}
 
             {showUserForm && <UserFormModal user={formUser} onClose={() => closeModal('userForm')} onSave={handleUserSave} onDelete={handleUserDelete} />}
-            {showCalendar && selectedUser && <CalendarModal user={selectedUser} attendance={attendance[selectedUser.id] || {}} onSave={(date, form) => saveAttendance(selectedUser.id, date, form)} calculateWage={calculateDailyWage} onFileUpload={handleAttendanceUpload} onClose={() => closeModal('calendar')} isLocked={payrollStatus[payrollMonth] === 'CONFIRMED'} />}
+            {showCalendar && selectedUser && <CalendarModal user={selectedUser} attendance={attendance[selectedUser.id] || {}} onSave={(date, form, editReason) => saveAttendance(selectedUser.id, date, form, editReason)} calculateWage={calculateDailyWage} onFileUpload={handleAttendanceUpload} onClose={() => closeModal('calendar')} isLocked={payrollStatus[payrollMonth] === 'CONFIRMED'} />}
             {showLeaveCalendar && selectedUser && <LeaveCalendarModal users={filteredData} leaveRecords={leaveRecords} onAddLeave={handleAddLeave} onDeleteLeave={handleDeleteLeave} onClose={() => closeModal('leaveCalendar')} />}
             {showAdjustModal && adjustUser && <AdjustLeaveModal user={adjustUser} onClose={() => { closeModal('adjust'); setAdjustUser(null); }} onSave={handleSaveAdjustment} currentAdjustment={adjustments[adjustUser.id] || 0} />}
             {modalState.payrollDetail && payrollDetailUser && <PayrollDetailModal user={payrollDetailUser} wage={calculateMonthlyWage(payrollDetailUser, payrollMonth)} payrollMonth={payrollMonth} onClose={() => { closeModal('payrollDetail'); setPayrollDetailUser(null); }} />}

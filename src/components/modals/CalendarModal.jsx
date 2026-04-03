@@ -14,6 +14,7 @@ export default function CalendarModal({ user, onClose, attendance, onSave, calcu
     const [activeDate, setActiveDate] = useState(null);
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({ checkIn: user.checkIn, checkOut: user.checkOut, overtime: 0, reason: '', earlyLeaveReason: '', overtimeReason: '' });
+    const [editReason, setEditReason] = useState('');
     const [calendarViewMode, setCalendarViewMode] = useState('TIME');
     const [rightPanel, setRightPanel] = useState('EDIT'); // 'EDIT' | 'BATCH'
     const [batchForm, setBatchForm] = useState({
@@ -50,11 +51,12 @@ export default function CalendarModal({ user, onClose, attendance, onSave, calcu
         setActiveDate(dateStr);
         const existing = attendance[dateStr] || { checkIn: user.checkIn, checkOut: user.checkOut, overtime: 0, reason: '', earlyLeaveReason: '', overtimeReason: '' };
         setForm({ ...existing, checkIn: normalizeForInput(existing.checkIn), checkOut: normalizeForInput(existing.checkOut), earlyLeaveReason: existing.earlyLeaveReason || '', overtimeReason: existing.overtimeReason || '' });
+        setEditReason('');
         setEditMode(true);
         setRightPanel('EDIT');
     };
 
-    const handleSave = () => { onSave(activeDate, form); setEditMode(false); };
+    const handleSave = () => { onSave(activeDate, form, editReason); setEditReason(''); setEditMode(false); };
 
     // ── 일괄 적용 ──
     const handleBatchApply = () => {
@@ -249,6 +251,11 @@ export default function CalendarModal({ user, onClose, attendance, onSave, calcu
                                                 {isEarlyLeave && <div><label className="text-[10px] font-bold text-[#c65911]">조기퇴근 사유</label><input type="text" className="w-full p-1.5 border-2 border-[#c65911]/30 bg-[#f5f3e8] text-sm focus:border-[#c65911] outline-none" placeholder="병원진료, 개인사유 등" value={form.earlyLeaveReason} onChange={e => setForm({ ...form, earlyLeaveReason: e.target.value })} /></div>}
                                                 {form.overtime > 0 && <div><label className="text-[10px] font-bold text-[#4a6070]">연장근무 사유</label><input type="text" className="w-full p-1.5 border-2 border-[#4a6070]/30 bg-[#f5f3e8] text-sm focus:border-[#4a6070] outline-none" placeholder="긴급 출하, 재고 정리 등" value={form.overtimeReason} onChange={e => setForm({ ...form, overtimeReason: e.target.value })} /></div>}
                                             </div>
+                                        </div>
+                                        <div className="mt-3">
+                                            <label className="text-[10px] font-bold text-[#5d6c4a]">수정 사유</label>
+                                            <input type="text" className="w-full p-1.5 border-2 border-[#5d6c4a]/30 bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" placeholder="예: 출근시간 오기입 수정" value={editReason} onChange={e => setEditReason(e.target.value)} />
+                                            <p className="text-[8px] text-[#9a9585] mt-0.5">근태 수정 이력에 기록됩니다</p>
                                         </div>
                                         <div className="mt-auto pt-4 space-y-2 border-t-2 border-[#e8e4d4]">
                                             <div className="flex justify-between text-xs text-[#7a7565]"><span>기본급 ({estimatedDaily.regularHours}h)</span><span>₩{estimatedDaily.basePay.toLocaleString()}</span></div>
