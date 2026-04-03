@@ -97,11 +97,11 @@ export default function LeaveHistoryList({ refreshKey }) {
                 <table className="w-full text-sm" style={{ tableLayout: 'auto' }}>
                     <thead className="bg-[#e8e4d4] text-xs font-bold text-[#5d6c4a] uppercase">
                         <tr>
-                            <th className="px-3 py-2 pl-4 text-left whitespace-nowrap">날짜</th>
-                            <th className="px-3 py-2 text-center whitespace-nowrap">유형</th>
+                            <th className="px-3 py-2 pl-4 text-left whitespace-nowrap w-[140px]">날짜</th>
+                            <th className="px-3 py-2 text-center whitespace-nowrap w-[80px]">유형</th>
                             <th className="px-3 py-2 text-left">사유</th>
-                            <th className="px-3 py-2 text-center whitespace-nowrap">상태</th>
-                            <th className="px-3 py-2 text-center whitespace-nowrap">취소</th>
+                            <th className="px-3 py-2 text-center whitespace-nowrap w-[100px]">상태</th>
+                            <th className="px-3 py-2 text-center whitespace-nowrap w-[60px]">취소</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[#ebe8db]">
@@ -117,7 +117,7 @@ export default function LeaveHistoryList({ refreshKey }) {
                                         {TYPE_LABEL[req.type] || req.type}
                                     </span>
                                 </td>
-                                <td className="px-3 py-2 text-xs text-[#7a7565]"><span className="line-clamp-1">{req.reason || '-'}</span></td>
+                                <td className="px-3 py-2 text-xs text-[#7a7565]"><span className="line-clamp-2">{req.reason || '-'}</span></td>
                                 <td className="px-3 py-2 text-center whitespace-nowrap">
                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded inline-block leading-tight ${STATUS_COLOR[req.status] || 'bg-[#e8e4d4]'}`}>
                                         {STATUS_LABEL[req.status] || req.status}
