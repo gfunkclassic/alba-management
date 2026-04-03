@@ -26,6 +26,9 @@ import { normalizeDateStr, getMonthsBetween, getDaysBetween } from './utils/date
 import { getLegalAnnualLeave, getFirstYearLeave, getFirstYearCarryoverDeadline } from './utils/leaveUtils';
 import { escapeCsvField, readFileData } from './utils/csvUtils';
 
+// Attendance edit log
+import { buildEditLog, writeEditLog } from './hooks/useAttendance';
+
 // Sub Views
 import HRView from './components/HRView';
 import PayrollView from './components/PayrollView';
@@ -569,8 +572,15 @@ function HRPayrollApp() {
     }, [selectedUser, showNotificationMsg, closeModal, deleteEmployee]);
 
     const saveAttendance = useCallback(async (userId, date, record) => {
-        await saveAttendanceFn(userId, date, record);
-    }, [saveAttendanceFn]);
+        const logMeta = {
+            source: 'CALENDAR',
+            editorUid: userProfile?.uid || '',
+            editorName: userProfile?.name || '',
+            editorRole: userProfile?.roleGroup || '',
+            employeeName: users.find(u => u.id === userId)?.name || ''
+        };
+        await saveAttendanceFn(userId, date, record, logMeta);
+    }, [saveAttendanceFn, userProfile, users]);
 
     const handleAddLeave = useCallback(async (userId, date, type) => {
         await addLeaveRecord(userId, date, type);
@@ -700,6 +710,25 @@ function HRPayrollApp() {
                 });
 
                 await Promise.all(promises);
+
+                // 근태 수정 로그 (best-effort)
+                const logMeta = {
+                    source: 'UPLOAD',
+                    editorUid: userProfile?.uid || '',
+                    editorName: userProfile?.name || '',
+                    editorRole: userProfile?.roleGroup || '',
+                    editReason: ''
+                };
+                Object.entries(saves).forEach(([userId, userRecords]) => {
+                    const empId = parseInt(userId);
+                    const empName = users.find(u => u.id === empId)?.name || '';
+                    Object.entries(userRecords).forEach(([dateStr, newRecord]) => {
+                        const before = attendance[empId]?.[dateStr] || null;
+                        const logEntry = buildEditLog(empId, dateStr, before, newRecord, { ...logMeta, employeeName: empName });
+                        writeEditLog(logEntry);
+                    });
+                });
+
                 showNotificationMsg(`총 ${count}건의 근무 기록이 등록되었습니다.`);
             }
         } catch (err) { console.error(err); showNotificationMsg(err.message || '파일 처리 실패', 'error'); }
