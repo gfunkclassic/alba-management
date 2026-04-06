@@ -95,7 +95,8 @@ export default function AttendanceEditLogViewer() {
                 if (!nameMatch && !editorMatch) return false;
             }
             // 월 필터 (대상 날짜 기준)
-            if (filterMonth && log.date) {
+            if (filterMonth) {
+                if (!log.date || log.date.length < 7) return false;
                 const logMonth = log.date.substring(0, 7); // "YYYY-MM"
                 if (logMonth !== filterMonth) return false;
             }
