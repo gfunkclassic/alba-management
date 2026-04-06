@@ -44,6 +44,7 @@ import LeaveCalendarModal from './components/modals/LeaveCalendarModal';
 import UserFormModal from './components/modals/UserFormModal';
 import AdjustLeaveModal from './components/modals/AdjustLeaveModal';
 import PayrollDetailModal from './components/modals/PayrollDetailModal';
+import AttendanceEditLogViewer from './components/AttendanceEditLogViewer';
 
 // ── 인사급여 시스템 (Firestore 연동) ───────────────────────────
 function HRPayrollApp() {
@@ -1173,6 +1174,7 @@ function HRPayrollApp() {
                             {(userProfile?.roleGroup === 'approver_senior' || userProfile?.roleGroup === 'approver_final') && (
                                 <button onClick={() => setActiveTab('APPROVALS')} className={`px-4 py-2 text-xs font-bold border-l-2 border-[#2d3721] transition ${activeTab === 'APPROVALS' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>연차결재</button>
                             )}
+                            <button onClick={() => setActiveTab('EDIT_LOGS')} className={`px-4 py-2 text-xs font-bold border-l-2 border-[#2d3721] transition ${activeTab === 'EDIT_LOGS' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>수정이력</button>
                         </div>
 
                         {/* 알림 벨 아이콘 */}
@@ -1247,6 +1249,12 @@ function HRPayrollApp() {
                             ? <CEOApprovalInbox />
                             : <FinalApprovalInbox />
                         }
+                    </div>
+                )}
+
+                {activeTab === 'EDIT_LOGS' && (
+                    <div className="max-w-5xl mx-auto w-full pt-4">
+                        <AttendanceEditLogViewer />
                     </div>
                 )}
             </div>
