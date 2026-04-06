@@ -57,6 +57,10 @@ function HRPayrollApp() {
         addLeaveRecord, deleteLeaveRecord, saveAdjustment: saveAdjustmentFn,
         savePayrollStatus, batchImport: batchImportLeave } = useLeaveData();
 
+    // payrollStatus 최신 값을 ref로 추적 (비동기 콜백에서 stale closure 방지)
+    const payrollStatusRef = useRef(payrollStatus);
+    useEffect(() => { payrollStatusRef.current = payrollStatus; }, [payrollStatus]);
+
     // ── 최초 1회 마이그레이션: Firestore가 비어있으면 localStorage → Firestore ──
     const migratedRef = useRef(false);
     useEffect(() => {
@@ -573,9 +577,9 @@ function HRPayrollApp() {
     }, [selectedUser, showNotificationMsg, closeModal, deleteEmployee]);
 
     const saveAttendance = useCallback(async (userId, date, record, editReason) => {
-        // CONFIRMED 월 근태 수정 차단 가드
+        // CONFIRMED 월 근태 수정 차단 가드 (ref로 최신 상태 참조)
         const month = date ? date.substring(0, 7) : '';
-        if (month && payrollStatus[month] === 'CONFIRMED') {
+        if (month && payrollStatusRef.current[month] === 'CONFIRMED') {
             showNotificationMsg('확정된 월의 근태는 수정할 수 없습니다. 정정이 필요하면 급여정산에서 상태를 "정정중"으로 변경해 주세요.', 'error');
             return;
         }
@@ -589,7 +593,7 @@ function HRPayrollApp() {
             editReason: editReason || ''
         };
         await saveAttendanceFn(userId, date, record, logMeta);
-    }, [saveAttendanceFn, userProfile, users, payrollStatus, showNotificationMsg]);
+    }, [saveAttendanceFn, userProfile, users, showNotificationMsg]);
 
     const handleAddLeave = useCallback(async (userId, date, type) => {
         await addLeaveRecord(userId, date, type);
@@ -712,7 +716,8 @@ function HRPayrollApp() {
                     count++;
                 });
 
-                // CONFIRMED 월 데이터 건너뛰기
+                // CONFIRMED 월 데이터 건너뛰기 (ref로 최신 상태 참조)
+                const currentPayrollStatus = payrollStatusRef.current;
                 const lockedMonths = new Set();
                 const filteredSaves = {};
                 let skippedCount = 0;
@@ -720,7 +725,7 @@ function HRPayrollApp() {
                     const allowed = {};
                     for (const [dateStr, rec] of Object.entries(userRecords)) {
                         const m = dateStr.substring(0, 7);
-                        if (payrollStatus[m] === 'CONFIRMED') {
+                        if (currentPayrollStatus[m] === 'CONFIRMED') {
                             lockedMonths.add(m);
                             skippedCount++;
                         } else {
