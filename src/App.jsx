@@ -573,6 +573,13 @@ function HRPayrollApp() {
     }, [selectedUser, showNotificationMsg, closeModal, deleteEmployee]);
 
     const saveAttendance = useCallback(async (userId, date, record, editReason) => {
+        // CONFIRMED 월 근태 수정 차단 가드
+        const month = date ? date.substring(0, 7) : '';
+        if (month && payrollStatus[month] === 'CONFIRMED') {
+            showNotificationMsg('확정된 월의 근태는 수정할 수 없습니다. 정정이 필요하면 급여정산에서 상태를 "정정중"으로 변경해 주세요.', 'error');
+            return;
+        }
+
         const logMeta = {
             source: 'CALENDAR',
             editorUid: userProfile?.uid || '',
@@ -582,7 +589,7 @@ function HRPayrollApp() {
             editReason: editReason || ''
         };
         await saveAttendanceFn(userId, date, record, logMeta);
-    }, [saveAttendanceFn, userProfile, users]);
+    }, [saveAttendanceFn, userProfile, users, payrollStatus, showNotificationMsg]);
 
     const handleAddLeave = useCallback(async (userId, date, type) => {
         await addLeaveRecord(userId, date, type);
@@ -705,8 +712,28 @@ function HRPayrollApp() {
                     count++;
                 });
 
+                // CONFIRMED 월 데이터 건너뛰기
+                const lockedMonths = new Set();
+                const filteredSaves = {};
+                let skippedCount = 0;
+                for (const [userId, userRecords] of Object.entries(saves)) {
+                    const allowed = {};
+                    for (const [dateStr, rec] of Object.entries(userRecords)) {
+                        const m = dateStr.substring(0, 7);
+                        if (payrollStatus[m] === 'CONFIRMED') {
+                            lockedMonths.add(m);
+                            skippedCount++;
+                        } else {
+                            allowed[dateStr] = rec;
+                        }
+                    }
+                    if (Object.keys(allowed).length > 0) {
+                        filteredSaves[userId] = allowed;
+                    }
+                }
+
                 // Firestore에 저장 (각 유저별 1번의 setDoc으로 병합)
-                const promises = Object.entries(saves).map(([userId, userRecords]) => {
+                const promises = Object.entries(filteredSaves).map(([userId, userRecords]) => {
                     const docRef = doc(db, 'attendance', String(userId));
                     return setDoc(docRef, { records: userRecords }, { merge: true });
                 });
@@ -721,7 +748,7 @@ function HRPayrollApp() {
                     editorRole: userProfile?.roleGroup || '',
                     editReason: ''
                 };
-                Object.entries(saves).forEach(([userId, userRecords]) => {
+                Object.entries(filteredSaves).forEach(([userId, userRecords]) => {
                     const empId = parseInt(userId);
                     const empName = users.find(u => u.id === empId)?.name || '';
                     Object.entries(userRecords).forEach(([dateStr, newRecord]) => {
@@ -731,7 +758,13 @@ function HRPayrollApp() {
                     });
                 });
 
-                showNotificationMsg(`총 ${count}건의 근무 기록이 등록되었습니다.`);
+                const appliedCount = count - skippedCount;
+                if (skippedCount > 0) {
+                    const monthList = [...lockedMonths].sort().join(', ');
+                    showNotificationMsg(`${appliedCount}건 등록 완료. ${skippedCount}건은 확정 월(${monthList})에 해당하여 제외되었습니다.`, appliedCount > 0 ? 'success' : 'error');
+                } else {
+                    showNotificationMsg(`총 ${count}건의 근무 기록이 등록되었습니다.`);
+                }
             }
         } catch (err) { console.error(err); showNotificationMsg(err.message || '파일 처리 실패', 'error'); }
         e.target.value = null; closeModal('dataMenu');
