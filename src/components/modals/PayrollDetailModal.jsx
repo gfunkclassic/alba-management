@@ -88,18 +88,22 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#ebe8db]">
-                                {breakdown.map(row => (
+                                {breakdown.map(row => {
+                                    const isDefault = !row.isRecorded && row.checkIn;
+                                    const dimText = isDefault ? 'text-[#b0aa98]' : 'text-[#5a5545]';
+                                    const dimBold = isDefault ? 'text-[#b0aa98]' : 'text-[#3d472f]';
+                                    return (
                                     <tr key={row.date} className={`hover:bg-[#f0f2e4] transition-colors ${getRowBg(row.date, row.reason)}`}>
                                         <td className={`p-2.5 font-bold ${getDayColor(row.date, row.reason)}`}>
                                             {row.date.slice(5)} ({getDayLabel(row.date)})
                                         </td>
-                                        <td className="p-2.5 text-center text-[#5a5545] font-mono">
+                                        <td className={`p-2.5 text-center ${dimText} font-mono`}>
                                             {row.checkIn || <span className="text-[#c5c0b0]">—</span>}
                                         </td>
-                                        <td className="p-2.5 text-center text-[#5a5545] font-mono">
+                                        <td className={`p-2.5 text-center ${dimText} font-mono`}>
                                             {row.checkOut || <span className="text-[#c5c0b0]">—</span>}
                                         </td>
-                                        <td className="p-2.5 text-center text-[#5a5545]">
+                                        <td className={`p-2.5 text-center ${dimText}`}>
                                             {row.hours > 0 ? `${row.hours}h` : <span className="text-[#c5c0b0]">—</span>}
                                         </td>
                                         <td className="p-2.5 text-center">
@@ -107,10 +111,13 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                                                 ? <span className="text-[#a65d57] font-bold">+{row.overtimeHours}h</span>
                                                 : <span className="text-[#c5c0b0]">—</span>}
                                         </td>
-                                        <td className="p-2.5 text-right pr-4 font-bold text-[#3d472f]">
+                                        <td className={`p-2.5 text-right pr-4 font-bold ${dimBold}`}>
                                             {row.basePay > 0 ? `₩${row.basePay.toLocaleString()}` : <span className="text-[#c5c0b0]">—</span>}
                                         </td>
                                         <td className="p-2.5 text-[#7a7565]">
+                                            {isDefault && (
+                                                <span className="px-1.5 py-0.5 text-[10px] font-bold border bg-[#f5f3e8] text-[#b0aa98] border-[#d4d0c4]">기본</span>
+                                            )}
                                             {row.reason && (
                                                 <span className={`px-1.5 py-0.5 text-[10px] font-bold border ${row.reason.includes('결근') ? 'bg-[#f8f0ef] text-[#a65d57] border-[#dcc0bc]' :
                                                         row.reason.includes('연차') ? 'bg-[#e8ebd8] text-[#5d6c4a] border-[#b8c4a0]' :
@@ -121,7 +128,8 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                                             )}
                                         </td>
                                     </tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     )}
