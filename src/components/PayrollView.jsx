@@ -10,6 +10,13 @@ const STATUS_CONFIG = {
 
 const STATUS_FLOW = ['DRAFT', 'REVIEW', 'CONFIRMED'];
 
+const ALLOWED_TRANSITIONS = {
+    DRAFT: ['REVIEW'],
+    REVIEW: ['CONFIRMED'],
+    CONFIRMED: ['AMENDING'],
+    AMENDING: ['CONFIRMED'],
+};
+
 export default function PayrollView({
     users, calculateMonthlyWage, onDownloadInsured, onDownloadFreelancer, onDownloadTemplate,
     payrollMonth, onMonthChange, payrollStatus, onStatusChange, onOpenDetail
@@ -50,6 +57,8 @@ export default function PayrollView({
     }, [filteredUsers, calculateMonthlyWage, mode, payrollMonth]);
 
     const handleStatusChange = (newStatus) => {
+        const allowed = ALLOWED_TRANSITIONS[currentStatus] || [];
+        if (!allowed.includes(newStatus)) return;
         onStatusChange?.(payrollMonth, newStatus);
         setShowStatusMenu(false);
     };
@@ -93,21 +102,26 @@ export default function PayrollView({
                                 { key: 'REVIEW', icon: <Eye size={14} />, desc: '검토 요청 상태' },
                                 { key: 'CONFIRMED', icon: <CheckCircle size={14} />, desc: '확정 — 수정 잠금' },
                                 { key: 'AMENDING', icon: <RotateCcw size={14} />, desc: '정정 진행 중' },
-                            ].map(({ key, icon, desc }) => (
+                            ].map(({ key, icon, desc }) => {
+                                const isCurrent = currentStatus === key;
+                                const isAllowed = (ALLOWED_TRANSITIONS[currentStatus] || []).includes(key);
+                                const isDisabled = !isCurrent && !isAllowed;
+                                return (
                                 <button
                                     key={key}
-                                    onClick={() => handleStatusChange(key)}
-                                    className={`w-full text-left px-3 py-2.5 text-xs flex items-start gap-2 hover:bg-[#e8e4d4] transition-colors border-b border-[#e8e4d4] last:border-0 ${currentStatus === key ? 'bg-[#e8ebd8] font-black' : 'font-bold'}`}
+                                    onClick={() => !isDisabled && handleStatusChange(key)}
+                                    className={`w-full text-left px-3 py-2.5 text-xs flex items-start gap-2 transition-colors border-b border-[#e8e4d4] last:border-0 ${isCurrent ? 'bg-[#e8ebd8] font-black' : isDisabled ? 'opacity-40 cursor-not-allowed' : 'font-bold hover:bg-[#e8e4d4]'}`}
                                 >
                                     <span className={Object.entries(STATUS_CONFIG).find(([k]) => k === key)?.[1].color.replace('bg-', 'text-').split(' ')[0]}>
                                         {icon}
                                     </span>
                                     <span>
-                                        <span className="text-[#3d472f]">{STATUS_CONFIG[key].label}</span>
+                                        <span className={isDisabled ? 'text-[#9a9585]' : 'text-[#3d472f]'}>{STATUS_CONFIG[key].label}</span>
                                         <span className="block text-[#9a9585] font-normal">{desc}</span>
                                     </span>
                                 </button>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
