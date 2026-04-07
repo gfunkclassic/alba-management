@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Layers, ChevronDown, Download, RotateCcw, X, UserMinus, Calendar, AlertTriangle, Check, Users, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, addDoc } from 'firebase/firestore';
 import { db } from './firebase';
 // Auth
 import { useAuth } from './contexts/AuthContext';
@@ -1266,7 +1266,7 @@ function HRPayrollApp() {
                         onDownloadInsured={downloadInsuredCSV} onDownloadFreelancer={downloadFreelancerCSV}
                         onDownloadTemplate={downloadAttendanceTemplate}
                         payrollMonth={payrollMonth} onMonthChange={movePayrollMonth}
-                        payrollStatus={payrollStatus} onStatusChange={async (month, status) => {
+                        payrollStatus={payrollStatus} onStatusChange={async (month, status, reason) => {
                             // 2차 가드: 허용 전이만 저장
                             const ALLOWED = { DRAFT: ['REVIEW'], REVIEW: ['CONFIRMED'], CONFIRMED: ['AMENDING'], AMENDING: ['CONFIRMED'] };
                             const current = payrollStatusRef.current[month] || 'DRAFT';
@@ -1274,6 +1274,23 @@ function HRPayrollApp() {
                             if (!(ALLOWED[current] || []).includes(status)) {
                                 showNotificationMsg('허용되지 않은 상태 전이입니다.', 'error');
                                 return;
+                            }
+                            // CONFIRMED → AMENDING: 로그 먼저 저장 후 상태 변경
+                            if (current === 'CONFIRMED' && status === 'AMENDING') {
+                                if (!reason?.trim()) {
+                                    showNotificationMsg('정정 사유를 입력해 주세요.', 'error');
+                                    return;
+                                }
+                                await addDoc(collection(db, 'payroll_status_logs'), {
+                                    month,
+                                    from_status: current,
+                                    to_status: status,
+                                    reason: reason.trim(),
+                                    changed_by_uid: userProfile?.uid || '',
+                                    changed_by_name: userProfile?.name || '',
+                                    changed_by_role: userProfile?.roleGroup || '',
+                                    changed_at: new Date().toISOString(),
+                                });
                             }
                             await savePayrollStatus(month, status);
                         }}

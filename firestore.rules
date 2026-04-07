@@ -215,6 +215,14 @@ service cloud.firestore {
       allow write: if isAuthed() && isAdmin();
     }
 
+    // ─── 급여 상태 변경 로그 ──────────────────────────────────────
+    // admin만 로그 생성 가능. 수정/삭제 불가(불변 로그).
+    match /payroll_status_logs/{docId} {
+      allow read: if isAuthed() && isAdmin();
+      allow create: if isAuthed() && isAdmin();
+      allow update, delete: if false;
+    }
+
     // ─── 근태 수정 로그 ────────────────────────────────────────
     // attendance 수정 가능 주체(admin)만 로그 생성 가능. 수정/삭제 불가(불변 로그).
     match /attendance_edit_logs/{docId} {
