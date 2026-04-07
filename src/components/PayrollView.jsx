@@ -82,74 +82,20 @@ export default function PayrollView({
 
     return (
         <div className="space-y-4">
-            {/* ── 월 선택 + 마감 상태 배너 ── */}
-            <div className={`border-2 p-4 flex items-center justify-between gap-4 ${statusCfg.border} ${statusCfg.color}`}>
+            {/* ── 월 선택 헤더 ── */}
+            <div className="border-2 p-4 flex items-center justify-between gap-4 border-[#3d472f] bg-[#5d6c4a]">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => onMonthChange(-1)} className={`p-1.5 hover:opacity-80 ${statusCfg.text} border ${statusCfg.border}`} disabled={isLocked}>
+                    <button onClick={() => onMonthChange(-1)} className="p-1.5 hover:opacity-80 text-[#f5f3e8] border border-[#3d472f]">
                         <ChevronLeft size={20} />
                     </button>
-                    <h2 className={`text-xl font-black tracking-tight min-w-[120px] text-center ${statusCfg.text}`}>
+                    <h2 className="text-xl font-black tracking-tight min-w-[120px] text-center text-[#f5f3e8]">
                         {payrollMonth.replace('-', '.')}
                     </h2>
-                    <button onClick={() => onMonthChange(1)} className={`p-1.5 hover:opacity-80 ${statusCfg.text} border ${statusCfg.border}`} disabled={isLocked}>
+                    <button onClick={() => onMonthChange(1)} className="p-1.5 hover:opacity-80 text-[#f5f3e8] border border-[#3d472f]">
                         <ChevronRight size={20} />
                     </button>
                 </div>
-
-                {/* Status badge + menu */}
-                <div className="flex items-center gap-3 relative">
-                    {isLocked && (
-                        <div className={`flex items-center gap-1.5 text-xs font-bold ${statusCfg.text} opacity-80`}>
-                            <Lock size={14} />
-                            <span>근태 수정 잠금</span>
-                        </div>
-                    )}
-                    <button
-                        onClick={() => setShowStatusMenu(v => !v)}
-                        className={`flex items-center gap-2 px-3 py-1.5 text-xs font-bold border-2 ${statusCfg.border} ${statusCfg.text} bg-white/10 hover:bg-white/20`}
-                    >
-                        <span className={`w-2 h-2 rounded-full ${statusCfg.dot}`} />
-                        {statusCfg.label}
-                        <ChevronDown size={12} className={showStatusMenu ? 'rotate-180' : ''} />
-                    </button>
-                    {showStatusMenu && (
-                        <div className="absolute right-0 top-full mt-1 w-52 bg-[#f5f3e8] border-2 border-[#3d472f] shadow-xl z-50">
-                            {[
-                                { key: 'DRAFT', icon: <AlertCircle size={14} />, desc: '입력 진행 중' },
-                                { key: 'CONFIRMED', icon: <CheckCircle size={14} />, desc: '확정 — 수정 잠금' },
-                                { key: 'AMENDING', icon: <RotateCcw size={14} />, desc: '정정 진행 중' },
-                            ].map(({ key, icon, desc }) => {
-                                const isCurrent = currentStatus === key;
-                                const isAllowed = (ALLOWED_TRANSITIONS[currentStatus] || []).includes(key);
-                                const isDisabled = !isCurrent && !isAllowed;
-                                return (
-                                <button
-                                    key={key}
-                                    onClick={() => !isDisabled && handleStatusChange(key)}
-                                    className={`w-full text-left px-3 py-2.5 text-xs flex items-start gap-2 transition-colors border-b border-[#e8e4d4] last:border-0 ${isCurrent ? 'bg-[#e8ebd8] font-black' : isDisabled ? 'opacity-40 cursor-not-allowed' : 'font-bold hover:bg-[#e8e4d4]'}`}
-                                >
-                                    <span className={Object.entries(STATUS_CONFIG).find(([k]) => k === key)?.[1].color.replace('bg-', 'text-').split(' ')[0]}>
-                                        {icon}
-                                    </span>
-                                    <span>
-                                        <span className={isDisabled ? 'text-[#9a9585]' : 'text-[#3d472f]'}>{STATUS_CONFIG[key].label}</span>
-                                        <span className="block text-[#9a9585] font-normal">{desc}</span>
-                                    </span>
-                                </button>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
             </div>
-
-            {/* 확정 잠금 안내 배너 */}
-            {isLocked && (
-                <div className="bg-[#e8ebd8] border-2 border-[#b8c4a0] p-3 flex items-center gap-2 text-xs text-[#5d6c4a] font-bold">
-                    <Lock size={14} className="shrink-0" />
-                    <span>{payrollMonth} 급여가 <strong>확정</strong>되었습니다. 수정이 필요하면 상태를 <strong>정정중</strong>으로 변경하세요.</span>
-                </div>
-            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2 bg-[#f5f3e8] border-2 border-[#3d472f] p-1 flex">
@@ -284,42 +230,7 @@ export default function PayrollView({
                 )}
             </div>
 
-            {/* 정정 사유 입력 다이얼로그 */}
-            {showAmendDialog && (
-                <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-                    <div className="bg-[#f5f3e8] shadow-lg w-full max-w-sm overflow-hidden border-2 border-[#3d472f]">
-                        <div className="p-4 border-b-2 border-[#3d472f] flex justify-between items-center bg-[#a65d57]">
-                            <h3 className="font-bold text-[#f5f3e8] flex items-center gap-2"><RotateCcw size={18} /> 정정 상태 전환</h3>
-                            <button onClick={() => setShowAmendDialog(false)} className="text-[#f5f3e8] hover:text-[#dcc0bc]"><X size={18} /></button>
-                        </div>
-                        <div className="p-5 space-y-4 bg-[#e8e4d4]">
-                            <p className="text-sm text-[#5a5545]"><strong>{payrollMonth}</strong> 급여를 <strong className="text-[#a65d57]">정정중</strong> 상태로 전환합니다.</p>
-                            <div>
-                                <label className="block text-xs font-bold text-[#5d6c4a] mb-1">정정 사유 (필수)</label>
-                                <textarea
-                                    value={amendReason}
-                                    onChange={(e) => setAmendReason(e.target.value)}
-                                    placeholder="예: 최홍석 4/3 출근시간 정정 필요"
-                                    className="w-full px-3 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] focus:border-[#5d6c4a] outline-none text-sm resize-none"
-                                    rows={3}
-                                    autoFocus
-                                />
-                                {amendReason.trim().length === 0 && (
-                                    <p className="text-[10px] text-[#a65d57] mt-1 font-bold">사유를 입력해야 전환할 수 있습니다.</p>
-                                )}
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={() => setShowAmendDialog(false)} className="flex-1 py-2 text-sm font-bold text-[#7a7565] bg-[#e8e4d4] hover:bg-[#d4dcc0] border-2 border-[#c5c0b0]">취소</button>
-                                <button
-                                    onClick={handleAmendConfirm}
-                                    disabled={!amendReason.trim()}
-                                    className={`flex-1 py-2 text-sm font-bold text-[#f5f3e8] border-2 ${amendReason.trim() ? 'bg-[#a65d57] hover:bg-[#8b4d47] border-[#7a3d37]' : 'bg-[#c5c0b0] border-[#a09a88] cursor-not-allowed'}`}
-                                >정정 전환</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* 상태 UI 제거됨 — 내부 호환용 상태 로직은 유지 */}
         </div>
     );
 }
