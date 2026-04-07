@@ -262,7 +262,8 @@ function HRPayrollApp() {
             if (record) {
                 dailyRecords[dateStr] = { checkIn: record.checkIn, checkOut: record.checkOut, overtime: record.overtime, reason: record.reason || '', isRecorded: true, isTargetMonth: isTargetMonthDay };
             } else {
-                const dayOfWeek = new Date(dateStr).getDay();
+                const [_y, _m, _d] = dateStr.split('-').map(Number);
+                const dayOfWeek = new Date(_y, _m - 1, _d).getDay();
                 if (dayOfWeek >= 1 && dayOfWeek <= 5) {
                     dailyRecords[dateStr] = { checkIn: user.checkIn, checkOut: user.checkOut, overtime: 0, reason: '', isRecorded: false, isTargetMonth: isTargetMonthDay };
                 } else {
