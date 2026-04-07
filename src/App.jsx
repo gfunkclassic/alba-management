@@ -1198,6 +1198,139 @@ function HRPayrollApp() {
         saveXlsx(wb, `${payrollMonth}_4대보험가입자_노무사전달용.xlsx`);
     };
 
+    // ── 노무사 최종 제출용 급여명세서 ──
+    const downloadLaborSubmission = () => {
+        const insuredUsers = filteredData.filter(u => u.insuranceStatus);
+        const wb = XLSX.utils.book_new();
+        const [tYear, tMon] = payrollMonth.split('-').map(Number);
+        const daysInMonth = new Date(tYear, tMon, 0).getDate();
+        const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
+        const THIN_BORDER = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+        const HDR = { font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '2F5597' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: THIN_BORDER };
+        const CELL = { font: { sz: 9 }, alignment: { horizontal: 'center', vertical: 'center' }, border: THIN_BORDER };
+        const CELL_R = { font: { sz: 9 }, alignment: { horizontal: 'right', vertical: 'center' }, border: THIN_BORDER, numFmt: '#,##0' };
+        const LABEL = { font: { bold: true, sz: 9 }, alignment: { horizontal: 'left', vertical: 'center' }, border: THIN_BORDER, fill: { fgColor: { rgb: 'D6E4F0' } } };
+        const TOTAL = { font: { bold: true, sz: 10, color: { rgb: 'FF0000' } }, alignment: { horizontal: 'right', vertical: 'center' }, border: THIN_BORDER, numFmt: '#,##0', fill: { fgColor: { rgb: 'FFF2CC' } } };
+
+        insuredUsers.forEach(u => {
+            const pay = calculateMonthlyWage(u, payrollMonth);
+            const bd = pay.dailyBreakdown || [];
+            const wl = pay.weeklyLogsList || [];
+
+            // ── 시트 데이터(AOA) 구성 ──
+            const rows = [];
+            // Row 0: 제목
+            rows.push([`${tYear}.${String(tMon).padStart(2, '0')}월 급여명세서`, '', '', '', '', '', '', `이름`, u.name]);
+            // Row 1: 인적사항
+            rows.push(['', '', '', '', '', '', '', '부서', u.team || '']);
+            // Row 2
+            rows.push(['', '', '', '', '', '', '', '시급', u.wage]);
+            // Row 3
+            rows.push(['', '', '', '', '', '', '', '입사일', u.startDate || '']);
+            // Row 4: 빈줄
+            rows.push([]);
+
+            // Row 5: 일별 근무시간 헤더 + 주차별 헤더
+            rows.push(['날짜', '요일', '출근', '퇴근', '근무(h)', '야근(h)', '비고', '', '주차', '기간', '근무일', '시간(h)', '주휴(h)', '주휴수당']);
+            // Row 6~: 일별 데이터
+            const dailyStartRow = 6;
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const ds = `${tYear}-${String(tMon).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const entry = bd.find(e => e.date === ds);
+                const [_dy, _dm, _dd] = ds.split('-').map(Number);
+                const dow = new Date(_dy, _dm - 1, _dd).getDay();
+                const dayLabel = dayNames[dow];
+
+                let checkIn = '', checkOut = '', hours = '', overtime = '', remark = '';
+                if (entry) {
+                    checkIn = entry.checkIn || '';
+                    checkOut = entry.checkOut || '';
+                    hours = entry.hours > 0 ? entry.hours : '';
+                    overtime = entry.overtimeHours > 0 ? entry.overtimeHours : '';
+                    remark = entry.reason || '';
+                }
+                if (!remark) {
+                    if (dow === 0) remark = '일요일 휴무';
+                    else if (dow === 6) remark = '토요일';
+                    else if (KR_HOLIDAY_NAMES[ds]) remark = KR_HOLIDAY_NAMES[ds];
+                }
+
+                // 우측에 주차별 데이터 배치 (주차 수만큼만)
+                const weekIdx = d - 1; // 0-based
+                let wWeek = '', wRange = '', wDays = '', wHours = '', wHolidayH = '', wHolidayPay = '';
+                if (weekIdx < wl.length) {
+                    const wk = wl[weekIdx];
+                    wWeek = wk.weekStr.split(' ')[0]; // "1주차"
+                    wRange = wk.weekStr.replace(/.*\(/, '').replace(/\).*/, ''); // "01/06~10"
+                    wDays = `${wk.daysWorked}일`;
+                    wHours = Math.round(wk.totalHours * 10) / 10;
+                    wHolidayH = wk.holidayHours > 0 ? Math.round(wk.holidayHours * 10) / 10 : 0;
+                    wHolidayPay = wk.holidayPay > 0 ? wk.holidayPay : 0;
+                }
+
+                rows.push([
+                    `${tMon}/${d}`, dayLabel, checkIn, checkOut, hours, overtime, remark,
+                    '', wWeek, wRange, wDays, wHours, wHolidayH, wHolidayPay
+                ]);
+            }
+
+            // 급여 요약 행 (일별 표 끝나고)
+            const summaryStartRow = dailyStartRow + daysInMonth + 1;
+            rows.push([]); // 빈줄
+
+            const basePay = pay.actualBasePayOnly || 0;
+            const overtimePay = Math.round((pay.actual || 0) - basePay - (pay.actualHolidayPay || 0));
+            rows.push(['', '', '', '', '', '', '', '', '항목', '', '', '', '', '금액']);
+            rows.push(['', '', '', '', '', '', '', '', '일반급여', '', '', '', '', basePay]);
+            rows.push(['', '', '', '', '', '', '', '', '주휴수당', '', '', '', '', pay.actualHolidayPay || 0]);
+            rows.push(['', '', '', '', '', '', '', '', '야근수당', '', '', '', '', overtimePay > 0 ? overtimePay : 0]);
+            rows.push(['', '', '', '', '', '', '', '', '총 급여 (세전)', '', '', '', '', pay.actual || 0]);
+
+            // 시트 생성
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            ws['!cols'] = [
+                { wch: 6 }, { wch: 4 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 14 },
+                { wch: 2 }, // 구분선
+                { wch: 7 }, { wch: 12 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 12 }
+            ];
+
+            // 스타일 적용
+            // 제목 (Row 0)
+            applyStyles(ws, { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, { font: { bold: true, sz: 13, color: { rgb: '2F5597' } }, alignment: { horizontal: 'left', vertical: 'center' } });
+            // 인적사항 라벨 (Row 0~3, col 7~8)
+            for (let r = 0; r <= 3; r++) {
+                applyStyles(ws, { s: { r, c: 7 }, e: { r, c: 7 } }, LABEL);
+                applyStyles(ws, { s: { r, c: 8 }, e: { r, c: 8 } }, (rr, cc) => cc === 8 && rr === 2 ? { ...CELL_R, numFmt: '#,##0"원"' } : CELL);
+            }
+            // 일별 헤더 (Row 5, col 0~6)
+            applyStyles(ws, { s: { r: 5, c: 0 }, e: { r: 5, c: 6 } }, HDR);
+            // 주차별 헤더 (Row 5, col 8~13)
+            applyStyles(ws, { s: { r: 5, c: 8 }, e: { r: 5, c: 13 } }, HDR);
+            // 일별 데이터 (Row 6 ~ 6+daysInMonth-1)
+            applyStyles(ws, { s: { r: dailyStartRow, c: 0 }, e: { r: dailyStartRow + daysInMonth - 1, c: 6 } }, (r, c) => {
+                const dow = rows[r]?.[1];
+                if (dow === '토' || dow === '일') return { ...CELL, fill: { fgColor: { rgb: 'F2F2F2' } } };
+                if (c === 4 || c === 5) return CELL_R;
+                return CELL;
+            });
+            // 주차별 데이터
+            applyStyles(ws, { s: { r: dailyStartRow, c: 8 }, e: { r: dailyStartRow + wl.length - 1, c: 13 } }, (r, c) => c === 13 ? CELL_R : CELL);
+            // 급여 요약 (summaryStartRow+1 ~ +4)
+            const sRow = summaryStartRow + 1;
+            applyStyles(ws, { s: { r: sRow, c: 8 }, e: { r: sRow, c: 13 } }, HDR);
+            for (let i = 1; i <= 4; i++) {
+                applyStyles(ws, { s: { r: sRow + i, c: 8 }, e: { r: sRow + i, c: 12 } }, LABEL);
+                applyStyles(ws, { s: { r: sRow + i, c: 13 }, e: { r: sRow + i, c: 13 } }, i === 4 ? TOTAL : CELL_R);
+            }
+
+            XLSX.utils.book_append_sheet(wb, ws, `${u.name}`.substring(0, 31));
+        });
+
+        saveXlsx(wb, `${payrollMonth}_노무사_최종제출용.xlsx`);
+    };
+
     const downloadFreelancerCSV = () => {
         const freelancerUsers = filteredData.filter(u => !u.insuranceStatus);
         const headers = ["성별", "이름", "은행", "계좌번호", "팀", "급여(세전)", "3.3%공제", "실지급액", "비고"];
@@ -1287,6 +1420,7 @@ function HRPayrollApp() {
                         users={filteredData} calculateMonthlyWage={calculateMonthlyWage}
                         onDownloadInsured={downloadInsuredCSV} onDownloadFreelancer={downloadFreelancerCSV}
                         onDownloadTemplate={downloadAttendanceTemplate}
+                        onDownloadLaborSubmission={downloadLaborSubmission}
                         payrollMonth={payrollMonth} onMonthChange={movePayrollMonth}
                         payrollStatus={payrollStatus} onStatusChange={async (month, status, reason) => {
                             // 2차 가드: 허용 전이만 저장 (REVIEW는 호환용으로 DRAFT처럼 취급)
