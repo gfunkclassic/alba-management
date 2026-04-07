@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Building, Wallet, Search, Download, AlertCircle, Lock, Unlock, ChevronDown, CheckCircle, AlertTriangle, RotateCcw, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Building, Wallet, Search, Download, AlertCircle, Lock, Unlock, ChevronDown, CheckCircle, AlertTriangle, RotateCcw, Eye, X } from 'lucide-react';
 
 const STATUS_CONFIG = {
     DRAFT: { label: '작성중', color: 'bg-[#9a9585] ', text: 'text-[#f5f3e8]', border: 'border-[#7a7565]', dot: 'bg-[#f5f3e8]' },
@@ -24,6 +24,8 @@ export default function PayrollView({
     const [mode, setMode] = useState('INSURED'); // 'INSURED' or 'FREELANCER'
     const [searchTerm, setSearchTerm] = useState('');
     const [showStatusMenu, setShowStatusMenu] = useState(false);
+    const [amendReason, setAmendReason] = useState('');
+    const [showAmendDialog, setShowAmendDialog] = useState(false);
 
     const currentStatus = payrollStatus?.[payrollMonth] || 'DRAFT';
     const statusCfg = STATUS_CONFIG[currentStatus];
@@ -59,8 +61,22 @@ export default function PayrollView({
     const handleStatusChange = (newStatus) => {
         const allowed = ALLOWED_TRANSITIONS[currentStatus] || [];
         if (!allowed.includes(newStatus)) return;
+        // CONFIRMED → AMENDING: 사유 입력 다이얼로그 표시
+        if (currentStatus === 'CONFIRMED' && newStatus === 'AMENDING') {
+            setAmendReason('');
+            setShowAmendDialog(true);
+            setShowStatusMenu(false);
+            return;
+        }
         onStatusChange?.(payrollMonth, newStatus);
         setShowStatusMenu(false);
+    };
+
+    const handleAmendConfirm = () => {
+        if (!amendReason.trim()) return;
+        onStatusChange?.(payrollMonth, 'AMENDING', amendReason.trim());
+        setShowAmendDialog(false);
+        setAmendReason('');
     };
 
     return (
@@ -267,6 +283,43 @@ export default function PayrollView({
                     <p><strong>본사 지급 안내:</strong> 3.3% 공제 대상자는 <strong>실제 근무 기록</strong>을 기준으로 산출된 <strong>실지급액</strong>입니다. 실지급액을 클릭하면 날짜별 내역을 확인할 수 있습니다.</p>
                 )}
             </div>
+
+            {/* 정정 사유 입력 다이얼로그 */}
+            {showAmendDialog && (
+                <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+                    <div className="bg-[#f5f3e8] shadow-lg w-full max-w-sm overflow-hidden border-2 border-[#3d472f]">
+                        <div className="p-4 border-b-2 border-[#3d472f] flex justify-between items-center bg-[#a65d57]">
+                            <h3 className="font-bold text-[#f5f3e8] flex items-center gap-2"><RotateCcw size={18} /> 정정 상태 전환</h3>
+                            <button onClick={() => setShowAmendDialog(false)} className="text-[#f5f3e8] hover:text-[#dcc0bc]"><X size={18} /></button>
+                        </div>
+                        <div className="p-5 space-y-4 bg-[#e8e4d4]">
+                            <p className="text-sm text-[#5a5545]"><strong>{payrollMonth}</strong> 급여를 <strong className="text-[#a65d57]">정정중</strong> 상태로 전환합니다.</p>
+                            <div>
+                                <label className="block text-xs font-bold text-[#5d6c4a] mb-1">정정 사유 (필수)</label>
+                                <textarea
+                                    value={amendReason}
+                                    onChange={(e) => setAmendReason(e.target.value)}
+                                    placeholder="예: 최홍석 4/3 출근시간 정정 필요"
+                                    className="w-full px-3 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] focus:border-[#5d6c4a] outline-none text-sm resize-none"
+                                    rows={3}
+                                    autoFocus
+                                />
+                                {amendReason.trim().length === 0 && (
+                                    <p className="text-[10px] text-[#a65d57] mt-1 font-bold">사유를 입력해야 전환할 수 있습니다.</p>
+                                )}
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => setShowAmendDialog(false)} className="flex-1 py-2 text-sm font-bold text-[#7a7565] bg-[#e8e4d4] hover:bg-[#d4dcc0] border-2 border-[#c5c0b0]">취소</button>
+                                <button
+                                    onClick={handleAmendConfirm}
+                                    disabled={!amendReason.trim()}
+                                    className={`flex-1 py-2 text-sm font-bold text-[#f5f3e8] border-2 ${amendReason.trim() ? 'bg-[#a65d57] hover:bg-[#8b4d47] border-[#7a3d37]' : 'bg-[#c5c0b0] border-[#a09a88] cursor-not-allowed'}`}
+                                >정정 전환</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
