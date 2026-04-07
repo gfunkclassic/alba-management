@@ -3,16 +3,17 @@ import { ChevronLeft, ChevronRight, Building, Wallet, Search, Download, AlertCir
 
 const STATUS_CONFIG = {
     DRAFT: { label: '작성중', color: 'bg-[#9a9585] ', text: 'text-[#f5f3e8]', border: 'border-[#7a7565]', dot: 'bg-[#f5f3e8]' },
-    REVIEW: { label: '검토중', color: 'bg-[#d8973c]', text: 'text-[#f5f3e8]', border: 'border-[#b87a2c]', dot: 'bg-[#f5f3e8]' },
+    REVIEW: { label: '작성중', color: 'bg-[#9a9585] ', text: 'text-[#f5f3e8]', border: 'border-[#7a7565]', dot: 'bg-[#f5f3e8]' }, // 호환용: REVIEW → DRAFT처럼 표시
     CONFIRMED: { label: '확정', color: 'bg-[#5d6c4a]', text: 'text-[#f5f3e8]', border: 'border-[#3d472f]', dot: 'bg-[#d4dcc0]' },
     AMENDING: { label: '정정중', color: 'bg-[#a65d57]', text: 'text-[#f5f3e8]', border: 'border-[#7a3d37]', dot: 'bg-[#f5f3e8]' },
 };
 
-const STATUS_FLOW = ['DRAFT', 'REVIEW', 'CONFIRMED'];
+const STATUS_FLOW = ['DRAFT', 'CONFIRMED'];
 
+// REVIEW는 기존 데이터 호환을 위해 DRAFT와 동일하게 취급
 const ALLOWED_TRANSITIONS = {
-    DRAFT: ['REVIEW'],
-    REVIEW: ['CONFIRMED'],
+    DRAFT: ['CONFIRMED'],
+    REVIEW: ['CONFIRMED'], // 호환: 기존 REVIEW 데이터도 CONFIRMED로 전이 가능
     CONFIRMED: ['AMENDING'],
     AMENDING: ['CONFIRMED'],
 };
@@ -115,7 +116,6 @@ export default function PayrollView({
                         <div className="absolute right-0 top-full mt-1 w-52 bg-[#f5f3e8] border-2 border-[#3d472f] shadow-xl z-50">
                             {[
                                 { key: 'DRAFT', icon: <AlertCircle size={14} />, desc: '입력 진행 중' },
-                                { key: 'REVIEW', icon: <Eye size={14} />, desc: '검토 요청 상태' },
                                 { key: 'CONFIRMED', icon: <CheckCircle size={14} />, desc: '확정 — 수정 잠금' },
                                 { key: 'AMENDING', icon: <RotateCcw size={14} />, desc: '정정 진행 중' },
                             ].map(({ key, icon, desc }) => {
