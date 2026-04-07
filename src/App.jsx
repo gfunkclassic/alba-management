@@ -1267,6 +1267,14 @@ function HRPayrollApp() {
                         onDownloadTemplate={downloadAttendanceTemplate}
                         payrollMonth={payrollMonth} onMonthChange={movePayrollMonth}
                         payrollStatus={payrollStatus} onStatusChange={async (month, status) => {
+                            // 2차 가드: 허용 전이만 저장
+                            const ALLOWED = { DRAFT: ['REVIEW'], REVIEW: ['CONFIRMED'], CONFIRMED: ['AMENDING'], AMENDING: ['CONFIRMED'] };
+                            const current = payrollStatusRef.current[month] || 'DRAFT';
+                            if (current === status) return;
+                            if (!(ALLOWED[current] || []).includes(status)) {
+                                showNotificationMsg('허용되지 않은 상태 전이입니다.', 'error');
+                                return;
+                            }
                             await savePayrollStatus(month, status);
                         }}
                         onOpenDetail={(user) => { setPayrollDetailUser(user); openModal('payrollDetail'); }}
