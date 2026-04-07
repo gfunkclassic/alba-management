@@ -3,6 +3,7 @@ import { Layers, ChevronDown, Download, RotateCcw, X, UserMinus, Calendar, Alert
 import * as XLSX from 'xlsx-js-style';
 import { doc, setDoc, collection, addDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { KR_HOLIDAY_NAMES } from './data/holidays';
 // Auth
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/auth/LoginPage';
@@ -1077,6 +1078,26 @@ function HRPayrollApp() {
                     notableEntries.push([ds, '연장근무', `+${rec.overtime || 0}h`, overtimeReason]);
                 }
             }
+
+            // 공휴일/주말 자동 비고 (attendance 기록 유무와 무관하게 날짜 기반 생성)
+            for (let d = 1; d <= dim; d++) {
+                const ds = `${ty}-${String(tmn).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const [_hy, _hm, _hd] = ds.split('-').map(Number);
+                const dow = new Date(_hy, _hm - 1, _hd).getDay();
+                const holidayName = KR_HOLIDAY_NAMES[ds];
+                const rec = userAtt[ds];
+                const hasReason = rec && (rec.reason || '').trim();
+
+                if (dow === 0 && !hasReason) {
+                    notableEntries.push([ds, '휴무', '-', '일요일 휴무']);
+                } else if (dow === 6 && !hasReason) {
+                    notableEntries.push([ds, '주휴', '-', '토요일 주휴']);
+                } else if (holidayName && !hasReason) {
+                    notableEntries.push([ds, '공휴일', '-', holidayName]);
+                }
+            }
+            // 날짜순 정렬
+            notableEntries.sort((a, b) => a[0].localeCompare(b[0]));
 
             let noteHeaderRow = -1, noteDataStartRow = -1, noteCount = 0;
             if (notableEntries.length > 0) {
