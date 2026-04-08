@@ -1206,36 +1206,35 @@ function HRPayrollApp() {
         const daysInMonth = new Date(tYear, tMon, 0).getDate();
         const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
 
-        const THIN_BORDER = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
-        const HDR = { font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '2F5597' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: THIN_BORDER };
-        const CELL = { font: { sz: 9 }, alignment: { horizontal: 'center', vertical: 'center' }, border: THIN_BORDER };
-        const CELL_R = { font: { sz: 9 }, alignment: { horizontal: 'right', vertical: 'center' }, border: THIN_BORDER, numFmt: '#,##0' };
-        const LABEL = { font: { bold: true, sz: 9 }, alignment: { horizontal: 'left', vertical: 'center' }, border: THIN_BORDER, fill: { fgColor: { rgb: 'D6E4F0' } } };
-        const TOTAL = { font: { bold: true, sz: 10, color: { rgb: 'FF0000' } }, alignment: { horizontal: 'right', vertical: 'center' }, border: THIN_BORDER, numFmt: '#,##0', fill: { fgColor: { rgb: 'FFF2CC' } } };
+        const B = { top: { style: 'thin', color: { rgb: 'B0B0B0' } }, bottom: { style: 'thin', color: { rgb: 'B0B0B0' } }, left: { style: 'thin', color: { rgb: 'B0B0B0' } }, right: { style: 'thin', color: { rgb: 'B0B0B0' } } };
+        const HDR = { font: { bold: true, sz: 9, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '2F5597' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: B };
+        const C = { font: { sz: 9 }, alignment: { horizontal: 'center', vertical: 'center' }, border: B };
+        const CR = { font: { sz: 9 }, alignment: { horizontal: 'right', vertical: 'center' }, border: B, numFmt: '#,##0' };
+        const LBL = { font: { bold: true, sz: 9, color: { rgb: '2F5597' } }, alignment: { horizontal: 'right', vertical: 'center' }, border: B, fill: { fgColor: { rgb: 'D6E4F0' } } };
+        const VAL = { font: { sz: 9 }, alignment: { horizontal: 'left', vertical: 'center' }, border: B };
+        const WE = { font: { sz: 9, color: { rgb: '888888' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: B, fill: { fgColor: { rgb: 'F5F5F5' } } };
 
         insuredUsers.forEach(u => {
             const pay = calculateMonthlyWage(u, payrollMonth);
             const bd = pay.dailyBreakdown || [];
             const wl = pay.weeklyLogsList || [];
 
-            // ── 시트 데이터(AOA) 구성 ──
             const rows = [];
-            // Row 0: 제목
-            rows.push([`${tYear}.${String(tMon).padStart(2, '0')}월 급여명세서`, '', '', '', '', '', '', `이름`, u.name]);
-            // Row 1: 인적사항
-            rows.push(['', '', '', '', '', '', '', '부서', u.team || '']);
-            // Row 2
-            rows.push(['', '', '', '', '', '', '', '시급', u.wage]);
-            // Row 3
-            rows.push(['', '', '', '', '', '', '', '입사일', u.startDate || '']);
+            // Row 0: 제목 (좌측 전체 병합)
+            rows.push([`${tYear}.${String(tMon).padStart(2, '0')}월 급여명세서`]);
+            // Row 1: 빈줄 (여백)
+            rows.push([]);
+            // Row 2~5: 인적사항 (우측 배치)
+            rows.push(['', '', '', '', '', '', '', '', '이름', u.name, '', '시급', u.wage]);
+            rows.push(['', '', '', '', '', '', '', '', '부서', u.team || '', '', '입사일', u.startDate || '']);
             // Row 4: 빈줄
             rows.push([]);
 
-            // Row 5: 일별 근무시간 헤더 + 주차별 헤더
-            rows.push(['날짜', '요일', '출근', '퇴근', '근무(h)', '야근(h)', '비고', '', '주차', '기간', '근무일', '시간(h)', '주휴(h)', '주휴수당']);
-            // Row 6~: 일별 데이터
+            // Row 5: 좌측 일별 헤더 + 우측 주차별 헤더
+            rows.push(['날짜', '요일', '출근', '퇴근', '근무', '야근', '비고', '', '주차', '기간', '근무일', '시간', '주휴(h)', '주휴수당']);
             const dailyStartRow = 6;
 
+            // 일별 + 주차별 병렬 배치
             for (let d = 1; d <= daysInMonth; d++) {
                 const ds = `${tYear}-${String(tMon).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 const entry = bd.find(e => e.date === ds);
@@ -1257,72 +1256,101 @@ function HRPayrollApp() {
                     else if (KR_HOLIDAY_NAMES[ds]) remark = KR_HOLIDAY_NAMES[ds];
                 }
 
-                // 우측에 주차별 데이터 배치 (주차 수만큼만)
-                const weekIdx = d - 1; // 0-based
-                let wWeek = '', wRange = '', wDays = '', wHours = '', wHolidayH = '', wHolidayPay = '';
+                const weekIdx = d - 1;
+                let wc = ['', '', '', '', '', ''];
                 if (weekIdx < wl.length) {
                     const wk = wl[weekIdx];
-                    wWeek = wk.weekStr.split(' ')[0]; // "1주차"
-                    wRange = wk.weekStr.replace(/.*\(/, '').replace(/\).*/, ''); // "01/06~10"
-                    wDays = `${wk.daysWorked}일`;
-                    wHours = Math.round(wk.totalHours * 10) / 10;
-                    wHolidayH = wk.holidayHours > 0 ? Math.round(wk.holidayHours * 10) / 10 : 0;
-                    wHolidayPay = wk.holidayPay > 0 ? wk.holidayPay : 0;
+                    wc = [
+                        wk.weekStr.split(' ')[0],
+                        wk.weekStr.replace(/.*\(/, '').replace(/\).*/, ''),
+                        `${wk.daysWorked}일`,
+                        Math.round(wk.totalHours * 10) / 10,
+                        wk.holidayHours > 0 ? Math.round(wk.holidayHours * 10) / 10 : 0,
+                        wk.holidayPay > 0 ? wk.holidayPay : 0
+                    ];
                 }
 
-                rows.push([
-                    `${tMon}/${d}`, dayLabel, checkIn, checkOut, hours, overtime, remark,
-                    '', wWeek, wRange, wDays, wHours, wHolidayH, wHolidayPay
-                ]);
+                rows.push([`${tMon}/${d}`, dayLabel, checkIn, checkOut, hours, overtime, remark, '', ...wc]);
             }
 
-            // 급여 요약 행 (일별 표 끝나고)
-            const summaryStartRow = dailyStartRow + daysInMonth + 1;
-            rows.push([]); // 빈줄
+            // 일별 합계행
+            const totalHours = Math.round((pay.totalActualHours || 0) * 10) / 10;
+            const totalOT = Math.round((pay.totalActualOvertime || 0) * 10) / 10;
+            rows.push(['합계', '', '', '', totalHours, totalOT > 0 ? totalOT : '', '', '', '', '', '', '', '', '']);
+            const totalRow = dailyStartRow + daysInMonth;
 
+            // 빈줄
+            rows.push([]);
+
+            // 급여 요약
             const basePay = pay.actualBasePayOnly || 0;
             const overtimePay = Math.round((pay.actual || 0) - basePay - (pay.actualHolidayPay || 0));
-            rows.push(['', '', '', '', '', '', '', '', '항목', '', '', '', '', '금액']);
+            const summaryRow = totalRow + 2;
+            rows.push(['', '', '', '', '', '', '', '', '급여 항목', '', '', '', '', '금액']);
             rows.push(['', '', '', '', '', '', '', '', '일반급여', '', '', '', '', basePay]);
             rows.push(['', '', '', '', '', '', '', '', '주휴수당', '', '', '', '', pay.actualHolidayPay || 0]);
             rows.push(['', '', '', '', '', '', '', '', '야근수당', '', '', '', '', overtimePay > 0 ? overtimePay : 0]);
             rows.push(['', '', '', '', '', '', '', '', '총 급여 (세전)', '', '', '', '', pay.actual || 0]);
 
-            // 시트 생성
             const ws = XLSX.utils.aoa_to_sheet(rows);
+
+            // 컬럼 폭
             ws['!cols'] = [
-                { wch: 6 }, { wch: 4 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 14 },
-                { wch: 2 }, // 구분선
-                { wch: 7 }, { wch: 12 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 12 }
+                { wch: 7 }, { wch: 4 }, { wch: 7 }, { wch: 7 }, { wch: 6 }, { wch: 6 }, { wch: 16 },
+                { wch: 1.5 },
+                { wch: 8 }, { wch: 13 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 13 }
             ];
 
-            // 스타일 적용
-            // 제목 (Row 0)
-            applyStyles(ws, { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, { font: { bold: true, sz: 13, color: { rgb: '2F5597' } }, alignment: { horizontal: 'left', vertical: 'center' } });
-            // 인적사항 라벨 (Row 0~3, col 7~8)
-            for (let r = 0; r <= 3; r++) {
-                applyStyles(ws, { s: { r, c: 7 }, e: { r, c: 7 } }, LABEL);
-                applyStyles(ws, { s: { r, c: 8 }, e: { r, c: 8 } }, (rr, cc) => cc === 8 && rr === 2 ? { ...CELL_R, numFmt: '#,##0"원"' } : CELL);
+            // 행 높이
+            ws['!rows'] = [{ hpt: 28 }]; // 제목행 높이
+
+            // 셀 병합
+            ws['!merges'] = [
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },   // 제목 좌측 전체 병합
+                { s: { r: totalRow, c: 0 }, e: { r: totalRow, c: 3 } }, // 합계 라벨 병합
+                // 급여 요약 항목명 병합
+                { s: { r: summaryRow, c: 8 }, e: { r: summaryRow, c: 12 } },
+                { s: { r: summaryRow + 1, c: 8 }, e: { r: summaryRow + 1, c: 12 } },
+                { s: { r: summaryRow + 2, c: 8 }, e: { r: summaryRow + 2, c: 12 } },
+                { s: { r: summaryRow + 3, c: 8 }, e: { r: summaryRow + 3, c: 12 } },
+                { s: { r: summaryRow + 4, c: 8 }, e: { r: summaryRow + 4, c: 12 } },
+            ];
+
+            // ── 스타일 ──
+            // 제목
+            applyStyles(ws, { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, { font: { bold: true, sz: 14, color: { rgb: '1F3864' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { bottom: { style: 'medium', color: { rgb: '2F5597' } } } });
+            // 인적사항 (Row 2~3, col 8~12)
+            for (let r = 2; r <= 3; r++) {
+                applyStyles(ws, { s: { r, c: 8 }, e: { r, c: 8 } }, LBL);
+                applyStyles(ws, { s: { r, c: 9 }, e: { r, c: 9 } }, VAL);
+                applyStyles(ws, { s: { r, c: 11 }, e: { r, c: 11 } }, LBL);
+                applyStyles(ws, { s: { r, c: 12 }, e: { r, c: 12 } }, r === 2 ? { ...VAL, numFmt: '#,##0"원"' } : VAL);
             }
-            // 일별 헤더 (Row 5, col 0~6)
+            // 일별 헤더
             applyStyles(ws, { s: { r: 5, c: 0 }, e: { r: 5, c: 6 } }, HDR);
-            // 주차별 헤더 (Row 5, col 8~13)
+            // 주차별 헤더
             applyStyles(ws, { s: { r: 5, c: 8 }, e: { r: 5, c: 13 } }, HDR);
-            // 일별 데이터 (Row 6 ~ 6+daysInMonth-1)
+            // 일별 데이터
             applyStyles(ws, { s: { r: dailyStartRow, c: 0 }, e: { r: dailyStartRow + daysInMonth - 1, c: 6 } }, (r, c) => {
                 const dow = rows[r]?.[1];
-                if (dow === '토' || dow === '일') return { ...CELL, fill: { fgColor: { rgb: 'F2F2F2' } } };
-                if (c === 4 || c === 5) return CELL_R;
-                return CELL;
+                if (dow === '토' || dow === '일') return c === 4 || c === 5 ? { ...WE, alignment: { horizontal: 'right', vertical: 'center' } } : WE;
+                if (c === 4 || c === 5) return CR;
+                return C;
             });
+            // 합계행
+            applyStyles(ws, { s: { r: totalRow, c: 0 }, e: { r: totalRow, c: 6 } }, { font: { bold: true, sz: 9 }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: { style: 'medium', color: { rgb: '2F5597' } }, bottom: { style: 'medium', color: { rgb: '2F5597' } } }, fill: { fgColor: { rgb: 'E2EFDA' } } });
+            applyStyles(ws, { s: { r: totalRow, c: 4 }, e: { r: totalRow, c: 5 } }, { font: { bold: true, sz: 9 }, alignment: { horizontal: 'right', vertical: 'center' }, border: { top: { style: 'medium', color: { rgb: '2F5597' } }, bottom: { style: 'medium', color: { rgb: '2F5597' } } }, fill: { fgColor: { rgb: 'E2EFDA' } }, numFmt: '#,##0' });
             // 주차별 데이터
-            applyStyles(ws, { s: { r: dailyStartRow, c: 8 }, e: { r: dailyStartRow + wl.length - 1, c: 13 } }, (r, c) => c === 13 ? CELL_R : CELL);
-            // 급여 요약 (summaryStartRow+1 ~ +4)
-            const sRow = summaryStartRow + 1;
-            applyStyles(ws, { s: { r: sRow, c: 8 }, e: { r: sRow, c: 13 } }, HDR);
+            if (wl.length > 0) {
+                applyStyles(ws, { s: { r: dailyStartRow, c: 8 }, e: { r: dailyStartRow + wl.length - 1, c: 13 } }, (r, c) => c === 13 ? CR : C);
+            }
+            // 급여 요약 헤더
+            applyStyles(ws, { s: { r: summaryRow, c: 8 }, e: { r: summaryRow, c: 13 } }, HDR);
+            // 급여 요약 행
             for (let i = 1; i <= 4; i++) {
-                applyStyles(ws, { s: { r: sRow + i, c: 8 }, e: { r: sRow + i, c: 12 } }, LABEL);
-                applyStyles(ws, { s: { r: sRow + i, c: 13 }, e: { r: sRow + i, c: 13 } }, i === 4 ? TOTAL : CELL_R);
+                const isTotal = i === 4;
+                applyStyles(ws, { s: { r: summaryRow + i, c: 8 }, e: { r: summaryRow + i, c: 12 } }, isTotal ? { ...LBL, font: { bold: true, sz: 10, color: { rgb: '1F3864' } }, fill: { fgColor: { rgb: 'FFF2CC' } } } : LBL);
+                applyStyles(ws, { s: { r: summaryRow + i, c: 13 }, e: { r: summaryRow + i, c: 13 } }, isTotal ? { font: { bold: true, sz: 11, color: { rgb: 'C00000' } }, alignment: { horizontal: 'right', vertical: 'center' }, border: B, numFmt: '#,##0', fill: { fgColor: { rgb: 'FFF2CC' } } } : CR);
             }
 
             XLSX.utils.book_append_sheet(wb, ws, `${u.name}`.substring(0, 31));
