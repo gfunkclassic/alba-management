@@ -18,50 +18,45 @@ export default function HRView({
     maskPII = false, roleMode = 'ADMIN', onDeleteUser
 }) {
     const [deleteTargetUser, setDeleteTargetUser] = useState(null);
+    const [typeFilter, setTypeFilter] = useState('ALL'); // ALL | ALBA | STAFF
+
+    const displayData = typeFilter === 'ALL' ? filteredData
+        : typeFilter === 'ALBA' ? filteredData.filter(u => (u.employmentType || u.position || '아르바이트') === '아르바이트')
+        : filteredData.filter(u => (u.employmentType || u.position || '아르바이트') !== '아르바이트');
 
     return (
         <>
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatCard title="전체 직원" value={`${stats.totalActive}명`} icon={<Users size={20} className="text-[#5d6c4a]" />} />
+                <StatCard title="전체 인원" value={`${stats.totalActive}명`} icon={<Users size={20} className="text-[#5d6c4a]" />} />
                 <StatCard title="4대보험 미가입" value={`${stats.insuranceNeeded}명`} icon={<AlertTriangle size={20} className="text-[#a65d57]" />} danger={stats.insuranceNeeded > 0} />
                 <StatCard title="계약 갱신 요망 (14일 이내)" value={`${stats.needRenewal}명`} icon={<RotateCcw size={20} className="text-[#d8973c]" />} warning={stats.needRenewal > 0} />
                 <StatCard title="총 예상 급여" value={`₩${stats.totalWage.toLocaleString()}`} sub="실제 근무 기록 기준" icon={<Wallet size={20} className="text-[#5d6c4a]" />} />
             </section>
 
-            <section className="bg-[#f5f3e8] p-4 border-2 border-[#c5c0b0] mt-4">
-                <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-3 flex items-center gap-2"><Briefcase size={14} /> 팀별 현황</h3>
-                <div className="flex flex-wrap gap-2">
-                    {Object.entries(teamCounts).map(([team, count]) => (
-                        <button
-                            key={team}
-                            onClick={() => setFilterTeam(team)}
-                            className={`px-3 py-1.5 text-xs font-bold border-2 transition-colors ${filterTeam === team ? 'bg-[#5d6c4a] text-[#f5f3e8] border-[#3d472f]' : 'bg-[#e8e4d4] text-[#7a7565] border-[#c5c0b0] hover:border-[#5d6c4a]'}`}
-                        >
-                            {team} <span className="ml-1 opacity-70">({count})</span>
-                        </button>
-                    ))}
-                </div>
-            </section>
-
             <section className="bg-[#f5f3e8] p-4 border-2 border-[#c5c0b0] flex flex-wrap gap-4 items-center mt-4">
                 <div className="relative flex-1 min-w-[200px]">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9a9585]" />
-                    <input type="text" placeholder="직원 검색 (이름, 연락처)..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none" />
+                    <input type="text" placeholder="이름, 연락처 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none" />
                 </div>
-                <div className="flex gap-2">
-                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-3 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm font-bold text-[#5a5545] outline-none">
-                        <option value="ALL">전체 상태</option>
-                        <option value="RENEWAL_NEEDED">계약 갱신 임박 (14일 내)</option>
-                        <option value="INSURANCE_NEEDED">4대보험 미가입</option>
-                    </select>
-                    <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)} className="px-3 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm font-bold text-[#5a5545] border-none outline-none">
-                        {Object.keys(teamCounts).map(team => (<option key={team} value={team}>{team} ({teamCounts[team]})</option>))}
-                    </select>
-                </div>
+                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-3 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm font-bold text-[#5a5545] outline-none">
+                    <option value="ALL">전체 상태</option>
+                    <option value="RENEWAL_NEEDED">계약 갱신 임박</option>
+                    <option value="INSURANCE_NEEDED">4대보험 미가입</option>
+                </select>
+                <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)} className="px-3 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm font-bold text-[#5a5545] outline-none">
+                    {Object.keys(teamCounts).map(team => (<option key={team} value={team}>{team} ({teamCounts[team]})</option>))}
+                </select>
+                {/* 고용유형 필터 */}
                 <div className="flex bg-[#e8e4d4] border-2 border-[#c5c0b0]">
-                    <button onClick={() => setViewMode('ACTIVE')} className={`px-4 py-2 text-xs font-bold transition ${viewMode === 'ACTIVE' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#d4dcc0]'}`}>재직자</button>
-                    <button onClick={() => setViewMode('RESIGNED')} className={`px-4 py-2 text-xs font-bold border-l-2 border-[#c5c0b0] transition ${viewMode === 'RESIGNED' ? 'bg-[#a65d57] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#e6d0ce]'}`}>퇴사자</button>
-                    <button onClick={() => setViewMode('ALL')} className={`px-4 py-2 text-xs font-bold transition flex items-center ${viewMode === 'ALL' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#d4dcc0]'}`}>전체</button>
+                    {[{ key: 'ALL', label: '전체' }, { key: 'ALBA', label: '아르바이트' }, { key: 'STAFF', label: '직원/계약직' }].map(f => (
+                        <button key={f.key} onClick={() => setTypeFilter(f.key)} className={`px-3 py-1.5 text-xs font-bold transition ${typeFilter === f.key ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#d4dcc0]'} ${f.key !== 'ALL' ? 'border-l border-[#c5c0b0]' : ''}`}>{f.label}</button>
+                    ))}
+                </div>
+                {/* 재직/퇴사 필터 */}
+                <div className="flex bg-[#e8e4d4] border-2 border-[#c5c0b0]">
+                    <button onClick={() => setViewMode('ACTIVE')} className={`px-3 py-1.5 text-xs font-bold transition ${viewMode === 'ACTIVE' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#d4dcc0]'}`}>재직</button>
+                    <button onClick={() => setViewMode('RESIGNED')} className={`px-3 py-1.5 text-xs font-bold border-l border-[#c5c0b0] transition ${viewMode === 'RESIGNED' ? 'bg-[#a65d57] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#e6d0ce]'}`}>퇴사</button>
+                    <button onClick={() => setViewMode('ALL')} className={`px-3 py-1.5 text-xs font-bold border-l border-[#c5c0b0] transition ${viewMode === 'ALL' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#d4dcc0]'}`}>전체</button>
                 </div>
             </section>
 
@@ -69,52 +64,57 @@ export default function HRView({
                 <div className="flex-1 bg-[#f5f3e8] border-2 border-[#c5c0b0] shadow-md overflow-hidden">
                     <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                         <table className="w-full">
-                            <thead className="bg-[#e8e4d4] sticky top-0 z-10 border-b-2 border-[#c5c0b0] text-xs font-bold text-[#5d6c4a] uppercase tracking-wider">
-                                <tr>
-                                    <th className="p-3 pl-4 text-left">직원 정보</th>
-                                    <th className="p-3 text-left">계약 현황</th>
-                                    <th className="p-3 text-left">근무/급여 조건</th>
-                                    <th className="p-3 text-left">상태 관리</th>
-                                    <th className="p-3 pr-4 text-right">빠른 실행</th>
-                                </tr>
+                            <thead className="bg-[#e8e4d4] sticky top-0 z-10 border-b-2 border-[#c5c0b0] text-[10px] font-bold text-[#5d6c4a] uppercase tracking-wider">
+                                {typeFilter === 'STAFF' ? (
+                                    <tr><th className="p-2.5 pl-3 text-left">성별</th><th className="p-2.5 text-left">이름</th><th className="p-2.5 text-left">부서</th><th className="p-2.5 text-left">직급</th><th className="p-2.5 text-left">입사일</th><th className="p-2.5 text-center">4대보험</th><th className="p-2.5 text-left">진급일</th><th className="p-2.5 pr-3 text-right">관리</th></tr>
+                                ) : typeFilter === 'ALBA' ? (
+                                    <tr><th className="p-2.5 pl-3 text-left">성별</th><th className="p-2.5 text-left">이름</th><th className="p-2.5 text-left">팀</th><th className="p-2.5 text-left">입사일</th><th className="p-2.5 text-center">4대보험</th><th className="p-2.5 text-left">계약갱신</th><th className="p-2.5 text-center">근무시간</th><th className="p-2.5 text-right">시급</th><th className="p-2.5 pr-3 text-right">관리</th></tr>
+                                ) : (
+                                    <tr><th className="p-2.5 pl-3 text-left">성별</th><th className="p-2.5 text-left">이름</th><th className="p-2.5 text-left">유형</th><th className="p-2.5 text-left">팀/부서</th><th className="p-2.5 text-left">입사일</th><th className="p-2.5 text-center">4대보험</th><th className="p-2.5 text-left">상태</th><th className="p-2.5 pr-3 text-right">관리</th></tr>
+                                )}
                             </thead>
                             <tbody className="text-sm divide-y divide-[#ebe8db]">
-                                {filteredData.map(user => {
-                                    const isRenewalTarget = user.renewalDate && user.renewalDate !== '신규' && !user.resignDate && ((new Date(user.renewalDate) - new Date()) / (1000 * 60 * 60 * 24)) >= 0 && ((new Date(user.renewalDate) - new Date()) / (1000 * 60 * 60 * 24)) <= 14;
+                                {displayData.map(user => {
+                                    const eType = user.employmentType || user.position || '아르바이트';
+                                    const isAlba = eType === '아르바이트';
+                                    const insured = user.insuranceStatus;
                                     return (
-                                        <tr key={user.id} onClick={() => handleSelectUser(user)} className={`group cursor-pointer hover:bg-[#f4f5eb] transition-colors ${selectedUser?.id === user.id ? 'bg-[#e8ebd8]' : ''}`}>
-                                            <td className="p-3 pl-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-10 h-10 flex items-center justify-center font-bold text-lg border-2 ${user.resignDate ? 'bg-[#e8e4d4] text-[#9a9585] border-[#c5c0b0]' : 'bg-[#5d6c4a] text-[#f5f3e8] border-[#3d472f]'}`}>
-                                                        {user.name[0]}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-[#3d472f] text-base group-hover:text-[#5d6c4a] transition-colors">{user.name} <span className="text-xs font-normal text-[#7a7565] ml-1">{user.gender}</span></p>
-                                                        <p className="text-xs font-bold text-[#9a9585] flex items-center gap-1"><Briefcase size={12} />{user.team} | {user.position}</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="p-3">
-                                                <p className="text-[#5a5545] font-medium"><span className="text-[#9a9585] text-xs">입사:</span> {user.startDate}</p>
-                                                <div className="flex flex-col gap-1 mt-1">
-                                                    {user.insuranceStatus ? <span className="inline-flex items-center w-fit text-xs font-bold text-[#5d6c4a]"><Check size={12} className="mr-1" />4대보험 ({user.insuranceDate})</span> : <span className="inline-flex items-center w-fit text-xs font-bold text-[#a65d57]"><AlertTriangle size={12} className="mr-1" />3.3% 공제</span>}
-                                                </div>
-                                            </td>
-                                            <td className="p-3"><p className="font-semibold text-[#4a4535]">₩{user.wage.toLocaleString()}</p><p className="text-xs text-[#9a9585]">{user.workDays} 근무</p></td>
-                                            <td className="p-3">
-                                                <div className="flex gap-1 flex-wrap">
-                                                    {isRenewalTarget && <span className="px-1.5 py-0.5 bg-[#fcf4dc] text-[#a67c00] border border-[#e5c07b] text-[10px] font-bold animate-pulse">갱신임박</span>}
-                                                    {!user.insuranceStatus && !user.resignDate && <span className="px-1.5 py-0.5 bg-[#f8f0ef] text-[#a65d57] border border-[#dcc0bc] text-[10px] font-bold">보험미가입</span>}
-                                                    {user.resignDate && <span className="px-1.5 py-0.5 bg-[#f8f0ef] text-[#a65d57] border border-[#dcc0bc] text-[10px] font-bold">퇴사</span>}
-                                                </div>
-                                            </td>
-                                            <td className="p-3 pr-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button onClick={(e) => openUserForm(user, e)} className="p-1.5 bg-[#e8e4d4] text-[#5d6c4a] hover:bg-[#d4dcc0] border border-[#c5c0b0]" title='정보 수정'><Edit size={14} /></button>
-                                                    {!user.resignDate && (
-                                                        <button onClick={(e) => openResignModal(user, e)} className="p-1.5 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#f0e5e4] border border-[#dcc0bc]" title='퇴사 처리'><UserMinus size={14} /></button>
-                                                    )}
-                                                    <button onClick={(e) => { e.stopPropagation(); setDeleteTargetUser(user); }} className="p-1.5 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#a65d57] hover:text-[#f8f0ef] border border-[#a65d57] transition-colors" title='직원 완전 삭제'><Trash2 size={14} /></button>
+                                        <tr key={user.id} onClick={() => handleSelectUser(user)} className={`group cursor-pointer hover:bg-[#f4f5eb] transition-colors text-xs ${selectedUser?.id === user.id ? 'bg-[#e8ebd8]' : ''}`}>
+                                            <td className="p-2.5 pl-3 text-[#7a7565]">{user.gender}</td>
+                                            <td className="p-2.5 font-bold text-[#3d472f]">{user.name}</td>
+                                            {typeFilter === 'STAFF' ? (
+                                                <>
+                                                    <td className="p-2.5 text-[#5a5545]">{user.team}</td>
+                                                    <td className="p-2.5 text-[#5a5545]">{user.jobTitle || '-'}</td>
+                                                    <td className="p-2.5 text-[#5a5545]">{user.startDate}</td>
+                                                    <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#a65d57]">✗</span>}</td>
+                                                    <td className="p-2.5 text-[#5a5545]">{user.promotionDate || '-'}</td>
+                                                </>
+                                            ) : typeFilter === 'ALBA' ? (
+                                                <>
+                                                    <td className="p-2.5 text-[#5a5545]">{user.team}</td>
+                                                    <td className="p-2.5 text-[#5a5545]">{user.startDate}</td>
+                                                    <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#a65d57]">✗</span>}</td>
+                                                    <td className="p-2.5 text-[#5a5545]">{user.renewalDate || '-'}</td>
+                                                    <td className="p-2.5 text-center text-[#5a5545]">{user.checkIn}~{user.checkOut}</td>
+                                                    <td className="p-2.5 text-right font-bold text-[#3d472f]">₩{(user.wage || 0).toLocaleString()}</td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td className="p-2.5"><span className={`px-1.5 py-0.5 text-[10px] font-bold border ${isAlba ? 'bg-[#e8ebd8] text-[#5d6c4a] border-[#b8c4a0]' : 'bg-[#D6E4F0] text-[#2F5597] border-[#a0b8d0]'}`}>{eType}</span></td>
+                                                    <td className="p-2.5 text-[#5a5545]">{user.team}</td>
+                                                    <td className="p-2.5 text-[#5a5545]">{user.startDate}</td>
+                                                    <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#a65d57]">✗</span>}</td>
+                                                    <td className="p-2.5">
+                                                        {user.resignDate ? <span className="text-[10px] font-bold text-[#a65d57]">퇴사</span> : <span className="text-[10px] font-bold text-[#5d6c4a]">재직</span>}
+                                                    </td>
+                                                </>
+                                            )}
+                                            <td className="p-2.5 pr-3 text-right">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <button onClick={(e) => openUserForm(user, e)} className="p-1 bg-[#e8e4d4] text-[#5d6c4a] hover:bg-[#d4dcc0] border border-[#c5c0b0]" title='수정'><Edit size={12} /></button>
+                                                    {!user.resignDate && <button onClick={(e) => openResignModal(user, e)} className="p-1 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#f0e5e4] border border-[#dcc0bc]" title='퇴사'><UserMinus size={12} /></button>}
+                                                    <button onClick={(e) => { e.stopPropagation(); setDeleteTargetUser(user); }} className="p-1 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#a65d57] hover:text-[#f8f0ef] border border-[#a65d57] transition-colors" title='삭제'><Trash2 size={12} /></button>
                                                 </div>
                                             </td>
                                         </tr>

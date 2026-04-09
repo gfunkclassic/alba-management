@@ -1440,7 +1440,7 @@ function HRPayrollApp() {
                         {[
                             { key: 'HOME', label: '홈', icon: '🏠' },
                             { key: 'PAYROLL', label: '급여정산', icon: '₩' },
-                            { key: 'HR', label: '인력관리', icon: '👤' },
+                            { key: 'HR', label: '인사관리', icon: '👤' },
                             { key: 'LEAVE', label: '연차관리', icon: '📅' },
                             ...(userProfile?.roleGroup === 'approver_senior' || userProfile?.roleGroup === 'approver_final' ? [{ key: 'APPROVALS', label: '연차결재', icon: '✅' }] : []),
                             { key: 'EDIT_LOGS', label: '수정이력', icon: '📋' },
