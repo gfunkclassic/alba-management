@@ -40,6 +40,7 @@ import NotificationBell from './components/notifications/NotificationBell';
 
 // Components & Modals
 import CalculatorWidget from './components/CalculatorWidget';
+import HomeDashboard from './components/HomeDashboard';
 import CalendarModal from './components/modals/CalendarModal';
 import LeaveCalendarModal from './components/modals/LeaveCalendarModal';
 import UserFormModal from './components/modals/UserFormModal';
@@ -105,7 +106,7 @@ function HRPayrollApp() {
     }, [empLoading, users.length]);
 
     const [activeTab, setActiveTab] = useState(() => {
-        return localStorage.getItem('app_active_tab') || 'HR';
+        return localStorage.getItem('app_active_tab') || 'HOME';
     });
 
     useEffect(() => {
@@ -1214,6 +1215,36 @@ function HRPayrollApp() {
         const VAL = { font: { sz: 9 }, alignment: { horizontal: 'left', vertical: 'center' }, border: B };
         const WE = { font: { sz: 9, color: { rgb: '888888' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: B, fill: { fgColor: { rgb: 'F5F5F5' } } };
 
+        // ── 1시트: 전체 급여 요약 ──
+        {
+            const sumHeaders = ['이름', '부서', '시급', '기본급', '주휴수당', '야근수당', '총 급여(세전)'];
+            const sumRows = [
+                [`${tYear}.${String(tMon).padStart(2, '0')}월 급여 요약`],
+                [],
+                sumHeaders
+            ];
+            let gtBase = 0, gtHoliday = 0, gtOT = 0, gtTotal = 0;
+            insuredUsers.forEach(u => {
+                const p = calculateMonthlyWage(u, payrollMonth);
+                const base = p.actualBasePayOnly || 0;
+                const holi = p.actualHolidayPay || 0;
+                const ot = Math.round((p.actual || 0) - base - holi);
+                gtBase += base; gtHoliday += holi; gtOT += (ot > 0 ? ot : 0); gtTotal += (p.actual || 0);
+                sumRows.push([u.name, u.team || '', u.wage, base, holi, ot > 0 ? ot : 0, p.actual || 0]);
+            });
+            sumRows.push(['합계', '', '', gtBase, gtHoliday, gtOT, gtTotal]);
+            const wsSummary = XLSX.utils.aoa_to_sheet(sumRows);
+            wsSummary['!cols'] = [{ wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 15 }];
+            applyStyles(wsSummary, { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, { font: { bold: true, sz: 13, color: { rgb: '1F3864' } }, alignment: { horizontal: 'center', vertical: 'center' } });
+            applyStyles(wsSummary, { s: { r: 2, c: 0 }, e: { r: 2, c: 6 } }, HDR);
+            applyStyles(wsSummary, { s: { r: 3, c: 0 }, e: { r: 3 + insuredUsers.length - 1, c: 6 } }, (r, c) => c >= 2 ? CR : C);
+            const lastR = 3 + insuredUsers.length;
+            applyStyles(wsSummary, { s: { r: lastR, c: 0 }, e: { r: lastR, c: 6 } }, (r, c) => ({ font: { bold: true, sz: 10 }, alignment: { horizontal: c >= 3 ? 'right' : 'center', vertical: 'center' }, border: B, numFmt: c >= 3 ? '#,##0' : undefined, fill: { fgColor: { rgb: 'E2EFDA' } } }));
+            wsSummary['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
+            XLSX.utils.book_append_sheet(wb, wsSummary, '전체 급여 요약');
+        }
+
+        // ── 2시트~: 직원별 급여명세 ──
         insuredUsers.forEach(u => {
             const pay = calculateMonthlyWage(u, payrollMonth);
             const bd = pay.dailyBreakdown || [];
@@ -1402,15 +1433,17 @@ function HRPayrollApp() {
                 <nav className="w-52 shrink-0 bg-[#3d472f] border-r-2 border-[#2d3721] flex flex-col">
                     <div className="p-4 border-b border-[#2d3721]">
                         <h1 className="text-lg font-black text-[#f5f3e8] tracking-tight"><span className="text-[#d4dcc0]">페플</span> 관리</h1>
-                        <p className="text-[#7a8a6a] text-[10px] font-medium mt-0.5">인사·급여·연차 통합</p>
+                        <p className="text-[#7a8a6a] text-[10px] font-medium mt-0.5">{userProfile?.name || ''} · {userProfile?.roleGroup === 'sys_admin' ? '관리자' : userProfile?.roleGroup === 'approver_final' ? '대표' : '승인자'}</p>
                     </div>
                     <div className="flex-1 py-2 space-y-0.5">
                         {[
+                            { key: 'HOME', label: '홈', icon: '🏠' },
                             { key: 'PAYROLL', label: '급여정산', icon: '₩' },
-                            { key: 'HR', label: 'HR관리', icon: '👤' },
+                            { key: 'HR', label: '인력관리', icon: '👤' },
                             { key: 'LEAVE', label: '연차관리', icon: '📅' },
                             ...(userProfile?.roleGroup === 'approver_senior' || userProfile?.roleGroup === 'approver_final' ? [{ key: 'APPROVALS', label: '연차결재', icon: '✅' }] : []),
                             { key: 'EDIT_LOGS', label: '수정이력', icon: '📋' },
+                            { key: 'ACCOUNT', label: '계정관리', icon: '⚙️' },
                         ].map(({ key, label, icon }) => (
                             <button key={key} onClick={() => setActiveTab(key)}
                                 className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5 transition-colors ${activeTab === key ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0]' : 'text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
@@ -1454,6 +1487,15 @@ function HRPayrollApp() {
 
                 {/* ── 본문 영역 ── */}
                 <main className="flex-1 p-4 space-y-4 overflow-auto">
+
+                {activeTab === 'HOME' && (
+                    <HomeDashboard
+                        stats={stats}
+                        payrollMonth={payrollMonth}
+                        onNavigate={setActiveTab}
+                        onDownloadLaborSubmission={downloadLaborSubmission}
+                    />
+                )}
 
                 {activeTab === 'HR' && (
                     <HRView
@@ -1525,6 +1567,12 @@ function HRPayrollApp() {
                 {activeTab === 'EDIT_LOGS' && (
                     <div className="max-w-5xl mx-auto w-full pt-4">
                         <AttendanceEditLogViewer />
+                    </div>
+                )}
+
+                {activeTab === 'ACCOUNT' && (
+                    <div className="max-w-5xl mx-auto w-full pt-4">
+                        <FinalApproverView roleGroup={userProfile?.roleGroup} />
                     </div>
                 )}
                 </main>
@@ -1646,60 +1694,9 @@ export default function App() {
 
     const { roleGroup, position } = userProfile;
 
-    // ── approver_final (대표) → CEO 결재함이 있는 SuperAdminView
-    if (roleGroup === 'approver_final') {
-        if (showHRSystem) {
-            return (
-                <div className="min-h-screen flex flex-col">
-                    <div className="bg-[#302b25] border-b-2 border-[#1c1915] px-4 py-2 flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => setShowHRSystem(false)}
-                                className="text-[10px] bg-[#d8973c] border border-[#7a5a1a] text-[#f5f3e8] px-3 py-1.5 font-bold hover:bg-[#b07a30] flex items-center gap-1"
-                            >
-                                ← 대표 결재함
-                            </button>
-                            <span className="text-[#e2ceab] text-xs">인사 급여관리 시스템</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <span className="text-[10px] bg-[#d8973c] text-white font-bold px-2 py-0.5">{position || '대표'}</span>
-                            <span className="text-[#e2ceab] text-xs">{userProfile.name}</span>
-                            <button onClick={logout} className="text-[10px] text-[#e2ceab] hover:text-[#f5f3e8] font-bold">로그아웃</button>
-                        </div>
-                    </div>
-                    <div className="flex-1"><HRPayrollApp /></div>
-                </div>
-            );
-        }
-        return <SuperAdminView onSwitchToHRSystem={() => setShowHRSystem(true)} />;
-    }
-
-    // ── sys_admin / approver_senior → FinalApproverView (계정 관리 + 실장 승인함)
-    if (roleGroup === 'sys_admin' || roleGroup === 'approver_senior') {
-        if (showHRSystem) {
-            return (
-                <div className="min-h-screen flex flex-col">
-                    <div className="bg-[#2d3721] border-b-2 border-[#1e2516] px-4 py-2 flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => setShowHRSystem(false)}
-                                className="text-[10px] bg-[#5d6c4a] border border-[#3d472f] text-[#f5f3e8] px-3 py-1.5 font-bold hover:bg-[#4a5639] flex items-center gap-1"
-                            >
-                                ← {roleGroup === 'sys_admin' ? '계정 관리' : '계정 관리'}
-                            </button>
-                            <span className="text-[#b8c4a0] text-xs">인사 급여관리 시스템</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <span className="text-[10px] bg-[#a65d57] text-white font-bold px-2 py-0.5">{position || '승인자'}</span>
-                            <span className="text-[#b8c4a0] text-xs">{userProfile.name}</span>
-                            <button onClick={logout} className="text-[10px] text-[#b8c4a0] hover:text-[#f5f3e8] font-bold">로그아웃</button>
-                        </div>
-                    </div>
-                    <div className="flex-1"><HRPayrollApp /></div>
-                </div>
-            );
-        }
-        return <FinalApproverView roleGroup={roleGroup} onSwitchToHRSystem={() => setShowHRSystem(true)} />;
+    // ── approver_final / sys_admin / approver_senior → 통합 HRPayrollApp (좌측 네비 안에 계정관리 포함)
+    if (roleGroup === 'approver_final' || roleGroup === 'sys_admin' || roleGroup === 'approver_senior') {
+        return <HRPayrollApp />;
     }
 
     // ── manager (팀 승인자) ────────────────────────────────────────
