@@ -1397,34 +1397,35 @@ function HRPayrollApp() {
             )}
             {showCalculator && <CalculatorWidget onClose={() => closeModal('calculator')} />}
 
-            <div className="max-w-[1400px] mx-auto space-y-4">
-                <header className="flex justify-between items-center bg-[#5d6c4a] p-4 border-2 border-[#3d472f] shadow-md">
-                    <div>
-                        <h1 className="text-2xl font-black text-[#f5f3e8] tracking-tight flex items-center gap-2"><span className="text-[#d4dcc0]">페플</span> 아르바이트 관리</h1>
-                        <p className="text-[#b8c4a0] text-xs font-medium mt-0.5">★ 효율적인 인사/급여/연차 통합 관리 시스템 ★</p>
+            <div className="flex min-h-[calc(100vh-2rem)]">
+                {/* ── 좌측 네비게이션 ── */}
+                <nav className="w-52 shrink-0 bg-[#3d472f] border-r-2 border-[#2d3721] flex flex-col">
+                    <div className="p-4 border-b border-[#2d3721]">
+                        <h1 className="text-lg font-black text-[#f5f3e8] tracking-tight"><span className="text-[#d4dcc0]">페플</span> 관리</h1>
+                        <p className="text-[#7a8a6a] text-[10px] font-medium mt-0.5">인사·급여·연차 통합</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="flex bg-[#3d472f] border-2 border-[#2d3721] mr-2">
-                            <button onClick={() => setActiveTab('HR')} className={`px-4 py-2 text-xs font-bold transition ${activeTab === 'HR' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>HR관리</button>
-                            <button onClick={() => setActiveTab('PAYROLL')} className={`px-4 py-2 text-xs font-bold border-x-2 border-[#2d3721] transition ${activeTab === 'PAYROLL' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>급여정산</button>
-                            <button onClick={() => setActiveTab('LEAVE')} className={`px-4 py-2 text-xs font-bold transition ${activeTab === 'LEAVE' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>연차관리</button>
-                            {(userProfile?.roleGroup === 'approver_senior' || userProfile?.roleGroup === 'approver_final') && (
-                                <button onClick={() => setActiveTab('APPROVALS')} className={`px-4 py-2 text-xs font-bold border-l-2 border-[#2d3721] transition ${activeTab === 'APPROVALS' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>연차결재</button>
-                            )}
-                            <button onClick={() => setActiveTab('EDIT_LOGS')} className={`px-4 py-2 text-xs font-bold border-l-2 border-[#2d3721] transition ${activeTab === 'EDIT_LOGS' ? 'bg-[#f5f3e8] text-[#3d472f]' : 'text-[#b8c4a0] hover:text-[#f5f3e8]'}`}>수정이력</button>
-                        </div>
-
-                        {/* 알림 벨 아이콘 */}
-                        <div className="mr-3 flex items-center justify-center">
-                            <NotificationBell userId={userProfile?.uid} onNavigate={(tab) => setActiveTab(tab === 'HISTORY' ? 'LEAVE' : tab)} />
-                        </div>
-
+                    <div className="flex-1 py-2 space-y-0.5">
+                        {[
+                            { key: 'PAYROLL', label: '급여정산', icon: '₩' },
+                            { key: 'HR', label: 'HR관리', icon: '👤' },
+                            { key: 'LEAVE', label: '연차관리', icon: '📅' },
+                            ...(userProfile?.roleGroup === 'approver_senior' || userProfile?.roleGroup === 'approver_final' ? [{ key: 'APPROVALS', label: '연차결재', icon: '✅' }] : []),
+                            { key: 'EDIT_LOGS', label: '수정이력', icon: '📋' },
+                        ].map(({ key, label, icon }) => (
+                            <button key={key} onClick={() => setActiveTab(key)}
+                                className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5 transition-colors ${activeTab === key ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0]' : 'text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
+                                <span className="text-sm w-5 text-center">{icon}</span> {label}
+                            </button>
+                        ))}
+                    </div>
+                    {/* 하단: 데이터 관리 + 알림 */}
+                    <div className="border-t border-[#2d3721] p-2 space-y-1">
                         <div className="relative" ref={dataMenuRef}>
-                            <button onClick={() => toggleModal('dataMenu')} className="flex items-center gap-2 bg-[#f5f3e8] border-2 border-[#3d472f] px-4 py-2 hover:bg-[#e8e4d4] text-sm font-bold text-[#3d472f]">
-                                <Layers size={16} /> 데이터 관리 <ChevronDown size={14} className={`transition-transform ${showDataMenu ? 'rotate-180' : ''}`} />
+                            <button onClick={() => toggleModal('dataMenu')} className="w-full text-left px-3 py-2 text-xs font-bold text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8] flex items-center gap-2 transition-colors">
+                                <Layers size={14} /> 데이터 관리 <ChevronDown size={12} className={`ml-auto transition-transform ${showDataMenu ? 'rotate-180' : ''}`} />
                             </button>
                             {showDataMenu && (
-                                <div className="absolute right-0 mt-1 w-56 bg-[#f5f3e8] border-2 border-[#3d472f] shadow-lg z-50">
+                                <div className="absolute left-0 bottom-full mb-1 w-56 bg-[#f5f3e8] border-2 border-[#3d472f] shadow-lg z-50">
                                     <div className="p-2 border-b-2 border-[#e8e4d4]">
                                         <button onClick={() => attendanceFileInputRef.current?.click()} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#e8e4d4] flex items-center gap-2 font-bold"><Download size={14} /> 근무기록 업로드</button>
                                         <button onClick={() => rosterFileInputRef.current?.click()} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#e8e4d4] flex items-center gap-2 font-bold"><Users size={14} /> 명단 업로드</button>
@@ -1443,10 +1444,16 @@ function HRPayrollApp() {
                                 </div>
                             )}
                         </div>
-                        <input type="file" ref={rosterFileInputRef} onChange={handleRosterUpload} accept=".csv, .xlsx, .xls" className="hidden" />
-                        <input type="file" ref={attendanceFileInputRef} onChange={handleAttendanceUpload} accept=".csv, .xlsx, .xls" className="hidden" />
+                        <div className="px-3 py-1 flex items-center">
+                            <NotificationBell userId={userProfile?.uid} onNavigate={(tab) => setActiveTab(tab === 'HISTORY' ? 'LEAVE' : tab)} />
+                        </div>
                     </div>
-                </header>
+                    <input type="file" ref={rosterFileInputRef} onChange={handleRosterUpload} accept=".csv, .xlsx, .xls" className="hidden" />
+                    <input type="file" ref={attendanceFileInputRef} onChange={handleAttendanceUpload} accept=".csv, .xlsx, .xls" className="hidden" />
+                </nav>
+
+                {/* ── 본문 영역 ── */}
+                <main className="flex-1 p-4 space-y-4 overflow-auto">
 
                 {activeTab === 'HR' && (
                     <HRView
@@ -1520,6 +1527,7 @@ function HRPayrollApp() {
                         <AttendanceEditLogViewer />
                     </div>
                 )}
+                </main>
             </div>
 
             {showResignModal && (
