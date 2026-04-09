@@ -135,11 +135,11 @@ export default function PayrollView({
                     </div>
                     {mode === 'INSURED' && (
                         <button onClick={onDownloadLaborSubmission} className="bg-[#2F5597] text-[#f5f3e8] px-4 py-2 text-sm font-bold border-2 border-[#1e3a6e] flex items-center gap-2 hover:bg-[#1e3a6e]">
-                            <Download size={16} /> 노무사 제출 양식
+                            <Download size={16} /> 노무사 제출용
                         </button>
                     )}
                     <button onClick={mode === 'INSURED' ? onDownloadInsured : onDownloadFreelancer} className="bg-[#3d472f] text-[#f5f3e8] px-4 py-2 text-sm font-bold border-2 border-[#2d3721] flex items-center gap-2 hover:bg-[#2d3721]">
-                        <Download size={16} /> {mode === 'INSURED' ? '노무사 전달용 엑셀' : '지급 요청용 엑셀'}
+                        <Download size={16} /> {mode === 'INSURED' ? '상세 내역' : '지급 요청용 엑셀'}
                     </button>
                 </div>
             </section>
