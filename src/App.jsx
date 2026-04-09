@@ -1276,23 +1276,39 @@ function HRPayrollApp() {
             // 일별 합계행
             const totalHours = Math.round((pay.totalActualHours || 0) * 10) / 10;
             const totalOT = Math.round((pay.totalActualOvertime || 0) * 10) / 10;
-            rows.push(['합계', '', '', '', totalHours, totalOT > 0 ? totalOT : '', '', '', '', '', '', '', '', '']);
+            rows.push(['합계', '', '', '', totalHours, totalOT > 0 ? totalOT : '', '']);
             const totalRow = dailyStartRow + daysInMonth;
 
-            // 빈줄
-            rows.push([]);
-
-            // 급여 요약
+            // 급여 요약: 우측에 주차별 표 바로 아래 배치
             const basePay = pay.actualBasePayOnly || 0;
             const overtimePay = Math.round((pay.actual || 0) - basePay - (pay.actualHolidayPay || 0));
-            const summaryRow = totalRow + 2;
-            rows.push(['', '', '', '', '', '', '', '', '급여 항목', '', '', '', '', '금액']);
-            rows.push(['', '', '', '', '', '', '', '', '일반급여', '', '', '', '', basePay]);
-            rows.push(['', '', '', '', '', '', '', '', '주휴수당', '', '', '', '', pay.actualHolidayPay || 0]);
-            rows.push(['', '', '', '', '', '', '', '', '야근수당', '', '', '', '', overtimePay > 0 ? overtimePay : 0]);
-            rows.push(['', '', '', '', '', '', '', '', '총 급여 (세전)', '', '', '', '', pay.actual || 0]);
+            // 주차별 표 종료 row = dailyStartRow + wl.length, 1행 여백 후 급여요약 시작
+            const summaryRow = dailyStartRow + wl.length + 1;
+
+            // 급여요약 데이터를 우측 영역에 직접 삽입 (좌측에는 일별 데이터가 계속 있으므로 덮어쓰기 방식)
+            // rows는 이미 daysInMonth+합계행까지 채워져 있으므로, 우측 셀만 후처리로 채움
 
             const ws = XLSX.utils.aoa_to_sheet(rows);
+
+            // 급여요약 데이터를 우측 영역에 직접 삽입
+            const summaryData = [
+                ['급여 항목', '', '', '', '', '금액'],
+                ['일반급여', '', '', '', '', basePay],
+                ['주휴수당', '', '', '', '', pay.actualHolidayPay || 0],
+                ['야근수당', '', '', '', '', overtimePay > 0 ? overtimePay : 0],
+                ['총 급여 (세전)', '', '', '', '', pay.actual || 0],
+            ];
+            summaryData.forEach((rowData, i) => {
+                rowData.forEach((val, j) => {
+                    const cellRef = XLSX.utils.encode_cell({ r: summaryRow + i, c: 8 + j });
+                    ws[cellRef] = { t: typeof val === 'number' ? 'n' : 's', v: val };
+                });
+            });
+            // 시트 범위 확장 (우측 급여요약이 기존 범위 밖일 수 있음)
+            const existingRange = XLSX.utils.decode_range(ws['!ref']);
+            existingRange.e.r = Math.max(existingRange.e.r, summaryRow + 4);
+            existingRange.e.c = Math.max(existingRange.e.c, 13);
+            ws['!ref'] = XLSX.utils.encode_range(existingRange);
 
             // 컬럼 폭
             ws['!cols'] = [
@@ -1302,12 +1318,12 @@ function HRPayrollApp() {
             ];
 
             // 행 높이
-            ws['!rows'] = [{ hpt: 28 }]; // 제목행 높이
+            ws['!rows'] = [{ hpt: 28 }];
 
             // 셀 병합
             ws['!merges'] = [
-                { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },   // 제목 좌측 전체 병합
-                { s: { r: totalRow, c: 0 }, e: { r: totalRow, c: 3 } }, // 합계 라벨 병합
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },   // 제목
+                { s: { r: totalRow, c: 0 }, e: { r: totalRow, c: 3 } }, // 합계 라벨
                 // 급여 요약 항목명 병합
                 { s: { r: summaryRow, c: 8 }, e: { r: summaryRow, c: 12 } },
                 { s: { r: summaryRow + 1, c: 8 }, e: { r: summaryRow + 1, c: 12 } },
