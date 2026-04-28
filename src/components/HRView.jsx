@@ -177,7 +177,7 @@ export default function HRView({
                                     <tr><th className="p-2.5 pl-3 text-left">성별</th><th className="p-2.5 text-left">이름</th><th className="p-2.5 text-left">유형</th><th className="p-2.5 text-left">팀/부서</th><th className="p-2.5 text-left">입사일</th><th className="p-2.5 text-center">4대보험</th><th className="p-2.5 text-left">상태</th><th className="p-2.5 pr-3 text-right">관리</th></tr>
                                 )}
                             </thead>
-                            <tbody className="text-sm divide-y divide-[#ebe8db]">
+                            <tbody className="text-sm divide-y divide-[#ebe8db] [&_td]:align-middle">
                                 {displayData.map(user => {
                                     const eType = user.employmentType || user.position || '아르바이트';
                                     const isAlba = eType === '아르바이트';
@@ -205,7 +205,7 @@ export default function HRView({
                                                 </>
                                             ) : (
                                                 <>
-                                                    <td className="p-2.5"><span className={`px-1.5 py-0.5 text-[10px] font-bold border ${isAlba ? 'bg-[#e8ebd8] text-[#5d6c4a] border-[#b8c4a0]' : 'bg-[#D6E4F0] text-[#2F5597] border-[#a0b8d0]'}`}>{eType}</span></td>
+                                                    <td className="p-2.5"><span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold border ${isAlba ? 'bg-[#e8ebd8] text-[#5d6c4a] border-[#b8c4a0]' : 'bg-[#D6E4F0] text-[#2F5597] border-[#a0b8d0]'}`}>{eType}</span></td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.team}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.startDate}</td>
                                                     <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#a65d57]">✗</span>}</td>
@@ -266,9 +266,9 @@ export default function HRView({
                                     </div>
                                 )}
                             </div>
-                            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3">
                                 <div>
-                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">기본 정보</h3>
+                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-1.5">기본 정보</h3>
                                     <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
                                         <InfoRow icon={<Users size={14} />} label="성별" value={displayGender(getGenderValue(selectedUser))} />
                                         <InfoRow icon={<Phone size={14} />} label="연락처" value={maskPII ? '***-****-****' : selectedUser.phone} />
@@ -279,7 +279,7 @@ export default function HRView({
                                 </div>
 
                                 <div>
-                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">근무 / 계약 정보</h3>
+                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-1.5">근무 / 계약 정보</h3>
                                     <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
                                         {isAlbaUser ? (
                                             <>
@@ -298,7 +298,7 @@ export default function HRView({
                                 </div>
 
                                 <div>
-                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2 flex items-center justify-between">
+                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-1.5 flex items-center justify-between">
                                         <span>4대보험</span>
                                         <span className={`text-[10px] font-bold px-1.5 py-0.5 border ${selectedUser.insuranceStatus ? 'bg-[#e8ebd8] border-[#b8c4a0] text-[#5d6c4a]' : 'bg-[#f8f0ef] border-[#dcc0bc] text-[#a65d57]'}`}>
                                             {selectedUser.insuranceStatus ? '가입' : '미가입'}
@@ -311,13 +311,13 @@ export default function HRView({
 
                                 {selectedUser.resignDate && (
                                     <div className="bg-[#f8f0ef] p-4 border-2 border-[#dcc0bc]">
-                                        <h3 className="text-xs font-bold text-[#a65d57] uppercase mb-2">퇴사 정보</h3>
+                                        <h3 className="text-xs font-bold text-[#a65d57] uppercase mb-1.5">퇴사 정보</h3>
                                         <InfoRow icon={<Calendar size={14} />} label="퇴사일" value={selectedUser.resignDate} />
                                         <InfoRow icon={<FileText size={14} />} label="사유" value={selectedUser.resignReason || '미기재'} />
                                     </div>
                                 )}
                                 <div className="bg-[#e8ebd8] p-4 border-2 border-[#b8c4a0]">
-                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2 flex items-center justify-between">
+                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-1.5 flex items-center justify-between">
                                         예상 급여
                                         <span className="text-[10px] bg-[#5d6c4a] text-[#f5f3e8] px-1.5 py-0.5">{selectedUser.insuranceStatus ? '세전' : '3.3%공제'}</span>
                                     </h3>
