@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Layers, ChevronDown, Download, RotateCcw, X, UserMinus, Calendar, AlertTriangle, Check, Users, ShieldCheck, Eye, EyeOff, LogOut } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
-import { doc, setDoc, collection, addDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, addDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from './firebase';
 import { KR_HOLIDAY_NAMES } from './data/holidays';
 // Auth
@@ -519,6 +519,44 @@ function HRPayrollApp() {
             totalRemaining: Math.floor(totalRemaining * 10) / 10, lowLeaveCount
         };
     }, [users, attendance, calculateLeave, calculateMonthlyWage, payrollMonth]);
+
+    // 지난달 확정 급여 (가장 최근 CONFIRMED 월 합계). 표시 전용, 계산 로직 영향 없음
+    const lastConfirmed = useMemo(() => {
+        const confirmedMonths = Object.entries(payrollStatus || {})
+            .filter(([, status]) => status === 'CONFIRMED')
+            .map(([month]) => month)
+            .sort((a, b) => b.localeCompare(a));
+        if (confirmedMonths.length === 0) return { month: null, total: 0 };
+        const month = confirmedMonths[0];
+        const total = users.reduce((acc, u) => acc + (calculateMonthlyWage(u, month).actual || 0), 0);
+        return { month, total };
+    }, [payrollStatus, users, calculateMonthlyWage]);
+
+    // 연차 결재 필요 건수 (현재 로그인 사용자 권한 기준). 결재 권자만 구독
+    const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+    useEffect(() => {
+        const role = userProfile?.roleGroup;
+        const uid = userProfile?.uid;
+        if (!uid || (role !== 'approver_senior' && role !== 'approver_final')) {
+            setPendingApprovalCount(0);
+            return;
+        }
+        const statuses = role === 'approver_final'
+            ? ['CEO_PENDING']
+            : ['SUBMITTED', 'TEAM_APPROVED', 'FINAL_PENDING'];
+        const q = query(collection(db, 'leave_requests'), where('status', 'in', statuses));
+        const unsub = onSnapshot(q, (snap) => {
+            let count = 0;
+            snap.forEach(d => {
+                const r = d.data();
+                // 본인이 이미 처리한 FINAL_PENDING 건은 제외 (FinalApprovalInbox 필터 기준 재사용)
+                if (r.status === 'FINAL_PENDING' && r.final_approvals?.[uid]) return;
+                count += 1;
+            });
+            setPendingApprovalCount(count);
+        }, () => setPendingApprovalCount(0));
+        return unsub;
+    }, [userProfile?.roleGroup, userProfile?.uid]);
 
     const teamCounts = useMemo(() => {
         const activeUsers = users.filter(u => !u.resignDate);
@@ -1456,7 +1494,7 @@ function HRPayrollApp() {
                                     { key: 'ACCOUNT', label: '계정·권한 관리' },
                                 ]},
                                 { type: 'item', key: 'LEAVE', label: '연차관리', icon: '📅' },
-                                ...(isApprover ? [{ type: 'item', key: 'APPROVALS', label: '연차결재', icon: '✅' }] : []),
+                                ...(isApprover ? [{ type: 'item', key: 'APPROVALS', label: '연차결재', icon: '✅', badge: pendingApprovalCount }] : []),
                                 { type: 'item', key: 'EDIT_LOGS', label: '수정이력', icon: '📋' },
                             ];
                             return items.map((it) => {
@@ -1465,7 +1503,11 @@ function HRPayrollApp() {
                                     return (
                                         <button key={it.key} onClick={() => setActiveTab(it.key)}
                                             className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5 transition-colors ${isActive ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0]' : 'text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
-                                            <span className="text-sm w-5 text-center">{it.icon}</span> {it.label}
+                                            <span className="text-sm w-5 text-center">{it.icon}</span>
+                                            <span>{it.label}</span>
+                                            {it.badge > 0 && (
+                                                <span className="ml-auto bg-[#a65d57] text-[#f5f3e8] text-[10px] font-black px-1.5 py-0.5 rounded-sm min-w-[18px] text-center">{it.badge}</span>
+                                            )}
                                         </button>
                                     );
                                 }
@@ -1547,6 +1589,9 @@ function HRPayrollApp() {
                         stats={stats}
                         payrollMonth={payrollMonth}
                         users={users}
+                        lastConfirmed={lastConfirmed}
+                        pendingApprovalCount={pendingApprovalCount}
+                        userRoleGroup={userProfile?.roleGroup}
                         onNavigate={(tab, intent) => {
                             // 홈에서 특정 카드/리스트로 진입 시 인사관리 초기 필터 + 안내 배너 source 적용
                             if (tab === 'HR') {
