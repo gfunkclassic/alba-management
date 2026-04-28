@@ -419,7 +419,7 @@ function EditUserModal({ user, onClose, onSaved }) {
                             if (perms.length === 0) return null;
                             return (
                                 <div className="mt-2 p-2.5 bg-[#faf8f0] border border-[#e8e4d4]">
-                                    <p className="text-[10px] font-bold text-[#7a7565] mb-1.5">이 역할로 가능한 기능</p>
+                                    <p className="text-[10px] font-bold text-[#7a7565] mb-1.5">이 역할에 포함된 권한</p>
                                     <ul className="space-y-0.5">
                                         {perms.map(p => (
                                             <li key={p} className="flex items-center gap-1.5 text-[11px] text-[#3d472f]">
@@ -428,6 +428,9 @@ function EditUserModal({ user, onClose, onSaved }) {
                                             </li>
                                         ))}
                                     </ul>
+                                    <p className="mt-2 pt-2 border-t border-[#e8e4d4] text-[10px] text-[#9a9585] leading-snug">
+                                        세부 권한은 개별 체크가 아니라 권한 그룹 변경으로 관리됩니다.
+                                    </p>
                                 </div>
                             );
                         })()}
