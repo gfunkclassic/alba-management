@@ -105,7 +105,7 @@ export default function HRView({
                 <StatCard title="총 예상 급여" value={`₩${stats.totalWage.toLocaleString()}`} sub="실제 근무 기록 기준" icon={<Wallet size={20} className="text-[#5d6c4a]" />} />
             </section>
 
-            <section className="bg-[#f5f3e8] p-4 border-2 border-[#c5c0b0] flex flex-wrap gap-4 items-center mt-4">
+            <section className="bg-[#f5f3e8] p-3 border-2 border-[#c5c0b0] flex flex-wrap gap-3 items-center mt-4">
                 <div className="relative flex-1 min-w-[200px]">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9a9585]" />
                     <input type="text" placeholder="이름, 연락처 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none" />
@@ -132,9 +132,10 @@ export default function HRView({
                 </div>
             </section>
 
-            {/* 홈에서 진입한 필터 안내 배너 (홈 카드 진입 시에만) */}
+            {/* 홈 진입 안내 배너 + 성별 미입력 점검 칩 (운영용 안내 그룹) */}
+            <div className="mt-3 space-y-2">
             {filterSource && FILTER_SOURCE_LABEL[filterSource] && (
-                <div className="mt-3 flex items-center justify-between gap-2 px-3 py-2 bg-[#e8ebd8] border border-[#b8c4a0] text-[11px]">
+                <div className="flex items-center justify-between gap-2 px-3 py-2 bg-[#e8ebd8] border border-[#b8c4a0] text-[11px]">
                     <span className="text-[#3d472f] font-bold">{FILTER_SOURCE_LABEL[filterSource]}</span>
                     <button onClick={handleClearHomeFilter} className="px-2 py-0.5 bg-[#f5f3e8] border border-[#c5c0b0] text-[#5a5545] font-bold hover:bg-[#e8e4d4]">
                         전체 보기
@@ -143,7 +144,7 @@ export default function HRView({
             )}
 
             {/* 성별 미입력 점검 안내 칩 (운영용) */}
-            <div className="mt-3 flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs">
                 {showMissingGenderOnly ? (
                     <>
                         <span className="px-2 py-1 bg-[#fdf6e3] border border-[#d8973c] text-[#7a5a1a] font-bold flex items-center gap-1">
@@ -160,6 +161,7 @@ export default function HRView({
                         <Check size={12} /> 성별 미입력 0명
                     </span>
                 )}
+            </div>
             </div>
 
             <div className="flex flex-col lg:flex-row gap-4 mt-4 lg:items-stretch">
@@ -213,7 +215,7 @@ export default function HRView({
                                                 </>
                                             )}
                                             <td className="p-2.5 pr-3 text-right">
-                                                <div className="flex items-center justify-end gap-1">
+                                                <div className="flex items-center justify-end gap-1.5">
                                                     <button onClick={(e) => openUserForm(user, e)} className="p-1 bg-[#e8e4d4] text-[#5d6c4a] hover:bg-[#d4dcc0] border border-[#c5c0b0]" title='수정'><Edit size={12} /></button>
                                                     {!user.resignDate && <button onClick={(e) => openResignModal(user, e)} className="p-1 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#f0e5e4] border border-[#dcc0bc]" title='퇴사'><UserMinus size={12} /></button>}
                                                     <button onClick={(e) => { e.stopPropagation(); setDeleteTargetUser(user); }} className="p-1 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#a65d57] hover:text-[#f8f0ef] border border-[#a65d57] transition-colors" title='삭제'><Trash2 size={12} /></button>
@@ -243,7 +245,7 @@ export default function HRView({
                             : 'bg-[#D6E4F0] border-[#a0b8d0] text-[#2F5597]';
                         return (
                         <div className="flex flex-col h-full">
-                            <div className="p-5 bg-[#5d6c4a] border-b-2 border-[#3d472f]">
+                            <div className="p-4 bg-[#5d6c4a] border-b-2 border-[#3d472f]">
                                 <div className="flex justify-between items-start mb-2 gap-2">
                                     <h2 className="text-2xl font-black text-[#f5f3e8] tracking-tight truncate">{selectedUser.name || '-'}</h2>
                                     <div className="flex flex-col items-end gap-1 shrink-0">
@@ -366,7 +368,13 @@ export default function HRView({
                         </div>
                         );
                     })() : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-[#9a9585] p-8 text-center"><Users size={48} className="mb-4 opacity-20" /><p className="text-sm font-medium">인력을 선택하면<br />상세 정보가 표시됩니다.</p></div>
+                        <div className="flex-1 flex flex-col items-center justify-center text-[#9a9585] p-8 text-center">
+                            <div className="w-14 h-14 rounded-full bg-[#e8e4d4] flex items-center justify-center mb-3 border border-[#d4cfbf]">
+                                <Users size={28} className="text-[#9a9585]" />
+                            </div>
+                            <p className="text-sm font-bold text-[#7a7565] mb-1">직원 상세</p>
+                            <p className="text-xs text-[#9a9585] leading-relaxed">왼쪽 목록에서 인력을 선택하면<br />기본 정보·근무·4대보험·예상 급여를 확인할 수 있습니다.</p>
+                        </div>
                     )}
                 </div>
             </div>
