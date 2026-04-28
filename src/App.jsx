@@ -113,6 +113,9 @@ function HRPayrollApp() {
         localStorage.setItem('app_active_tab', activeTab);
         // 인사관리 진입 시 하위 메뉴 자동 펼침
         if (activeTab === 'HR') setHrMenuOpen(true);
+        // 인사관리가 아닌 다른 탭으로 이동 시 홈 진입 필터 source 자동 해제
+        // (홈 카드 진입은 같은 렌더에서 activeTab='HR'로 세팅되므로 영향 없음)
+        if (activeTab !== 'HR') setHrFilterSource(null);
     }, [activeTab]);
     const [hrSubTab, setHrSubTab] = useState('LIST'); // LIST | ACCOUNT
     // 사이드바 인사관리 그룹 접힘/펼침 (시각 전용 — activeTab/hrSubTab 모델과 분리)
