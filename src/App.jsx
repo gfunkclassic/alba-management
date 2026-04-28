@@ -117,6 +117,8 @@ function HRPayrollApp() {
     const [hrSubTab, setHrSubTab] = useState('LIST'); // LIST | ACCOUNT
     // 사이드바 인사관리 그룹 접힘/펼침 (시각 전용 — activeTab/hrSubTab 모델과 분리)
     const [hrMenuOpen, setHrMenuOpen] = useState(() => (localStorage.getItem('app_active_tab') || 'HOME') === 'HR');
+    // 홈 카드에서 필터 진입했을 때만 안내 배너 표시 (사용자 직접 셀렉트 변경/사이드바 진입 시 null)
+    const [hrFilterSource, setHrFilterSource] = useState(null); // null | 'INSURANCE_NEEDED' | 'RENEWAL_NEEDED'
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTeam, setFilterTeam] = useState('전체');
     const [filterStatus, setFilterStatus] = useState('ALL');
@@ -1469,7 +1471,7 @@ function HRPayrollApp() {
                                 return (
                                     <div key={it.key}>
                                         <div className={`flex items-center transition-colors ${isGroupActive ? 'text-[#f5f3e8] bg-[#4a5538]' : 'text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
-                                            <button onClick={() => { setActiveTab(it.key); setHrSubTab('LIST'); setHrMenuOpen(true); }}
+                                            <button onClick={() => { setActiveTab(it.key); setHrSubTab('LIST'); setHrMenuOpen(true); setHrFilterSource(null); }}
                                                 className="flex-1 text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5">
                                                 <span className="text-sm w-5 text-center">{it.icon}</span> {it.label}
                                             </button>
@@ -1484,7 +1486,7 @@ function HRPayrollApp() {
                                                 {it.children.map(child => {
                                                     const isChildActive = isGroupActive && hrSubTab === child.key;
                                                     return (
-                                                        <button key={child.key} onClick={() => { setActiveTab(it.key); setHrSubTab(child.key); }}
+                                                        <button key={child.key} onClick={() => { setActiveTab(it.key); setHrSubTab(child.key); setHrFilterSource(null); }}
                                                             className={`w-full text-left pl-3 pr-4 py-1.5 text-[11px] font-bold flex items-center transition-colors ${isChildActive ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0] -ml-px' : 'text-[#9aab8a] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
                                                             {child.label}
                                                         </button>
@@ -1543,13 +1545,20 @@ function HRPayrollApp() {
                         payrollMonth={payrollMonth}
                         users={users}
                         onNavigate={(tab, intent) => {
-                            // 홈에서 특정 카드/리스트로 진입 시 인사관리 초기 필터 적용
+                            // 홈에서 특정 카드/리스트로 진입 시 인사관리 초기 필터 + 안내 배너 source 적용
                             if (tab === 'HR') {
                                 setHrSubTab('LIST');
                                 setViewMode('ACTIVE');
-                                if (intent === 'INSURANCE_NEEDED') setFilterStatus('INSURANCE_NEEDED');
-                                else if (intent === 'RENEWAL_NEEDED') setFilterStatus('RENEWAL_NEEDED');
-                                else setFilterStatus('ALL');
+                                if (intent === 'INSURANCE_NEEDED') {
+                                    setFilterStatus('INSURANCE_NEEDED');
+                                    setHrFilterSource('INSURANCE_NEEDED');
+                                } else if (intent === 'RENEWAL_NEEDED') {
+                                    setFilterStatus('RENEWAL_NEEDED');
+                                    setHrFilterSource('RENEWAL_NEEDED');
+                                } else {
+                                    setFilterStatus('ALL');
+                                    setHrFilterSource(null);
+                                }
                             }
                             setActiveTab(tab);
                         }}
@@ -1568,6 +1577,7 @@ function HRPayrollApp() {
                                 selectedUser={selectedUser} handleSelectUser={handleSelectUser} calculateMonthlyWage={calculateMonthlyWage}
                                 payrollMonth={payrollMonth} openModal={openModal} openUserForm={openUserForm} openResignModal={openResignModal}
                                 maskPII={maskPII} roleMode={roleMode} onDeleteUser={handleUserDelete}
+                                filterSource={hrFilterSource} onClearHomeFilter={() => setHrFilterSource(null)}
                             />
                         )}
                         {hrSubTab === 'ACCOUNT' && (
