@@ -71,10 +71,17 @@ export default function HRView({
 }) {
     const [deleteTargetUser, setDeleteTargetUser] = useState(null);
     const [typeFilter, setTypeFilter] = useState('ALL'); // ALL | ALBA | STAFF
+    const [showMissingGenderOnly, setShowMissingGenderOnly] = useState(false);
 
-    const displayData = typeFilter === 'ALL' ? filteredData
+    // 성별 미입력 카운트는 검색/팀/상태/재직 필터 적용 후 데이터(filteredData) 기준
+    // — 새 prop 없이 기존 흐름을 깨지 않기 위함. 운영 점검 시 viewMode='전체'로 두면 사실상 전 인원 점검 가능
+    const isGenderMissing = (u) => displayGender(getGenderValue(u)) === '-';
+    const missingGenderCount = filteredData.filter(isGenderMissing).length;
+
+    const baseData = typeFilter === 'ALL' ? filteredData
         : typeFilter === 'ALBA' ? filteredData.filter(u => (u.employmentType || u.position || '아르바이트') === '아르바이트')
         : filteredData.filter(u => (u.employmentType || u.position || '아르바이트') !== '아르바이트');
+    const displayData = showMissingGenderOnly ? baseData.filter(isGenderMissing) : baseData;
 
     return (
         <>
@@ -111,6 +118,26 @@ export default function HRView({
                     <button onClick={() => setViewMode('ALL')} className={`px-3 py-1.5 text-xs font-bold border-l border-[#c5c0b0] transition ${viewMode === 'ALL' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#d4dcc0]'}`}>전체</button>
                 </div>
             </section>
+
+            {/* 성별 미입력 점검 안내 칩 (운영용) */}
+            <div className="mt-3 flex items-center gap-2 text-xs">
+                {showMissingGenderOnly ? (
+                    <>
+                        <span className="px-2 py-1 bg-[#fdf6e3] border border-[#d8973c] text-[#7a5a1a] font-bold flex items-center gap-1">
+                            <AlertTriangle size={12} /> 성별 미입력만 보기 중 ({missingGenderCount}명)
+                        </span>
+                        <button onClick={() => setShowMissingGenderOnly(false)} className="px-2 py-1 bg-[#f5f3e8] border border-[#c5c0b0] text-[#5a5545] font-bold hover:bg-[#e8e4d4]">전체 보기</button>
+                    </>
+                ) : missingGenderCount > 0 ? (
+                    <button onClick={() => setShowMissingGenderOnly(true)} className="px-2 py-1 bg-[#fdf6e3] border border-[#d8973c] text-[#7a5a1a] font-bold flex items-center gap-1 hover:bg-[#f9eccb]">
+                        <AlertTriangle size={12} /> 성별 미입력 {missingGenderCount}명 · 클릭해서 보기
+                    </button>
+                ) : (
+                    <span className="px-2 py-1 bg-[#f5f3e8] border border-[#c5c0b0] text-[#9a9585] flex items-center gap-1">
+                        <Check size={12} /> 성별 미입력 0명
+                    </span>
+                )}
+            </div>
 
             <div className="flex flex-col lg:flex-row gap-4 mt-4 lg:items-stretch">
                 <div className="flex-1 bg-[#f5f3e8] border-2 border-[#c5c0b0] shadow-md overflow-hidden flex flex-col lg:h-[700px] max-h-[700px]">
