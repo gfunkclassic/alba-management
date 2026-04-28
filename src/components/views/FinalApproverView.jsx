@@ -416,18 +416,18 @@ function EditUserModal({ user, onClose, onSaved }) {
                         </select>
                         {(() => {
                             const perms = getFunctionalPermissions(roleGroup);
+                            if (perms.length === 0) return null;
                             return (
-                                <div className="mt-2 p-2 bg-[#faf8f0] border border-[#e8e4d4]">
-                                    <p className="text-[10px] font-bold text-[#7a7565] mb-1">이 권한이 가지는 기능</p>
-                                    {perms.length === 0 ? (
-                                        <p className="text-[10px] text-[#9a9585]">기본 사용 권한만 있습니다.</p>
-                                    ) : (
-                                        <div className="flex flex-wrap gap-1">
-                                            {perms.map(p => (
-                                                <span key={p} className="text-[10px] font-bold px-1.5 py-0.5 bg-[#e8ebd8] border border-[#b8c4a0] text-[#5d6c4a]">{p}</span>
-                                            ))}
-                                        </div>
-                                    )}
+                                <div className="mt-2 p-2.5 bg-[#faf8f0] border border-[#e8e4d4]">
+                                    <p className="text-[10px] font-bold text-[#7a7565] mb-1.5">이 역할로 가능한 기능</p>
+                                    <ul className="space-y-0.5">
+                                        {perms.map(p => (
+                                            <li key={p} className="flex items-center gap-1.5 text-[11px] text-[#3d472f]">
+                                                <Check size={11} className="text-[#5d6c4a] shrink-0" />
+                                                <span>{p}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
                             );
                         })()}
@@ -657,22 +657,9 @@ export default function FinalApproverView({ onSwitchToHRSystem, roleGroup: propR
                                                 </td>
                                                 <td className="p-3 text-center"><span className="text-xs bg-[#e8e4d4] px-2 py-0.5 font-bold text-[#5a5545]">{u.team_id || '-'}</span></td>
                                                 <td className="p-3 text-center">
-                                                    <div className="flex flex-col items-center gap-1">
-                                                        <span className={`text-xs font-bold px-2 py-0.5 ${ROLE_GROUP_BADGE[normalizeProfile(u).roleGroup] || 'bg-[#e8e4d4] text-[#5a5545]'}`}>
-                                                            {u.position || ROLE_GROUP_LABEL[normalizeProfile(u).roleGroup] || '-'}
-                                                        </span>
-                                                        {(() => {
-                                                            const perms = getFunctionalPermissions(normalizeProfile(u).roleGroup);
-                                                            if (perms.length === 0) return null;
-                                                            return (
-                                                                <div className="flex flex-wrap gap-0.5 justify-center max-w-[180px]">
-                                                                    {perms.map(p => (
-                                                                        <span key={p} className="text-[9px] font-bold px-1.5 py-0.5 bg-[#f5f3e8] border border-[#c5c0b0] text-[#5d6c4a]">{p}</span>
-                                                                    ))}
-                                                                </div>
-                                                            );
-                                                        })()}
-                                                    </div>
+                                                    <span className={`text-xs font-bold px-2 py-0.5 ${ROLE_GROUP_BADGE[normalizeProfile(u).roleGroup] || 'bg-[#e8e4d4] text-[#5a5545]'}`}>
+                                                        {u.position || ROLE_GROUP_LABEL[normalizeProfile(u).roleGroup] || '-'}
+                                                    </span>
                                                 </td>
                                                 <td className="p-3 text-center">
                                                     {u.is_temp_password
