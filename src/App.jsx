@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Layers, ChevronDown, Download, RotateCcw, X, UserMinus, Calendar, AlertTriangle, Check, Users, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { Layers, ChevronDown, Download, RotateCcw, X, UserMinus, Calendar, AlertTriangle, Check, Users, ShieldCheck, Eye, EyeOff, LogOut } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
 import { doc, setDoc, collection, addDoc } from 'firebase/firestore';
 import { db } from './firebase';
@@ -50,7 +50,7 @@ import AttendanceEditLogViewer from './components/AttendanceEditLogViewer';
 
 // ── 인사급여 시스템 (Firestore 연동) ───────────────────────────
 function HRPayrollApp() {
-    const { userProfile } = useAuth();
+    const { userProfile, logout } = useAuth();
 
     // ── Firestore 실시간 훅 ──
     const { employees: users, loading: empLoading, addEmployee, updateEmployee, deleteEmployee, batchImport: batchImportEmployees } = useEmployees();
@@ -1437,19 +1437,52 @@ function HRPayrollApp() {
                         <p className="text-[#7a8a6a] text-[10px] font-medium mt-0.5">{userProfile?.name || ''} · {userProfile?.roleGroup === 'sys_admin' ? '관리자' : userProfile?.roleGroup === 'approver_final' ? '대표' : '승인자'}</p>
                     </div>
                     <div className="flex-1 py-2 space-y-0.5">
-                        {[
-                            { key: 'HOME', label: '홈', icon: '🏠' },
-                            { key: 'PAYROLL', label: '급여정산', icon: '₩' },
-                            { key: 'HR', label: '인사관리', icon: '👤' },
-                            { key: 'LEAVE', label: '연차관리', icon: '📅' },
-                            ...(userProfile?.roleGroup === 'approver_senior' || userProfile?.roleGroup === 'approver_final' ? [{ key: 'APPROVALS', label: '연차결재', icon: '✅' }] : []),
-                            { key: 'EDIT_LOGS', label: '수정이력', icon: '📋' },
-                        ].map(({ key, label, icon }) => (
-                            <button key={key} onClick={() => setActiveTab(key)}
-                                className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5 transition-colors ${activeTab === key ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0]' : 'text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
-                                <span className="text-sm w-5 text-center">{icon}</span> {label}
-                            </button>
-                        ))}
+                        {(() => {
+                            const isApprover = userProfile?.roleGroup === 'approver_senior' || userProfile?.roleGroup === 'approver_final';
+                            const items = [
+                                { type: 'item', key: 'HOME', label: '홈', icon: '🏠' },
+                                { type: 'item', key: 'PAYROLL', label: '급여정산', icon: '₩' },
+                                { type: 'group', key: 'HR', label: '인사관리', icon: '👤', children: [
+                                    { key: 'LIST', label: '인력 목록' },
+                                    { key: 'ACCOUNT', label: '계정·권한 관리' },
+                                ]},
+                                { type: 'item', key: 'LEAVE', label: '연차관리', icon: '📅' },
+                                ...(isApprover ? [{ type: 'item', key: 'APPROVALS', label: '연차결재', icon: '✅' }] : []),
+                                { type: 'item', key: 'EDIT_LOGS', label: '수정이력', icon: '📋' },
+                            ];
+                            return items.map((it) => {
+                                if (it.type === 'item') {
+                                    const isActive = activeTab === it.key;
+                                    return (
+                                        <button key={it.key} onClick={() => setActiveTab(it.key)}
+                                            className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5 transition-colors ${isActive ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0]' : 'text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
+                                            <span className="text-sm w-5 text-center">{it.icon}</span> {it.label}
+                                        </button>
+                                    );
+                                }
+                                // group: HR
+                                const isGroupActive = activeTab === it.key;
+                                return (
+                                    <div key={it.key}>
+                                        <button onClick={() => { setActiveTab(it.key); setHrSubTab('LIST'); }}
+                                            className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5 transition-colors ${isGroupActive ? 'text-[#f5f3e8] bg-[#4a5538]' : 'text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
+                                            <span className="text-sm w-5 text-center">{it.icon}</span> {it.label}
+                                        </button>
+                                        <div className="ml-7 border-l border-[#2d3721]">
+                                            {it.children.map(child => {
+                                                const isChildActive = isGroupActive && hrSubTab === child.key;
+                                                return (
+                                                    <button key={child.key} onClick={() => { setActiveTab(it.key); setHrSubTab(child.key); }}
+                                                        className={`w-full text-left pl-3 pr-4 py-1.5 text-[11px] font-bold flex items-center transition-colors ${isChildActive ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0] -ml-px' : 'text-[#9aab8a] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
+                                                        {child.label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            });
+                        })()}
                     </div>
                     {/* 하단: 데이터 관리 + 알림 */}
                     <div className="border-t border-[#2d3721] p-2 space-y-1">
@@ -1480,6 +1513,9 @@ function HRPayrollApp() {
                         <div className="px-3 py-1 flex items-center">
                             <NotificationBell userId={userProfile?.uid} onNavigate={(tab) => setActiveTab(tab === 'HISTORY' ? 'LEAVE' : tab)} />
                         </div>
+                        <button onClick={logout} className="w-full text-left px-3 py-2 text-xs font-bold text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8] flex items-center gap-2 transition-colors border-t border-[#2d3721] mt-1 pt-2">
+                            <LogOut size={14} /> 로그아웃
+                        </button>
                     </div>
                     <input type="file" ref={rosterFileInputRef} onChange={handleRosterUpload} accept=".csv, .xlsx, .xls" className="hidden" />
                     <input type="file" ref={attendanceFileInputRef} onChange={handleAttendanceUpload} accept=".csv, .xlsx, .xls" className="hidden" />
@@ -1510,11 +1546,7 @@ function HRPayrollApp() {
 
                 {activeTab === 'HR' && (
                     <div>
-                        {/* 인력관리 서브탭 */}
-                        <div className="flex gap-0 mb-4 border-2 border-[#c5c0b0] bg-[#f5f3e8] max-w-xs">
-                            <button onClick={() => setHrSubTab('LIST')} className={`flex-1 px-4 py-2 text-xs font-bold transition ${hrSubTab === 'LIST' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#e8e4d4]'}`}>인력 목록</button>
-                            <button onClick={() => setHrSubTab('ACCOUNT')} className={`flex-1 px-4 py-2 text-xs font-bold transition border-l-2 border-[#c5c0b0] ${hrSubTab === 'ACCOUNT' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#e8e4d4]'}`}>계정/권한 관리</button>
-                        </div>
+                        {/* 좌측 사이드바에서 인사관리 하위(인력 목록 / 계정·권한 관리)를 직접 선택. 본문 상단 서브탭은 제거. */}
                         {hrSubTab === 'LIST' && (
                             <HRView
                                 stats={stats} teamCounts={teamCounts} viewMode={viewMode} setViewMode={setViewMode}
