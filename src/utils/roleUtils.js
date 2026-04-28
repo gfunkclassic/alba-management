@@ -121,3 +121,25 @@ export const ROLE_GROUP_OPTIONS = [
     { value: ROLE_GROUP.APPROVER_FINAL, label: '최종 승인자 (대표)' },
     { value: ROLE_GROUP.SYS_ADMIN, label: '시스템 관리자' },
 ];
+
+// ── 기능 기준 권한(실무용 표시) ─────────────────────────────────
+// 내부 roleGroup 값을 "이 사람이 무엇을 할 수 있는지"로 표시하기 위한 매핑입니다.
+// 저장 로직과 무관하며, 화면 표시 전용입니다.
+export const FUNCTIONAL_PERMISSIONS = [
+    { key: 'TEAM_MANAGER', label: '팀 관리자', roles: [ROLE_GROUP.MANAGER] },
+    { key: 'LEAVE_APPROVE', label: '연차 승인', roles: [ROLE_GROUP.MANAGER, ROLE_GROUP.APPROVER_SENIOR, ROLE_GROUP.APPROVER_FINAL] },
+    { key: 'PAYROLL_ACCESS', label: '급여정산 접근', roles: [ROLE_GROUP.APPROVER_SENIOR, ROLE_GROUP.APPROVER_FINAL, ROLE_GROUP.SYS_ADMIN] },
+    { key: 'ACCOUNT_ADMIN', label: '계정관리 접근', roles: [ROLE_GROUP.APPROVER_FINAL, ROLE_GROUP.SYS_ADMIN] },
+];
+
+/**
+ * roleGroup → 활성화된 기능 권한 라벨 배열을 반환합니다.
+ * @param {string} roleGroup
+ * @returns {string[]} 활성 권한 라벨 (예: ['연차 승인', '급여정산 접근'])
+ */
+export function getFunctionalPermissions(roleGroup) {
+    if (!roleGroup) return [];
+    return FUNCTIONAL_PERMISSIONS
+        .filter(p => p.roles.includes(roleGroup))
+        .map(p => p.label);
+}
