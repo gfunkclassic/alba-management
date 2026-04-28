@@ -4,6 +4,21 @@ import StatCard from './ui/StatCard';
 import InfoRow from './ui/InfoRow';
 import { ConfirmModal } from './modals/DialogModals';
 
+// 성별 표시 일관화 (저장 데이터 변경 없음, 표시 전용)
+// - 남/여 그대로
+// - male/MALE/M → 남, female/FEMALE/F → 여
+// - 그 외/빈 값 → '-'
+function displayGender(g) {
+    if (g === undefined || g === null) return '-';
+    const v = String(g).trim();
+    if (v === '') return '-';
+    if (v === '남' || v === '여') return v;
+    const u = v.toUpperCase();
+    if (u === 'M' || u === 'MALE') return '남';
+    if (u === 'F' || u === 'FEMALE') return '여';
+    return v;
+}
+
 // 근속 기간 계산 (입사일 ~ 오늘 또는 퇴사일)
 function calcTenure(startDate, endDate) {
     if (!startDate) return '-';
@@ -77,9 +92,9 @@ export default function HRView({
                 </div>
             </section>
 
-            <div className="flex flex-col lg:flex-row gap-4 mt-4">
-                <div className="flex-1 bg-[#f5f3e8] border-2 border-[#c5c0b0] shadow-md overflow-hidden">
-                    <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <div className="flex flex-col lg:flex-row gap-4 mt-4 lg:items-stretch">
+                <div className="flex-1 bg-[#f5f3e8] border-2 border-[#c5c0b0] shadow-md overflow-hidden flex flex-col lg:h-[700px] max-h-[700px]">
+                    <div className="overflow-x-auto overflow-y-auto flex-1">
                         <table className="w-full">
                             <thead className="bg-[#e8e4d4] sticky top-0 z-10 border-b-2 border-[#c5c0b0] text-[10px] font-bold text-[#5d6c4a] uppercase tracking-wider">
                                 {typeFilter === 'STAFF' ? (
@@ -97,7 +112,7 @@ export default function HRView({
                                     const insured = user.insuranceStatus;
                                     return (
                                         <tr key={user.id} onClick={() => handleSelectUser(user)} className={`group cursor-pointer hover:bg-[#f4f5eb] transition-colors text-xs ${selectedUser?.id === user.id ? 'bg-[#e8ebd8]' : ''}`}>
-                                            <td className="p-2.5 pl-3 text-[#7a7565]">{user.gender}</td>
+                                            <td className="p-2.5 pl-3 text-[#7a7565]">{displayGender(user.gender)}</td>
                                             <td className="p-2.5 font-bold text-[#3d472f]">{user.name}</td>
                                             {typeFilter === 'STAFF' ? (
                                                 <>
@@ -183,7 +198,7 @@ export default function HRView({
                                 <div>
                                     <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">기본 정보</h3>
                                     <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
-                                        <InfoRow icon={<Users size={14} />} label="성별" value={selectedUser.gender} />
+                                        <InfoRow icon={<Users size={14} />} label="성별" value={displayGender(selectedUser.gender)} />
                                         <InfoRow icon={<Phone size={14} />} label="연락처" value={maskPII ? '***-****-****' : selectedUser.phone} />
                                         <InfoRow icon={<Mail size={14} />} label="이메일" value={selectedUser.email} />
                                         <InfoRow icon={<Calendar size={14} />} label="입사일" value={selectedUser.startDate} />
