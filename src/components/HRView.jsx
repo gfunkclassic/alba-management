@@ -67,8 +67,21 @@ export default function HRView({
     selectedUser, handleSelectUser,
     calculateMonthlyWage, payrollMonth,
     openModal, openUserForm, openResignModal,
-    maskPII = false, roleMode = 'ADMIN', onDeleteUser
+    maskPII = false, roleMode = 'ADMIN', onDeleteUser,
+    filterSource = null, onClearHomeFilter = () => {}
 }) {
+    const FILTER_SOURCE_LABEL = {
+        INSURANCE_NEEDED: '홈에서 4대보험 미가입 필터로 들어왔습니다.',
+        RENEWAL_NEEDED: '홈에서 계약갱신 임박 필터로 들어왔습니다.',
+    };
+    const handleFilterStatusChange = (e) => {
+        setFilterStatus(e.target.value);
+        if (filterSource) onClearHomeFilter();
+    };
+    const handleClearHomeFilter = () => {
+        setFilterStatus('ALL');
+        onClearHomeFilter();
+    };
     const [deleteTargetUser, setDeleteTargetUser] = useState(null);
     const [typeFilter, setTypeFilter] = useState('ALL'); // ALL | ALBA | STAFF
     const [showMissingGenderOnly, setShowMissingGenderOnly] = useState(false);
@@ -97,7 +110,7 @@ export default function HRView({
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9a9585]" />
                     <input type="text" placeholder="이름, 연락처 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none" />
                 </div>
-                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-3 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm font-bold text-[#5a5545] outline-none">
+                <select value={filterStatus} onChange={handleFilterStatusChange} className="px-3 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm font-bold text-[#5a5545] outline-none">
                     <option value="ALL">전체 상태</option>
                     <option value="RENEWAL_NEEDED">계약 갱신 임박</option>
                     <option value="INSURANCE_NEEDED">4대보험 미가입</option>
@@ -118,6 +131,16 @@ export default function HRView({
                     <button onClick={() => setViewMode('ALL')} className={`px-3 py-1.5 text-xs font-bold border-l border-[#c5c0b0] transition ${viewMode === 'ALL' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#d4dcc0]'}`}>전체</button>
                 </div>
             </section>
+
+            {/* 홈에서 진입한 필터 안내 배너 (홈 카드 진입 시에만) */}
+            {filterSource && FILTER_SOURCE_LABEL[filterSource] && (
+                <div className="mt-3 flex items-center justify-between gap-2 px-3 py-2 bg-[#e8ebd8] border border-[#b8c4a0] text-[11px]">
+                    <span className="text-[#3d472f] font-bold">{FILTER_SOURCE_LABEL[filterSource]}</span>
+                    <button onClick={handleClearHomeFilter} className="px-2 py-0.5 bg-[#f5f3e8] border border-[#c5c0b0] text-[#5a5545] font-bold hover:bg-[#e8e4d4]">
+                        전체 보기
+                    </button>
+                </div>
+            )}
 
             {/* 성별 미입력 점검 안내 칩 (운영용) */}
             <div className="mt-3 flex items-center gap-2 text-xs">
