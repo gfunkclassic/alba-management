@@ -4,19 +4,39 @@ import StatCard from './ui/StatCard';
 import InfoRow from './ui/InfoRow';
 import { ConfirmModal } from './modals/DialogModals';
 
+// 성별 값을 여러 후보 필드에서 안전하게 가져오기 (표시 전용)
+// 우선순위: gender → sex → genderLabel → personalGender → personalInfo.gender
+function getGenderValue(user) {
+    if (!user || typeof user !== 'object') return '';
+    const candidates = [
+        user.gender,
+        user.sex,
+        user.genderLabel,
+        user.personalGender,
+        user.personalInfo && user.personalInfo.gender,
+    ];
+    for (const c of candidates) {
+        if (c !== undefined && c !== null && String(c).trim() !== '') return c;
+    }
+    return '';
+}
+
 // 성별 표시 일관화 (저장 데이터 변경 없음, 표시 전용)
 // - 남/여 그대로
-// - male/MALE/M → 남, female/FEMALE/F → 여
-// - 그 외/빈 값 → '-'
+// - 남성/남자/MALE/male/M → 남
+// - 여성/여자/FEMALE/female/F → 여
+// - 빈 값/null/undefined/알 수 없는 값 → '-'
 function displayGender(g) {
     if (g === undefined || g === null) return '-';
     const v = String(g).trim();
     if (v === '') return '-';
     if (v === '남' || v === '여') return v;
+    if (v === '남성' || v === '남자') return '남';
+    if (v === '여성' || v === '여자') return '여';
     const u = v.toUpperCase();
     if (u === 'M' || u === 'MALE') return '남';
     if (u === 'F' || u === 'FEMALE') return '여';
-    return v;
+    return '-';
 }
 
 // 근속 기간 계산 (입사일 ~ 오늘 또는 퇴사일)
@@ -112,7 +132,7 @@ export default function HRView({
                                     const insured = user.insuranceStatus;
                                     return (
                                         <tr key={user.id} onClick={() => handleSelectUser(user)} className={`group cursor-pointer hover:bg-[#f4f5eb] transition-colors text-xs ${selectedUser?.id === user.id ? 'bg-[#e8ebd8]' : ''}`}>
-                                            <td className="p-2.5 pl-3 text-[#7a7565]">{displayGender(user.gender)}</td>
+                                            <td className="p-2.5 pl-3 text-[#7a7565]">{displayGender(getGenderValue(user))}</td>
                                             <td className="p-2.5 font-bold text-[#3d472f]">{user.name}</td>
                                             {typeFilter === 'STAFF' ? (
                                                 <>
@@ -198,7 +218,7 @@ export default function HRView({
                                 <div>
                                     <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">기본 정보</h3>
                                     <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
-                                        <InfoRow icon={<Users size={14} />} label="성별" value={displayGender(selectedUser.gender)} />
+                                        <InfoRow icon={<Users size={14} />} label="성별" value={displayGender(getGenderValue(selectedUser))} />
                                         <InfoRow icon={<Phone size={14} />} label="연락처" value={maskPII ? '***-****-****' : selectedUser.phone} />
                                         <InfoRow icon={<Mail size={14} />} label="이메일" value={selectedUser.email} />
                                         <InfoRow icon={<Calendar size={14} />} label="입사일" value={selectedUser.startDate} />
