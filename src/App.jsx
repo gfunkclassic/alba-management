@@ -111,8 +111,12 @@ function HRPayrollApp() {
 
     useEffect(() => {
         localStorage.setItem('app_active_tab', activeTab);
+        // 인사관리 진입 시 하위 메뉴 자동 펼침
+        if (activeTab === 'HR') setHrMenuOpen(true);
     }, [activeTab]);
     const [hrSubTab, setHrSubTab] = useState('LIST'); // LIST | ACCOUNT
+    // 사이드바 인사관리 그룹 접힘/펼침 (시각 전용 — activeTab/hrSubTab 모델과 분리)
+    const [hrMenuOpen, setHrMenuOpen] = useState(() => (localStorage.getItem('app_active_tab') || 'HOME') === 'HR');
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTeam, setFilterTeam] = useState('전체');
     const [filterStatus, setFilterStatus] = useState('ALL');
@@ -1460,25 +1464,34 @@ function HRPayrollApp() {
                                         </button>
                                     );
                                 }
-                                // group: HR
+                                // group: HR (접힘/펼침)
                                 const isGroupActive = activeTab === it.key;
                                 return (
                                     <div key={it.key}>
-                                        <button onClick={() => { setActiveTab(it.key); setHrSubTab('LIST'); }}
-                                            className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5 transition-colors ${isGroupActive ? 'text-[#f5f3e8] bg-[#4a5538]' : 'text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
-                                            <span className="text-sm w-5 text-center">{it.icon}</span> {it.label}
-                                        </button>
-                                        <div className="ml-7 border-l border-[#2d3721]">
-                                            {it.children.map(child => {
-                                                const isChildActive = isGroupActive && hrSubTab === child.key;
-                                                return (
-                                                    <button key={child.key} onClick={() => { setActiveTab(it.key); setHrSubTab(child.key); }}
-                                                        className={`w-full text-left pl-3 pr-4 py-1.5 text-[11px] font-bold flex items-center transition-colors ${isChildActive ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0] -ml-px' : 'text-[#9aab8a] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
-                                                        {child.label}
-                                                    </button>
-                                                );
-                                            })}
+                                        <div className={`flex items-center transition-colors ${isGroupActive ? 'text-[#f5f3e8] bg-[#4a5538]' : 'text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
+                                            <button onClick={() => { setActiveTab(it.key); setHrSubTab('LIST'); setHrMenuOpen(true); }}
+                                                className="flex-1 text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5">
+                                                <span className="text-sm w-5 text-center">{it.icon}</span> {it.label}
+                                            </button>
+                                            <button onClick={(e) => { e.stopPropagation(); setHrMenuOpen(o => !o); }}
+                                                aria-label={hrMenuOpen ? '인사관리 메뉴 접기' : '인사관리 메뉴 펼치기'}
+                                                className="px-3 py-2.5 hover:text-[#f5f3e8]">
+                                                <ChevronDown size={12} className={`transition-transform ${hrMenuOpen ? 'rotate-180' : ''}`} />
+                                            </button>
                                         </div>
+                                        {hrMenuOpen && (
+                                            <div className="ml-7 border-l border-[#2d3721]">
+                                                {it.children.map(child => {
+                                                    const isChildActive = isGroupActive && hrSubTab === child.key;
+                                                    return (
+                                                        <button key={child.key} onClick={() => { setActiveTab(it.key); setHrSubTab(child.key); }}
+                                                            className={`w-full text-left pl-3 pr-4 py-1.5 text-[11px] font-bold flex items-center transition-colors ${isChildActive ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0] -ml-px' : 'text-[#9aab8a] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
+                                                            {child.label}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             });
