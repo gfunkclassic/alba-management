@@ -7,7 +7,7 @@ const EMPLOYMENT_STATUSES = ['재직', '수습', '퇴사예정', '퇴사'];
 export default function UserFormModal({ user, onClose, onSave, onDelete }) {
     const [formData, setFormData] = useState(() => {
         const defaults = {
-            name: '', team: '', gender: '남', bank: '', account: '',
+            name: '', team: '', gender: '', bank: '', account: '',
             startDate: new Date().toISOString().split('T')[0],
             insuranceDate: '', insuranceStatus: false, renewalDate: '',
             checkIn: '09:00', checkOut: '18:00', workHours: 8, workDays: '5일',
@@ -79,7 +79,7 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
                     {/* ── 기본 정보 ── */}
                     <div className={SECTION}>기본 정보</div>
                     <div><label className={LABEL}>이름</label><input name="name" value={formData.name} onChange={handleChange} required className={INPUT} /></div>
-                    <div><label className={LABEL}>성별</label><select name="gender" value={formData.gender} onChange={handleChange} className={INPUT}><option value="남">남</option><option value="여">여</option></select></div>
+                    <div><label className={LABEL}>성별</label><select name="gender" value={formData.gender || ''} onChange={handleChange} className={INPUT}><option value="">미입력</option><option value="남">남</option><option value="여">여</option></select></div>
                     <div><label className={LABEL}>연락처</label><input name="phone" value={formData.phone} onChange={handleChange} required className={INPUT} /></div>
                     <div><label className={LABEL}>이메일</label><input name="email" type="email" value={formData.email} onChange={handleChange} className={INPUT} /></div>
 
