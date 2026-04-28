@@ -1,8 +1,25 @@
 import React, { useState } from 'react';
-import { Search, RotateCcw, Monitor, Users, Briefcase, Wallet, Calendar, AlertTriangle, FileText, UserMinus, Check, Edit, Trash2 } from 'lucide-react';
+import { Search, RotateCcw, Monitor, Users, Briefcase, Wallet, Calendar, AlertTriangle, FileText, UserMinus, Check, Edit, Trash2, Phone, Mail, Shield } from 'lucide-react';
 import StatCard from './ui/StatCard';
 import InfoRow from './ui/InfoRow';
 import { ConfirmModal } from './modals/DialogModals';
+
+// 근속 기간 계산 (입사일 ~ 오늘 또는 퇴사일)
+function calcTenure(startDate, endDate) {
+    if (!startDate) return '-';
+    const start = new Date(startDate);
+    if (isNaN(start.getTime())) return '-';
+    const end = endDate ? new Date(endDate) : new Date();
+    if (isNaN(end.getTime())) return '-';
+    let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+    if (end.getDate() < start.getDate()) months -= 1;
+    if (months < 0) return '-';
+    const y = Math.floor(months / 12);
+    const m = months % 12;
+    if (y === 0) return `${m}개월`;
+    if (m === 0) return `${y}년`;
+    return `${y}년 ${m}개월`;
+}
 
 export default function HRView({
     stats,
@@ -126,16 +143,35 @@ export default function HRView({
                 </div>
 
                 <div className="w-full lg:w-80 bg-[#f5f3e8] border-2 border-[#c5c0b0] shadow-md flex flex-col h-[700px]">
-                    {selectedUser ? (
+                    {selectedUser ? (() => {
+                        const eType = selectedUser.employmentType || selectedUser.position || '아르바이트';
+                        const eStatus = selectedUser.employmentStatus || (selectedUser.resignDate ? '퇴사' : '재직');
+                        const isAlbaUser = eType === '아르바이트';
+                        const tenureLabel = calcTenure(selectedUser.startDate, selectedUser.resignDate);
+                        const statusBadgeCls = selectedUser.resignDate
+                            ? 'bg-[#a65d57] border-[#8b4d47] text-[#f5f3e8]'
+                            : eStatus === '수습' ? 'bg-[#fdf6e3] border-[#d8973c] text-[#7a5a1a]'
+                            : eStatus === '퇴사예정' ? 'bg-[#f8f0ef] border-[#dcc0bc] text-[#a65d57]'
+                            : 'bg-[#d4dcc0] border-[#b8c4a0] text-[#3d472f]';
+                        const typeBadgeCls = isAlbaUser
+                            ? 'bg-[#e8ebd8] border-[#b8c4a0] text-[#5d6c4a]'
+                            : 'bg-[#D6E4F0] border-[#a0b8d0] text-[#2F5597]';
+                        return (
                         <div className="flex flex-col h-full">
-                            <div className="p-6 bg-[#5d6c4a] border-b-2 border-[#3d472f]">
-                                <div className="flex justify-between items-start mb-2">
-                                    <h2 className="text-2xl font-black text-[#f5f3e8] tracking-tight">{selectedUser.name}</h2>
-                                    <span className={`px-2 py-0.5 text-xs font-bold border-2 ${selectedUser.resignDate ? 'bg-[#a65d57] border-[#8b4d47] text-[#f5f3e8]' : 'bg-[#d4dcc0] border-[#b8c4a0] text-[#3d472f]'}`}>
-                                        {selectedUser.resignDate ? '퇴사' : '재직중'}
-                                    </span>
+                            <div className="p-5 bg-[#5d6c4a] border-b-2 border-[#3d472f]">
+                                <div className="flex justify-between items-start mb-2 gap-2">
+                                    <h2 className="text-2xl font-black text-[#f5f3e8] tracking-tight truncate">{selectedUser.name || '-'}</h2>
+                                    <div className="flex flex-col items-end gap-1 shrink-0">
+                                        <span className={`px-2 py-0.5 text-[10px] font-bold border-2 ${statusBadgeCls}`}>{eStatus}</span>
+                                        <span className={`px-2 py-0.5 text-[10px] font-bold border-2 ${typeBadgeCls}`}>{eType}</span>
+                                    </div>
                                 </div>
-                                <p className="text-[#d4dcc0] text-sm font-bold flex items-center gap-2"><Briefcase size={14} /> {selectedUser.team} | {selectedUser.position}</p>
+                                <p className="text-[#d4dcc0] text-xs font-bold flex items-center gap-1.5">
+                                    <Briefcase size={12} />
+                                    <span>{selectedUser.team || '-'}</span>
+                                    <span className="text-[#b8c4a0]">·</span>
+                                    <span>{(!isAlbaUser && selectedUser.jobTitle) ? selectedUser.jobTitle : (isAlbaUser ? '아르바이트' : '-')}</span>
+                                </p>
                                 {selectedUser.resignDate && (
                                     <div className="mt-3 p-3 bg-[#8b4d47] border-l-4 border-[#3d3929] text-xs">
                                         <div className="font-bold text-[#f5f3e8]">퇴사일: {selectedUser.resignDate}</div>
@@ -144,21 +180,48 @@ export default function HRView({
                                 )}
                             </div>
                             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                                <div><h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">Contact & Info</h3>
+                                <div>
+                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">기본 정보</h3>
                                     <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
-                                        <InfoRow label="연락처" value={maskPII ? '***-****-****' : selectedUser.phone} />
-                                        <InfoRow label="주민가명" value={maskPII ? '******-*******' : `${selectedUser.rrn?.substring(0, 8)}******`} />
-                                        <InfoRow label="계좌" value={maskPII ? `${selectedUser.bank} ***-***-******` : `${selectedUser.bank} ${selectedUser.account}`} />
-                                    </div>
-                                </div>
-                                <div><h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">Employment</h3>
-                                    <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
+                                        <InfoRow icon={<Users size={14} />} label="성별" value={selectedUser.gender} />
+                                        <InfoRow icon={<Phone size={14} />} label="연락처" value={maskPII ? '***-****-****' : selectedUser.phone} />
+                                        <InfoRow icon={<Mail size={14} />} label="이메일" value={selectedUser.email} />
                                         <InfoRow icon={<Calendar size={14} />} label="입사일" value={selectedUser.startDate} />
-                                        <InfoRow icon={<Monitor size={14} />} label="근무시간" value={`${selectedUser.checkIn} - ${selectedUser.checkOut}`} />
-                                        <InfoRow icon={<Wallet size={14} />} label="시급" value={`₩${selectedUser.wage.toLocaleString()}`} />
-                                        <InfoRow icon={<RotateCcw size={14} />} label="Renew By" value={selectedUser.renewalDate} />
+                                        <InfoRow icon={<RotateCcw size={14} />} label="근속" value={tenureLabel} />
                                     </div>
                                 </div>
+
+                                <div>
+                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2">근무 / 계약 정보</h3>
+                                    <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
+                                        {isAlbaUser ? (
+                                            <>
+                                                <InfoRow icon={<Monitor size={14} />} label="근무시간" value={(selectedUser.checkIn && selectedUser.checkOut) ? `${selectedUser.checkIn} - ${selectedUser.checkOut}` : '-'} />
+                                                <InfoRow icon={<Calendar size={14} />} label="주 근무일수" value={selectedUser.workDays} />
+                                                <InfoRow icon={<Wallet size={14} />} label="시급" value={selectedUser.wage ? `₩${Number(selectedUser.wage).toLocaleString()}` : '-'} />
+                                                <InfoRow icon={<RotateCcw size={14} />} label="계약 갱신일" value={selectedUser.renewalDate} />
+                                            </>
+                                        ) : (
+                                            <>
+                                                <InfoRow icon={<Briefcase size={14} />} label="직급" value={selectedUser.jobTitle} />
+                                                <InfoRow icon={<Calendar size={14} />} label="진급일" value={selectedUser.promotionDate} />
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2 flex items-center justify-between">
+                                        <span>4대보험</span>
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 border ${selectedUser.insuranceStatus ? 'bg-[#e8ebd8] border-[#b8c4a0] text-[#5d6c4a]' : 'bg-[#f8f0ef] border-[#dcc0bc] text-[#a65d57]'}`}>
+                                            {selectedUser.insuranceStatus ? '가입' : '미가입'}
+                                        </span>
+                                    </h3>
+                                    <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
+                                        <InfoRow icon={<Shield size={14} />} label="신고일" value={selectedUser.insuranceDate} />
+                                    </div>
+                                </div>
+
                                 {selectedUser.resignDate && (
                                     <div className="bg-[#f8f0ef] p-4 border-2 border-[#dcc0bc]">
                                         <h3 className="text-xs font-bold text-[#a65d57] uppercase mb-2">퇴사 정보</h3>
@@ -168,7 +231,7 @@ export default function HRView({
                                 )}
                                 <div className="bg-[#e8ebd8] p-4 border-2 border-[#b8c4a0]">
                                     <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-2 flex items-center justify-between">
-                                        Payroll Est.
+                                        예상 급여
                                         <span className="text-[10px] bg-[#5d6c4a] text-[#f5f3e8] px-1.5 py-0.5">{selectedUser.insuranceStatus ? '세전' : '3.3%공제'}</span>
                                     </h3>
                                     {(() => {
@@ -216,8 +279,9 @@ export default function HRView({
                                 <button onClick={() => openModal('calendar')} className="w-full py-3 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border-2 border-[#3d472f] flex justify-center items-center gap-2"><Calendar size={16} /> 근태 관리 열기</button>
                             </div>
                         </div>
-                    ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-[#9a9585] p-8 text-center"><Users size={48} className="mb-4 opacity-20" /><p className="text-sm font-medium">직원을 선택하여<br />상세 정보를 확인하세요</p></div>
+                        );
+                    })() : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-[#9a9585] p-8 text-center"><Users size={48} className="mb-4 opacity-20" /><p className="text-sm font-medium">인력을 선택하면<br />상세 정보가 표시됩니다.</p></div>
                     )}
                 </div>
             </div>
