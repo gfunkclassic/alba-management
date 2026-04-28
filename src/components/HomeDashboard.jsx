@@ -1,11 +1,29 @@
 import React from 'react';
-import { Users, Wallet, Calendar, FileText, ChevronRight, Download, AlertTriangle, Clock } from 'lucide-react';
+import { Users, Wallet, Calendar, FileText, ChevronRight, Download, AlertTriangle, Clock, CheckSquare } from 'lucide-react';
 
-export default function HomeDashboard({ stats, payrollMonth, users, onNavigate, onDownloadLaborSubmission }) {
+export default function HomeDashboard({ stats, payrollMonth, users, lastConfirmed, pendingApprovalCount = 0, userRoleGroup, onNavigate, onDownloadLaborSubmission }) {
+    const isApprover = userRoleGroup === 'approver_senior' || userRoleGroup === 'approver_final';
+    const lcMonth = lastConfirmed?.month || null;
+    const lcTotal = lastConfirmed?.total || 0;
     const cards = [
         { label: '재직 인원', value: `${stats.totalActive || 0}명`, sub: `퇴사 ${stats.totalResigned || 0}명`, icon: <Users size={20} />, color: 'bg-[#5d6c4a]', action: () => onNavigate('HR') },
-        { label: '이번 달 예상 급여', value: `₩${(stats.totalWage || 0).toLocaleString()}`, sub: `${payrollMonth} 기준`, icon: <Wallet size={20} />, color: 'bg-[#2F5597]', action: () => onNavigate('PAYROLL') },
-        { label: '연차 소진 필요', value: `${stats.lowLeaveCount || 0}명`, sub: '잔여 3일 이하', icon: <Calendar size={20} />, color: 'bg-[#d8973c]', action: () => onNavigate('LEAVE') },
+        {
+            label: '지난달 확정 급여',
+            value: lcMonth ? `₩${lcTotal.toLocaleString()}` : '-',
+            sub: lcMonth ? `${lcMonth} 확정 기준` : '확정 급여 데이터 없음',
+            icon: <Wallet size={20} />, color: 'bg-[#2F5597]',
+            action: () => onNavigate('PAYROLL')
+        },
+        ...(isApprover ? [{
+            label: '연차 결재 필요',
+            value: `${pendingApprovalCount}건`,
+            sub: pendingApprovalCount > 0 ? '결재 대기' : '대기 없음',
+            icon: <CheckSquare size={20} />, color: 'bg-[#d8973c]',
+            action: () => onNavigate('APPROVALS')
+        }] : [{
+            label: '연차 소진 필요', value: `${stats.lowLeaveCount || 0}명`, sub: '잔여 3일 이하',
+            icon: <Calendar size={20} />, color: 'bg-[#d8973c]', action: () => onNavigate('LEAVE')
+        }]),
         { label: '4대보험 미가입', value: `${stats.insuranceNeeded || 0}명`, sub: '가입 필요', icon: <AlertTriangle size={20} />, color: 'bg-[#a65d57]', action: () => onNavigate('HR', 'INSURANCE_NEEDED') },
     ];
 
@@ -83,6 +101,16 @@ export default function HomeDashboard({ stats, payrollMonth, users, onNavigate, 
                 {/* 처리 필요 / 최근 현황 */}
                 <div className="space-y-3">
                     <h3 className="text-sm font-bold text-[#5d6c4a]">주의 사항</h3>
+                    {/* 연차 결재 대기 (결재권자 전용) */}
+                    {isApprover && pendingApprovalCount > 0 && (
+                        <button type="button" onClick={() => onNavigate('APPROVALS')} className="w-full text-left bg-[#fdf6e3] border border-[#d8973c] p-3 hover:bg-[#f9eccb] transition-colors">
+                            <p className="text-xs font-bold text-[#7a5a1a] flex items-center justify-between gap-1">
+                                <span className="flex items-center gap-1"><CheckSquare size={12} /> 연차 결재 대기 {pendingApprovalCount}건</span>
+                                <ChevronRight size={12} />
+                            </p>
+                            <p className="text-[10px] text-[#7a7565] mt-1">클릭하면 연차결재 화면으로 이동합니다.</p>
+                        </button>
+                    )}
                     {/* 계약갱신 임박 */}
                     {renewalSoon.length > 0 ? (
                         <button type="button" onClick={() => onNavigate('HR', 'RENEWAL_NEEDED')} className="w-full text-left bg-[#f5f3e8] border border-[#c5c0b0] p-3 hover:border-[#d8973c] hover:bg-[#fdf6e3] transition-colors">
