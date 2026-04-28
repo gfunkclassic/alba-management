@@ -6,7 +6,7 @@ export default function HomeDashboard({ stats, payrollMonth, users, onNavigate, 
         { label: '재직 인원', value: `${stats.totalActive || 0}명`, sub: `퇴사 ${stats.totalResigned || 0}명`, icon: <Users size={20} />, color: 'bg-[#5d6c4a]', action: () => onNavigate('HR') },
         { label: '이번 달 예상 급여', value: `₩${(stats.totalWage || 0).toLocaleString()}`, sub: `${payrollMonth} 기준`, icon: <Wallet size={20} />, color: 'bg-[#2F5597]', action: () => onNavigate('PAYROLL') },
         { label: '연차 소진 필요', value: `${stats.lowLeaveCount || 0}명`, sub: '잔여 3일 이하', icon: <Calendar size={20} />, color: 'bg-[#d8973c]', action: () => onNavigate('LEAVE') },
-        { label: '4대보험 미가입', value: `${stats.insuranceNeeded || 0}명`, sub: '가입 필요', icon: <AlertTriangle size={20} />, color: 'bg-[#a65d57]', action: () => onNavigate('HR') },
+        { label: '4대보험 미가입', value: `${stats.insuranceNeeded || 0}명`, sub: '가입 필요', icon: <AlertTriangle size={20} />, color: 'bg-[#a65d57]', action: () => onNavigate('HR', 'INSURANCE_NEEDED') },
     ];
 
     // 계약갱신 임박 직원 (14일 이내)
@@ -85,15 +85,18 @@ export default function HomeDashboard({ stats, payrollMonth, users, onNavigate, 
                     <h3 className="text-sm font-bold text-[#5d6c4a]">주의 사항</h3>
                     {/* 계약갱신 임박 */}
                     {renewalSoon.length > 0 ? (
-                        <div className="bg-[#f5f3e8] border border-[#c5c0b0] p-3">
-                            <p className="text-xs font-bold text-[#d8973c] mb-2 flex items-center gap-1"><Clock size={12} /> 계약갱신 임박 ({renewalSoon.length}명)</p>
+                        <button type="button" onClick={() => onNavigate('HR', 'RENEWAL_NEEDED')} className="w-full text-left bg-[#f5f3e8] border border-[#c5c0b0] p-3 hover:border-[#d8973c] hover:bg-[#fdf6e3] transition-colors">
+                            <p className="text-xs font-bold text-[#d8973c] mb-2 flex items-center justify-between gap-1">
+                                <span className="flex items-center gap-1"><Clock size={12} /> 계약갱신 임박 ({renewalSoon.length}명)</span>
+                                <ChevronRight size={12} className="text-[#d8973c]" />
+                            </p>
                             {renewalSoon.map((u, i) => (
                                 <div key={i} className="flex justify-between text-[10px] py-0.5">
                                     <span className="text-[#3d472f] font-bold">{u.name} <span className="font-normal text-[#9a9585]">{u.team}</span></span>
                                     <span className="text-[#d8973c]">{u.renewalDate}</span>
                                 </div>
                             ))}
-                        </div>
+                        </button>
                     ) : (
                         <div className="bg-[#f5f3e8] border border-[#c5c0b0] p-3 text-xs text-[#9a9585]">계약갱신 임박 인원이 없습니다.</div>
                     )}
@@ -111,10 +114,13 @@ export default function HomeDashboard({ stats, payrollMonth, users, onNavigate, 
                     )}
                     {/* 4대보험 안내 */}
                     {(stats.insuranceNeeded || 0) > 0 && (
-                        <div className="bg-[#f8f0ef] border border-[#dcc0bc] p-3">
-                            <p className="text-xs font-bold text-[#a65d57] flex items-center gap-1"><AlertTriangle size={12} /> 4대보험 미가입 {stats.insuranceNeeded}명</p>
-                            <p className="text-[10px] text-[#7a7565] mt-1">인력관리에서 가입 상태를 확인하세요.</p>
-                        </div>
+                        <button type="button" onClick={() => onNavigate('HR', 'INSURANCE_NEEDED')} className="w-full text-left bg-[#f8f0ef] border border-[#dcc0bc] p-3 hover:border-[#a65d57] hover:bg-[#f0e5e4] transition-colors">
+                            <p className="text-xs font-bold text-[#a65d57] flex items-center justify-between gap-1">
+                                <span className="flex items-center gap-1"><AlertTriangle size={12} /> 4대보험 미가입 {stats.insuranceNeeded}명</span>
+                                <ChevronRight size={12} />
+                            </p>
+                            <p className="text-[10px] text-[#7a7565] mt-1">클릭하면 인력관리에서 미가입 대상만 표시합니다.</p>
+                        </button>
                     )}
                 </div>
             </div>

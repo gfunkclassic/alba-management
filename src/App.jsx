@@ -1493,7 +1493,17 @@ function HRPayrollApp() {
                         stats={stats}
                         payrollMonth={payrollMonth}
                         users={users}
-                        onNavigate={setActiveTab}
+                        onNavigate={(tab, intent) => {
+                            // 홈에서 특정 카드/리스트로 진입 시 인사관리 초기 필터 적용
+                            if (tab === 'HR') {
+                                setHrSubTab('LIST');
+                                setViewMode('ACTIVE');
+                                if (intent === 'INSURANCE_NEEDED') setFilterStatus('INSURANCE_NEEDED');
+                                else if (intent === 'RENEWAL_NEEDED') setFilterStatus('RENEWAL_NEEDED');
+                                else setFilterStatus('ALL');
+                            }
+                            setActiveTab(tab);
+                        }}
                         onDownloadLaborSubmission={downloadLaborSubmission}
                     />
                 )}
