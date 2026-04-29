@@ -46,7 +46,7 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
         onSave(saveData);
     };
 
-    const INPUT = "w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none";
+    const INPUT = "w-full p-2 border border-[#d4cfbf] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none";
     const LABEL = "text-xs font-bold text-[#7a7565] block mb-1";
     const SECTION = "col-span-2 text-xs font-bold text-[#5d6c4a] uppercase tracking-wider mb-1 mt-3";
 
@@ -134,21 +134,21 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
                     {/* ── 퇴사 정보 ── */}
                     {(formData.employmentStatus === '퇴사' || formData.employmentStatus === '퇴사예정' || formData.resignDate) && (
                         <>
-                            <div className="col-span-2 text-xs font-bold text-[#a65d57] uppercase tracking-wider mb-1 mt-3">퇴사 정보</div>
-                            <div><label className={LABEL}>퇴사 일자</label><input name="resignDate" type="date" value={formData.resignDate || ''} onChange={handleChange} className={`${INPUT} focus:border-[#a65d57]`} /></div>
-                            <div><label className={LABEL}>퇴사 사유</label><input name="resignReason" value={formData.resignReason || ''} onChange={handleChange} placeholder="퇴사 사유" className={`${INPUT} focus:border-[#a65d57]`} /></div>
+                            <div className="col-span-2 text-xs font-bold text-[#8d5a4d] uppercase tracking-wider mb-1 mt-3">퇴사 정보</div>
+                            <div><label className={LABEL}>퇴사 일자</label><input name="resignDate" type="date" value={formData.resignDate || ''} onChange={handleChange} className={`${INPUT} focus:border-[#8d5a4d]`} /></div>
+                            <div><label className={LABEL}>퇴사 사유</label><input name="resignReason" value={formData.resignReason || ''} onChange={handleChange} placeholder="퇴사 사유" className={`${INPUT} focus:border-[#8d5a4d]`} /></div>
                         </>
                     )}
 
                     {/* ── 버튼 ── */}
-                    <div className="col-span-2 pt-4 border-t-2 border-[#c5c0b0] flex justify-between items-center">
+                    <div className="col-span-2 pt-4 border-t border-[#d4cfbf] flex justify-between items-center">
                         <div>
                             {user && onDelete && (
-                                <button type="button" onClick={() => { if (window.confirm('정말로 이 직원을 삭제하시겠습니까? 관련된 기록이 삭제될 수 있습니다.')) onDelete(user.id); }} className="px-4 py-2 bg-[#a65d57] text-[#f5f3e8] font-bold text-sm hover:bg-[#8a4d47] border-2 border-[#7a4540]">삭제</button>
+                                <button type="button" onClick={() => { if (window.confirm('정말로 이 직원을 삭제하시겠습니까? 관련된 기록이 삭제될 수 있습니다.')) onDelete(user.id); }} className="px-4 py-2 bg-[#8d5a4d] text-[#f5f3e8] font-bold text-sm hover:bg-[#7a4d40] border-2 border-[#7a4540]">삭제</button>
                             )}
                         </div>
                         <div className="flex gap-2">
-                            <button type="button" onClick={onClose} className="px-4 py-2 bg-[#f5f3e8] text-[#5a5545] font-bold text-sm hover:bg-[#e0ddd0] border-2 border-[#c5c0b0]">취소</button>
+                            <button type="button" onClick={onClose} className="px-4 py-2 bg-[#f5f3e8] text-[#5a5545] font-bold text-sm hover:bg-[#e0ddd0] border border-[#d4cfbf]">취소</button>
                             <button type="submit" className="px-6 py-2 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border-2 border-[#3d472f]">저장</button>
                         </div>
                     </div>
