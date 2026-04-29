@@ -5,7 +5,7 @@ import { db } from '../../firebase';
 import { formatAppliedDates } from '../../utils/leaveUtils';
 
 const ACTION_LABEL = { APPROVE: '승인', REJECT: '반려' };
-const ACTION_COLOR = { APPROVE: 'text-[#5d6c4a]', REJECT: 'text-[#a65d57]' };
+const ACTION_COLOR = { APPROVE: 'text-[#5d6c4a]', REJECT: 'text-[#8d5a4d]' };
 const STAGE_LABEL = { TEAM: '1차 (팀)', FINAL: '2차 (실장)', CEO: '3차 (대표)' };
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '반차(오전)', HALF_PM: '반차(오후)' };
 
@@ -167,8 +167,8 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-[#f5f3e8] rounded-xl shadow-2xl max-w-xl w-full max-h-[92vh] min-h-[70vh] flex flex-col border-2 border-[#a65d57] overflow-hidden">
-                <div className="flex justify-between items-center p-4 bg-[#a65d57] text-[#f5f3e8] shrink-0">
+            <div className="bg-[#f5f3e8] rounded-xl shadow-2xl max-w-xl w-full max-h-[92vh] min-h-[70vh] flex flex-col border-2 border-[#8d5a4d] overflow-hidden">
+                <div className="flex justify-between items-center p-4 bg-[#8d5a4d] text-[#f5f3e8] shrink-0">
                     <h2 className="text-sm font-black flex items-center gap-2">
                         <User size={16} /> 신청 상세 정보
                     </h2>
@@ -246,12 +246,12 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                                 ? (Object.values(request.final_approvals).find(v => v.status === 'REJECTED')?.acted_at || null)
                                 : null);
                         return (
-                            <div className="bg-[#f8f0ef] border border-[#dcc0bc] rounded-lg p-4">
-                                <h3 className="text-xs font-bold text-[#a65d57] mb-3 uppercase">반려 정보</h3>
+                            <div className="bg-[#f5ebe7] border border-[#cba79c] rounded-lg p-4">
+                                <h3 className="text-xs font-bold text-[#8d5a4d] mb-3 uppercase">반려 정보</h3>
                                 <div className="grid grid-cols-2 gap-y-3 text-sm">
                                     <div>
                                         <span className="text-xs text-[#7a7565] block mb-0.5">반려자</span>
-                                        <span className="font-bold text-[#a65d57]">{byName}</span>
+                                        <span className="font-bold text-[#8d5a4d]">{byName}</span>
                                     </div>
                                     <div>
                                         <span className="text-xs text-[#7a7565] block mb-0.5">반려 단계</span>
@@ -286,7 +286,7 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                                     const isTeamRejected = request.status === 'REJECTED' && !request.final_approvals && !request.ceo_decision;
                                     const isTeamApproved = !isTeamRejected && request.status !== 'SUBMITTED' && request.status !== 'CANCELLED';
                                     return (
-                                        <span className={`text-[9px] mb-1.5 font-bold whitespace-nowrap ${isTeamRejected ? 'text-[#a65d57]' : isTeamApproved ? 'text-[#5d6c4a]' : 'text-[#9a9585]'}`}>
+                                        <span className={`text-[9px] mb-1.5 font-bold whitespace-nowrap ${isTeamRejected ? 'text-[#8d5a4d]' : isTeamApproved ? 'text-[#5d6c4a]' : 'text-[#9a9585]'}`}>
                                             {isTeamRejected ? '반려' : isTeamApproved ? '승인' : '대기'}
                                         </span>
                                     );
@@ -300,7 +300,7 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                                         <StampPending />
                                     )}
                                 </div>
-                                <span className="text-[10px] font-black text-[#8b4d47] text-center whitespace-nowrap">{teamApprover ? teamApprover.name : '팀 관리자'}</span>
+                                <span className="text-[10px] font-black text-[#7a4d40] text-center whitespace-nowrap">{teamApprover ? teamApprover.name : '팀 관리자'}</span>
                                 <span className="text-[9px] text-[#9a9585] mt-1">1차 (팀)</span>
                             </div>
 
@@ -309,7 +309,7 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                                 const approval = request.final_approvals?.[fa.uid];
                                 return (
                                     <div key={fa.uid} className="flex-1 py-3 px-1 flex flex-col items-center justify-center bg-white border-r border-[#d4dcc0]">
-                                        <span className={`text-[9px] mb-1.5 font-bold whitespace-nowrap ${approval?.status === 'APPROVED' ? 'text-[#5d6c4a]' : approval?.status === 'REJECTED' ? 'text-[#a65d57]' : 'text-[#9a9585]'}`}>
+                                        <span className={`text-[9px] mb-1.5 font-bold whitespace-nowrap ${approval?.status === 'APPROVED' ? 'text-[#5d6c4a]' : approval?.status === 'REJECTED' ? 'text-[#8d5a4d]' : 'text-[#9a9585]'}`}>
                                             {approval?.status === 'APPROVED' ? '승인' : approval?.status === 'REJECTED' ? '반려' : '대기'}
                                         </span>
                                         <div className="flex items-center justify-center mb-1.5">
@@ -323,7 +323,7 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                                         </div>
                                         <span className="text-[10px] font-black text-[#5d6c4a] text-center whitespace-nowrap">{fa.name}</span>
                                         {approval?.delegated && approval?.actual_actor_name && (
-                                            <span className="text-[9px] text-[#a06820] text-center leading-tight mt-0.5">{approval.actual_actor_name} 위임 처리</span>
+                                            <span className="text-[9px] text-[#7a5a1a] text-center leading-tight mt-0.5">{approval.actual_actor_name} 위임 처리</span>
                                         )}
                                         <span className="text-[9px] text-[#9a9585] mt-1">2차 (실장)</span>
                                     </div>
@@ -332,7 +332,7 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
 
                             {/* 3차: 최종 결재 (CEO) */}
                             <div className="flex-1 py-3 px-1 flex flex-col items-center justify-center bg-white">
-                                <span className={`text-[9px] mb-1.5 font-bold whitespace-nowrap ${request.ceo_decision?.status === 'APPROVED' ? 'text-[#5d6c4a]' : request.ceo_decision?.status === 'REJECTED' ? 'text-[#a65d57]' : 'text-[#9a9585]'}`}>
+                                <span className={`text-[9px] mb-1.5 font-bold whitespace-nowrap ${request.ceo_decision?.status === 'APPROVED' ? 'text-[#5d6c4a]' : request.ceo_decision?.status === 'REJECTED' ? 'text-[#8d5a4d]' : 'text-[#9a9585]'}`}>
                                     {request.ceo_decision?.status === 'APPROVED' ? '승인' : request.ceo_decision?.status === 'REJECTED' ? '반려' : '대기'}
                                 </span>
                                 <div className="flex items-center justify-center mb-1.5">
@@ -348,7 +348,7 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                                     {request.ceo_decision?.slot_owner_name || request.ceo_decision?.name || '강일훈(대표)'}
                                 </span>
                                 {request.ceo_decision?.delegated && request.ceo_decision?.actual_actor_name && (
-                                    <span className="text-[9px] text-[#a06820] text-center leading-tight mt-0.5">{request.ceo_decision.actual_actor_name} 위임 처리</span>
+                                    <span className="text-[9px] text-[#7a5a1a] text-center leading-tight mt-0.5">{request.ceo_decision.actual_actor_name} 위임 처리</span>
                                 )}
                                 <span className="text-[9px] text-[#9a9585] mt-1">3차 (대표)</span>
                             </div>
@@ -365,7 +365,7 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                             <div className="py-8 text-center"><Loader size={20} className="animate-spin mx-auto text-[#9a9585]" /></div>
                         ) : history.length === 0 ? (
                             <div className="bg-[#f0e8d5] p-6 text-center rounded-lg border border-[#e0d6bd]">
-                                <AlertTriangle size={24} className="mx-auto text-[#d8973c] mb-2" />
+                                <AlertTriangle size={24} className="mx-auto text-[#a78049] mb-2" />
                                 <p className="text-sm font-bold text-[#7a7565]">아직 처리된 내역이 없습니다.</p>
                             </div>
                         ) : (
@@ -374,13 +374,13 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                                     <div key={item.id} className="relative pl-6">
                                         {/* 타임라인 점/선 */}
                                         <div className="absolute left-2 top-2 bottom-[-12px] w-0.5 bg-[#c5c0b0]"></div>
-                                        <div className={`absolute left-[3px] top-2 w-2.5 h-2.5 rounded-full border-2 border-[#f5f3e8] z-10 ${item.action === 'APPROVE' ? 'bg-[#5d6c4a]' : 'bg-[#a65d57]'}`}></div>
+                                        <div className={`absolute left-[3px] top-2 w-2.5 h-2.5 rounded-full border-2 border-[#f5f3e8] z-10 ${item.action === 'APPROVE' ? 'bg-[#5d6c4a]' : 'bg-[#8d5a4d]'}`}></div>
                                         {idx === history.length - 1 && <div className="absolute left-[3px] top-4 bottom-0 w-2.5 bg-[#f5f3e8] z-0"></div>}
 
                                         <div className="bg-white p-3 rounded shadow-sm border border-[#e8d5b5]">
                                             <div className="flex justify-between items-start mb-2">
                                                 <div className="flex items-center gap-2">
-                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${item.stage === 'CEO' ? 'bg-[#8b4d47] text-white' : item.stage === 'FINAL' ? 'bg-[#3d6b5e] text-white' : 'bg-[#5d6c4a] text-white'}`}>
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${item.stage === 'CEO' ? 'bg-[#7a4d40] text-white' : item.stage === 'FINAL' ? 'bg-[#3d6b5e] text-white' : 'bg-[#5d6c4a] text-white'}`}>
                                                         {STAGE_LABEL[item.stage] || item.stage}
                                                     </span>
                                                     <span className={`font-black text-xs ${ACTION_COLOR[item.action]}`}>
@@ -396,7 +396,7 @@ export default function LeaveDetailModal({ isOpen, onClose, request }) {
                                                 <span className="font-bold text-[#3d472f]">처리자: </span>
                                                 {item._actorName}
                                                 {item._proxyForName && (
-                                                    <span className="text-[#a06820]">
+                                                    <span className="text-[#7a5a1a]">
                                                         {' '}({item._proxyForName} {(item.stage === 'FINAL' || item.stage === 'CEO') ? '위임 처리' : '대행'})
                                                     </span>
                                                 )}

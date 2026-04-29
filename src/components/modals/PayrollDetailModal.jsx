@@ -21,7 +21,7 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
 
     const getDayColor = (dateStr, reason) => {
         const dow = new Date(dateStr).getDay();
-        if (reason?.includes('결근')) return 'text-[#a65d57]';
+        if (reason?.includes('결근')) return 'text-[#8d5a4d]';
         if (reason?.includes('연차')) return 'text-[#5d6c4a]';
         if (dow === 0 || dow === 6) return 'text-[#9a9585]';
         return 'text-[#3d472f]';
@@ -51,7 +51,7 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-3 gap-0 border-b-2 border-[#c5c0b0] shrink-0">
+                <div className="grid grid-cols-3 gap-0 border-b border-[#d4cfbf] shrink-0">
                     <div className="p-3 text-center border-r-2 border-[#c5c0b0]">
                         <p className="text-[10px] font-bold text-[#7a7565] uppercase mb-1">근무일수</p>
                         <p className="text-xl font-black text-[#3d472f]">{summary.worked}일</p>
@@ -62,7 +62,7 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                     </div>
                     <div className="p-3 text-center">
                         <p className="text-[10px] font-bold text-[#7a7565] uppercase mb-1">연장시간</p>
-                        <p className="text-xl font-black text-[#a65d57]">+{Math.round((wage?.totalActualOvertime || 0) * 10) / 10}h</p>
+                        <p className="text-xl font-black text-[#8d5a4d]">+{Math.round((wage?.totalActualOvertime || 0) * 10) / 10}h</p>
                     </div>
                 </div>
 
@@ -76,13 +76,13 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                         </div>
                     ) : (
                         <table className="w-full text-xs">
-                            <thead className="bg-[#e8e4d4] sticky top-0 z-10 border-b-2 border-[#c5c0b0]">
+                            <thead className="bg-[#f5f3e8] sticky top-0 z-10 border-b border-[#d4cfbf]">
                                 <tr>
                                     <th className="p-2.5 text-left font-bold text-[#5d6c4a] uppercase">날짜</th>
                                     <th className="p-2.5 text-center font-bold text-[#5d6c4a] uppercase">출근</th>
                                     <th className="p-2.5 text-center font-bold text-[#5d6c4a] uppercase">퇴근</th>
                                     <th className="p-2.5 text-center font-bold text-[#5d6c4a] uppercase">실근무</th>
-                                    <th className="p-2.5 text-center font-bold text-[#a65d57] uppercase">연장</th>
+                                    <th className="p-2.5 text-center font-bold text-[#8d5a4d] uppercase">연장</th>
                                     <th className="p-2.5 text-right font-bold text-[#5d6c4a] uppercase pr-4">일급</th>
                                     <th className="p-2.5 text-left font-bold text-[#5d6c4a] uppercase">비고</th>
                                 </tr>
@@ -108,7 +108,7 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                                         </td>
                                         <td className="p-2.5 text-center">
                                             {row.overtimeHours > 0
-                                                ? <span className="text-[#a65d57] font-bold">+{row.overtimeHours}h</span>
+                                                ? <span className="text-[#8d5a4d] font-bold">+{row.overtimeHours}h</span>
                                                 : <span className="text-[#c5c0b0]">—</span>}
                                         </td>
                                         <td className={`p-2.5 text-right pr-4 font-bold ${dimBold}`}>
@@ -119,7 +119,7 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                                                 <span className="px-1.5 py-0.5 text-[10px] font-bold border bg-[#f5f3e8] text-[#b0aa98] border-[#d4d0c4]">기본</span>
                                             )}
                                             {row.reason && (
-                                                <span className={`px-1.5 py-0.5 text-[10px] font-bold border ${row.reason.includes('결근') ? 'bg-[#f8f0ef] text-[#a65d57] border-[#dcc0bc]' :
+                                                <span className={`px-1.5 py-0.5 text-[10px] font-bold border ${row.reason.includes('결근') ? 'bg-[#f5ebe7] text-[#8d5a4d] border-[#cba79c]' :
                                                         row.reason.includes('연차') ? 'bg-[#e8ebd8] text-[#5d6c4a] border-[#b8c4a0]' :
                                                             'bg-[#e8e4d4] text-[#7a7565] border-[#c5c0b0]'
                                                     }`}>
@@ -136,7 +136,7 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                 </div>
 
                 {/* Footer: formula summary */}
-                <div className="border-t-2 border-[#c5c0b0] bg-[#faf8f0] p-4 shrink-0">
+                <div className="border-t border-[#d4cfbf] bg-[#faf8f0] p-4 shrink-0">
                     <div className="flex flex-wrap items-center gap-3 text-xs">
                         <div className="flex items-center gap-1.5 font-bold text-[#5a5545]">
                             <span>기본급+연장</span>
@@ -156,9 +156,9 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                         {!user.insuranceStatus && (
                             <>
                                 <ChevronRight size={14} className="text-[#9a9585]" />
-                                <div className="flex items-center gap-1.5 font-bold text-[#a65d57]">
+                                <div className="flex items-center gap-1.5 font-bold text-[#8d5a4d]">
                                     <span>3.3% 공제</span>
-                                    <span className="bg-[#f8f0ef] text-[#a65d57] px-2 py-0.5 font-mono border border-[#dcc0bc]">-₩{(wage?.strictDeduction || 0).toLocaleString()}</span>
+                                    <span className="bg-[#f5ebe7] text-[#8d5a4d] px-2 py-0.5 font-mono border border-[#cba79c]">-₩{(wage?.strictDeduction || 0).toLocaleString()}</span>
                                 </div>
                                 <ChevronRight size={14} className="text-[#9a9585]" />
                                 <div className="flex items-center gap-1.5 font-black text-[#3d472f] text-sm">
