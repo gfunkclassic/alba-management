@@ -90,7 +90,7 @@ function LeaveCalendar({ type, singleDate, selectedDates, onDayClick, viewYear, 
       {/* 요일 헤더 */}
       <div className="grid grid-cols-7 text-center pb-1 border-b border-[#e8e4d4]">
         {['일','월','화','수','목','금','토'].map((h, i) => (
-          <span key={h} className={`text-[10px] font-bold py-1 ${i === 0 ? 'text-[#a65d57]' : i === 6 ? 'text-[#4a6070]' : 'text-[#7a7565]'}`}>
+          <span key={h} className={`text-[10px] font-bold py-1 ${i === 0 ? 'text-[#8d5a4d]' : i === 6 ? 'text-[#5a6878]' : 'text-[#7a7565]'}`}>
             {h}
           </span>
         ))}
@@ -127,9 +127,9 @@ function LeaveCalendar({ type, singleDate, selectedDates, onDayClick, viewYear, 
             }
           } else {
             cls += 'cursor-pointer font-bold ';
-            if (dow === 0)      cls += 'text-[#a65d57] hover:bg-[#f8e8e4] ';
-            else if (dow === 6) cls += 'text-[#4a6070] hover:bg-[#e4eaf0] ';
-            else                cls += 'text-[#3d472f] hover:bg-[#e8e4d4] ';
+            if (dow === 0)      cls += 'text-[#8d5a4d] hover:bg-[#f8e8e4] ';
+            else if (dow === 6) cls += 'text-[#5a6878] hover:bg-[#e4eaf0] ';
+            else                cls += 'text-[#3d472f] hover:bg-[#f5f3e8] ';
           }
 
           if (isToday && !isSelected) cls += 'ring-1 ring-inset ring-[#5d6c4a] ';
@@ -339,7 +339,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
   };
 
   return (
-    <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] p-5">
+    <div className="bg-[#f5f3e8] border border-[#d4cfbf] p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-bold text-[#3d472f] flex items-center gap-2">
           <CalendarPlus size={18} className="text-[#5d6c4a]" /> 연차 신청
@@ -348,7 +348,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
           <div className="text-xs flex items-center gap-1.5">
             <span className="text-[#7a7565]">남은 연차 <strong className="text-[#3d472f]">{remaining}일</strong></span>
             <span className="text-[#c8c3b8]">/</span>
-            <span className="text-[#7a7565]">산정 일수 <strong className={selectionCost > remaining ? 'text-[#a65d57]' : selectionCost > 0 ? 'text-[#d8973c]' : 'text-[#9a9585]'}>{selectionCost}일</strong></span>
+            <span className="text-[#7a7565]">산정 일수 <strong className={selectionCost > remaining ? 'text-[#8d5a4d]' : selectionCost > 0 ? 'text-[#a78049]' : 'text-[#9a9585]'}>{selectionCost}일</strong></span>
           </div>
         )}
       </div>
@@ -396,7 +396,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
             </button>
           </div>
 
-          <div className="border-2 border-[#c5c0b0] bg-[#faf8f0] p-2">
+          <div className="border border-[#d4cfbf] bg-[#faf8f0] p-2">
             <LeaveCalendar
               type={type}
               singleDate={singleDate}
@@ -460,7 +460,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
             value={reason}
             onChange={e => setReason(e.target.value)}
             placeholder="사유를 입력해주세요 (필수)"
-            className="w-full p-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none"
+            className="w-full p-2 border border-[#d4cfbf] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none"
           />
         </div>
 
@@ -468,7 +468,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
           <div className={`flex items-start gap-2 p-3 border ${
             result.success
               ? 'bg-[#e8ebd8] border-[#b8c4a0] text-[#5d6c4a]'
-              : 'bg-[#f8f0ef] border-[#dcc0bc] text-[#a65d57]'
+              : 'bg-[#f5ebe7] border-[#cba79c] text-[#8d5a4d]'
           }`}>
             {result.success
               ? <Check size={14} className="mt-0.5 shrink-0" />

@@ -72,11 +72,11 @@ export default function DelegationManager() {
     const statusBadge = (d) => {
         if (!d.is_active) return { label: '해제됨', cls: 'bg-[#c5c0b0] text-[#5a5545]' };
         if (isExpired(d)) return { label: '기간 종료', cls: 'bg-[#e8e4d4] text-[#7a7565]' };
-        if (isUpcoming(d)) return { label: '예정', cls: 'bg-[#d8973c] text-white' };
+        if (isUpcoming(d)) return { label: '예정', cls: 'bg-[#a78049] text-white' };
         return { label: '위임 중', cls: 'bg-[#5d6c4a] text-white' };
     };
 
-    const inputCls = "w-full p-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none";
+    const inputCls = "w-full p-2 border border-[#d4cfbf] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none";
 
     return (
         <div className="space-y-4">
@@ -105,7 +105,7 @@ export default function DelegationManager() {
                     </div>
                     <div className="md:col-span-3">
                         {result && (
-                            <div className={`flex items-center gap-2 p-2.5 mb-3 border text-xs font-bold ${result.success ? 'bg-[#e8ebd8] border-[#b8c4a0] text-[#5d6c4a]' : 'bg-[#f8f0ef] border-[#dcc0bc] text-[#a65d57]'}`}>
+                            <div className={`flex items-center gap-2 p-2.5 mb-3 border text-xs font-bold ${result.success ? 'bg-[#e8ebd8] border-[#b8c4a0] text-[#5d6c4a]' : 'bg-[#f5ebe7] border-[#cba79c] text-[#8d5a4d]'}`}>
                                 {result.success ? <Check size={13} /> : <AlertCircle size={13} />}
                                 {result.message}
                             </div>
@@ -118,13 +118,13 @@ export default function DelegationManager() {
             </div>
 
             {/* 위임 목록 */}
-            <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">
-                <div className="p-4 border-b-2 border-[#c5c0b0] flex items-center justify-between">
+            <div className="bg-[#f5f3e8] border border-[#d4cfbf]">
+                <div className="p-4 border-b border-[#d4cfbf] flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Calendar size={16} className="text-[#5d6c4a]" />
                         <span className="font-bold text-[#3d472f] text-sm">내가 만든 위임 목록</span>
                     </div>
-                    <button onClick={load} className="border-2 border-[#c5c0b0] p-1.5 text-[#5a5545] hover:bg-[#e8e4d4]"><RefreshCw size={13} /></button>
+                    <button onClick={load} className="border border-[#d4cfbf] p-1.5 text-[#5a5545] hover:bg-[#f5f3e8]"><RefreshCw size={13} /></button>
                 </div>
                 <div className="divide-y divide-[#ebe8db]">
                     {loading ? (
@@ -134,7 +134,7 @@ export default function DelegationManager() {
                     ) : delegations.map(d => {
                         const badge = statusBadge(d);
                         return (
-                            <div key={d.id} className="flex items-center gap-4 p-4 hover:bg-[#f4f5eb]">
+                            <div key={d.id} className="flex items-center gap-4 p-4 hover:bg-[#f5f3e8]">
                                 <div className="w-8 h-8 bg-[#5d6c4a] text-[#f5f3e8] text-xs font-bold flex items-center justify-center shrink-0">
                                     {d._toName?.[0] || '?'}
                                 </div>
@@ -144,7 +144,7 @@ export default function DelegationManager() {
                                 </div>
                                 <span className={`text-[10px] font-bold px-2 py-0.5 ${badge.cls}`}>{badge.label}</span>
                                 {d.is_active && !isExpired(d) && (
-                                    <button onClick={() => handleRevoke(d.to_user_id, d._toName)} className="text-[10px] font-bold px-2 py-1 border-2 border-[#a65d57] text-[#a65d57] hover:bg-[#f8f0ef] flex items-center gap-1">
+                                    <button onClick={() => handleRevoke(d.to_user_id, d._toName)} className="text-[10px] font-bold px-2 py-1 border-2 border-[#8d5a4d] text-[#8d5a4d] hover:bg-[#f5ebe7] flex items-center gap-1">
                                         <UserMinus size={11} /> 종료
                                     </button>
                                 )}

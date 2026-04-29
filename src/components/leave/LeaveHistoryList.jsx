@@ -8,8 +8,8 @@ import { formatAppliedDates } from '../../utils/leaveUtils';
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = {
     FULL: 'bg-[#5d6c4a] text-[#f5f3e8]',
-    HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]',
-    HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]',
+    HALF_AM: 'bg-[#5a6878] text-[#f5f3e8]',
+    HALF_PM: 'bg-[#5a6878] text-[#f5f3e8]',
 };
 const STATUS_LABEL = {
     SUBMITTED: '승인대기(팀)',
@@ -21,12 +21,12 @@ const STATUS_LABEL = {
     CANCELLED: '취소됨'
 };
 const STATUS_COLOR = {
-    SUBMITTED: 'bg-[#d8973c] text-white',
+    SUBMITTED: 'bg-[#a78049] text-white',
     TEAM_APPROVED: 'bg-[#7a8c5f] text-white',
     FINAL_PENDING: 'bg-[#5d6c4a] text-white',
-    CEO_PENDING: 'bg-[#4a6070] text-white',
+    CEO_PENDING: 'bg-[#5a6878] text-white',
     FINAL_APPROVED: 'bg-[#3d6b5e] text-white',
-    REJECTED: 'bg-[#a65d57] text-white',
+    REJECTED: 'bg-[#8d5a4d] text-white',
     CANCELLED: 'bg-[#c5c0b0] text-[#5a5545]',
 };
 
@@ -72,16 +72,16 @@ export default function LeaveHistoryList({ refreshKey }) {
     const years = [new Date().getFullYear(), new Date().getFullYear() - 1];
 
     return (
-        <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">
-            <div className="p-4 border-b-2 border-[#c5c0b0] flex flex-wrap gap-2 items-center justify-between">
+        <div className="bg-[#f5f3e8] border border-[#d4cfbf]">
+            <div className="p-4 border-b border-[#d4cfbf] flex flex-wrap gap-2 items-center justify-between">
                 <h3 className="font-bold text-[#3d472f] flex items-center gap-2">
                     <List size={18} className="text-[#5d6c4a]" /> 신청 내역
                 </h3>
                 <div className="flex gap-2">
-                    <select value={filterYear} onChange={e => setFilterYear(Number(e.target.value))} className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
+                    <select value={filterYear} onChange={e => setFilterYear(Number(e.target.value))} className="border border-[#d4cfbf] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
                         {years.map(y => <option key={y} value={y}>{y}년</option>)}
                     </select>
-                    <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
+                    <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="border border-[#d4cfbf] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
                         <option value="ALL">전체</option>
                         <option value="SUBMITTED">승인대기(팀)</option>
                         <option value="TEAM_APPROVED">승인대기(실장)</option>
@@ -95,7 +95,7 @@ export default function LeaveHistoryList({ refreshKey }) {
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm" style={{ tableLayout: 'auto' }}>
-                    <thead className="bg-[#e8e4d4] text-xs font-bold text-[#5d6c4a] uppercase">
+                    <thead className="bg-[#f5f3e8] text-xs font-bold text-[#5d6c4a] uppercase">
                         <tr>
                             <th className="px-2 py-2 pl-3 text-left whitespace-nowrap">날짜</th>
                             <th className="px-1 py-2 text-center whitespace-nowrap">유형</th>
@@ -108,7 +108,7 @@ export default function LeaveHistoryList({ refreshKey }) {
                         {loading ? (
                             <tr><td colSpan={5} className="p-8 text-center"><Loader size={16} className="animate-spin mx-auto text-[#9a9585]" /></td></tr>
                         ) : filtered.map(req => (
-                            <tr key={req.id} onClick={() => setDetailTarget({ ...req, _userName: req._userName || userProfile?.name })} className={`hover:bg-[#f4f5eb] cursor-pointer ${req.status === 'CANCELLED' ? 'opacity-50' : ''}`}>
+                            <tr key={req.id} onClick={() => setDetailTarget({ ...req, _userName: req._userName || userProfile?.name })} className={`hover:bg-[#f5f3e8] cursor-pointer ${req.status === 'CANCELLED' ? 'opacity-50' : ''}`}>
                                 <td className="px-2 py-2 pl-3 font-bold text-[#3d472f] font-mono text-xs">
                                     {formatAppliedDates(req.applied_dates, req.date)}
                                 </td>
@@ -128,7 +128,7 @@ export default function LeaveHistoryList({ refreshKey }) {
                                         <button
                                             onClick={(e) => { e.stopPropagation(); requestCancel(req.id); }}
                                             disabled={cancelling === req.id}
-                                            className="text-[#a65d57] hover:bg-[#f8f0ef] p-1 rounded border border-[#dcc0bc] text-xs font-bold disabled:opacity-50 transition-colors"
+                                            className="text-[#8d5a4d] hover:bg-[#f5ebe7] p-1 rounded border border-[#cba79c] text-xs font-bold disabled:opacity-50 transition-colors"
                                         >
                                             {cancelling === req.id ? <Loader size={12} className="animate-spin" /> : <X size={14} />}
                                         </button>
