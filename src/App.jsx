@@ -1478,8 +1478,8 @@ function HRPayrollApp() {
 
             <div className="flex min-h-[calc(100vh-2rem)]">
                 {/* ── 좌측 네비게이션 ── */}
-                <nav className="w-52 shrink-0 bg-[#3d472f] border-r-2 border-[#2d3721] flex flex-col">
-                    <div className="p-4 border-b border-[#2d3721]">
+                <nav className="w-52 shrink-0 bg-[#454d3a] border-r-2 border-[#353d2c] flex flex-col">
+                    <div className="p-4 border-b border-[#353d2c]">
                         <h1 className="text-lg font-black text-[#f5f3e8] tracking-tight"><span className="text-[#d4dcc0]">페플</span> 관리</h1>
                         <p className="text-[#7a8a6a] text-[10px] font-medium mt-0.5">{userProfile?.name || ''} · {userProfile?.roleGroup === 'sys_admin' ? '관리자' : userProfile?.roleGroup === 'approver_final' ? '대표' : '승인자'}</p>
                     </div>
@@ -1502,11 +1502,11 @@ function HRPayrollApp() {
                                     const isActive = activeTab === it.key;
                                     return (
                                         <button key={it.key} onClick={() => setActiveTab(it.key)}
-                                            className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5 transition-colors ${isActive ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0]' : 'text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
+                                            className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5 transition-colors ${isActive ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0]' : 'text-[#b8c4a0] hover:bg-[#525a44] hover:text-[#f5f3e8]'}`}>
                                             <span className="text-sm w-5 text-center">{it.icon}</span>
                                             <span>{it.label}</span>
                                             {it.badge > 0 && (
-                                                <span className="ml-auto bg-[#a65d57] text-[#f5f3e8] text-[10px] font-black px-1.5 py-0.5 rounded-sm min-w-[18px] text-center">{it.badge}</span>
+                                                <span className="ml-auto bg-[#a78049] text-[#f5f3e8] text-[10px] font-black px-1.5 py-0.5 rounded-sm min-w-[18px] text-center">{it.badge}</span>
                                             )}
                                         </button>
                                     );
@@ -1515,7 +1515,7 @@ function HRPayrollApp() {
                                 const isGroupActive = activeTab === it.key;
                                 return (
                                     <div key={it.key}>
-                                        <div className={`flex items-center transition-colors ${isGroupActive ? 'text-[#f5f3e8] bg-[#4a5538]' : 'text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
+                                        <div className={`flex items-center transition-colors ${isGroupActive ? 'text-[#f5f3e8] bg-[#525a44]' : 'text-[#b8c4a0] hover:bg-[#525a44] hover:text-[#f5f3e8]'}`}>
                                             <button onClick={() => { setActiveTab(it.key); setHrSubTab('LIST'); setHrMenuOpen(true); setHrFilterSource(null); }}
                                                 className="flex-1 text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5">
                                                 <span className="text-sm w-5 text-center">{it.icon}</span> {it.label}
@@ -1527,12 +1527,12 @@ function HRPayrollApp() {
                                             </button>
                                         </div>
                                         {hrMenuOpen && (
-                                            <div className="ml-7 border-l border-[#2d3721]">
+                                            <div className="ml-7 border-l border-[#353d2c]">
                                                 {it.children.map(child => {
                                                     const isChildActive = isGroupActive && hrSubTab === child.key;
                                                     return (
                                                         <button key={child.key} onClick={() => { setActiveTab(it.key); setHrSubTab(child.key); setHrFilterSource(null); }}
-                                                            className={`w-full text-left pl-3 pr-4 py-1.5 text-[11px] font-bold flex items-center transition-colors ${isChildActive ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0] -ml-px' : 'text-[#9aab8a] hover:bg-[#4a5538] hover:text-[#f5f3e8]'}`}>
+                                                            className={`w-full text-left pl-3 pr-4 py-1.5 text-[11px] font-bold flex items-center transition-colors ${isChildActive ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0] -ml-px' : 'text-[#9aab8a] hover:bg-[#525a44] hover:text-[#f5f3e8]'}`}>
                                                             {child.label}
                                                         </button>
                                                     );
@@ -1545,9 +1545,9 @@ function HRPayrollApp() {
                         })()}
                     </div>
                     {/* 하단: 데이터 관리 + 알림 */}
-                    <div className="border-t border-[#2d3721] p-2 space-y-1">
+                    <div className="border-t border-[#353d2c] p-2 space-y-1">
                         <div className="relative" ref={dataMenuRef}>
-                            <button onClick={() => toggleModal('dataMenu')} className="w-full text-left px-3 py-2 text-xs font-bold text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8] flex items-center gap-2 transition-colors">
+                            <button onClick={() => toggleModal('dataMenu')} className="w-full text-left px-3 py-2 text-xs font-bold text-[#b8c4a0] hover:bg-[#525a44] hover:text-[#f5f3e8] flex items-center gap-2 transition-colors">
                                 <Layers size={14} /> 데이터 관리 <ChevronDown size={12} className={`ml-auto transition-transform ${showDataMenu ? 'rotate-180' : ''}`} />
                             </button>
                             {showDataMenu && (
@@ -1573,7 +1573,7 @@ function HRPayrollApp() {
                         <div className="px-3 py-1 flex items-center">
                             <NotificationBell userId={userProfile?.uid} onNavigate={(tab) => setActiveTab(tab === 'HISTORY' ? 'LEAVE' : tab)} />
                         </div>
-                        <button onClick={logout} className="w-full text-left px-3 py-2 text-xs font-bold text-[#b8c4a0] hover:bg-[#4a5538] hover:text-[#f5f3e8] flex items-center gap-2 transition-colors border-t border-[#2d3721] mt-1 pt-2">
+                        <button onClick={logout} className="w-full text-left px-3 py-2 text-xs font-bold text-[#b8c4a0] hover:bg-[#525a44] hover:text-[#f5f3e8] flex items-center gap-2 transition-colors border-t border-[#353d2c] mt-1 pt-2">
                             <LogOut size={14} /> 로그아웃
                         </button>
                     </div>
