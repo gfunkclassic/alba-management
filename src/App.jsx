@@ -1539,7 +1539,7 @@ function HRPayrollApp() {
                                     items: [
                                         { type: 'item', key: 'PAYROLL', label: '급여정산', icon: '₩' },
                                         { type: 'group', key: 'HR', label: '인사관리', icon: '👤', children: [
-                                            { key: 'LIST', label: '인력 목록' },
+                                            { key: 'LIST', label: '인원 현황' },
                                             { key: 'ACCOUNT', label: '계정·권한 관리' },
                                         ]},
                                         { type: 'item', key: 'LEAVE', label: '연차관리', icon: '📅' },
@@ -1568,10 +1568,11 @@ function HRPayrollApp() {
                                         </button>
                                     );
                                 }
-                                // group: HR (접힘/펼침)
+                                // group: HR (상위 메뉴 + 시각적으로 분리된 하위 메뉴 블록)
                                 const isGroupActive = activeTab === it.key;
                                 return (
                                     <div key={it.key}>
+                                        {/* 상위 메뉴: 활성 시 olive 채움 */}
                                         <div className={`flex items-center transition-colors ${isGroupActive ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#5a5545] hover:bg-[#f5f3e8]'}`}>
                                             <button onClick={() => { setActiveTab(it.key); setHrSubTab('LIST'); setHrMenuOpen(true); setHrFilterSource(null); }}
                                                 className="flex-1 text-left px-3 py-2 text-xs font-bold flex items-center gap-2.5">
@@ -1583,13 +1584,14 @@ function HRPayrollApp() {
                                                 <ChevronDown size={12} className={`transition-transform ${hrMenuOpen ? 'rotate-180' : ''}`} />
                                             </button>
                                         </div>
+                                        {/* 하위 메뉴 블록: 상위 active 배경 밖, 독립 영역으로 표시 */}
                                         {hrMenuOpen && (
-                                            <div className="ml-7 border-l border-[#d4cfbf]">
+                                            <div className="mt-1 mb-2 ml-7 space-y-0.5">
                                                 {it.children.map(child => {
                                                     const isChildActive = isGroupActive && hrSubTab === child.key;
                                                     return (
                                                         <button key={child.key} onClick={() => { setActiveTab(it.key); setHrSubTab(child.key); setHrFilterSource(null); }}
-                                                            className={`w-full text-left pl-3 pr-3 py-1.5 text-[11px] font-bold flex items-center transition-colors ${isChildActive ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#f5f3e8]'}`}>
+                                                            className={`block w-full text-left px-3 py-1.5 text-[12px] transition-colors ${isChildActive ? 'bg-[#f5f3e8] font-bold text-[#3d472f] border-l-2 border-[#5d6c4a]' : 'text-[#5a5545] hover:bg-[#f5f3e8]'}`}>
                                                             {child.label}
                                                         </button>
                                                     );
