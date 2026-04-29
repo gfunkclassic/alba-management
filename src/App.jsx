@@ -1476,33 +1476,90 @@ function HRPayrollApp() {
             )}
             {showCalculator && <CalculatorWidget onClose={() => closeModal('calculator')} />}
 
-            <div className="flex min-h-[calc(100vh-2rem)]">
-                {/* ── 좌측 네비게이션 ── */}
-                <nav className="w-52 shrink-0 bg-[#454d3a] border-r-2 border-[#353d2c] flex flex-col">
-                    <div className="p-4 border-b border-[#353d2c]">
-                        <h1 className="text-lg font-black text-[#f5f3e8] tracking-tight"><span className="text-[#d4dcc0]">페플</span> 관리</h1>
-                        <p className="text-[#7a8a6a] text-[10px] font-medium mt-0.5">{userProfile?.name || ''} · {userProfile?.roleGroup === 'sys_admin' ? '관리자' : userProfile?.roleGroup === 'approver_final' ? '대표' : '승인자'}</p>
+            <div className="flex flex-col gap-4 min-h-[calc(100vh-2rem)]">
+                {/* ── 상단 유틸 바: 브랜드 + 사용자 정보 + 알림 + 데이터 관리 + 로그아웃 ── */}
+                <header className="bg-[#faf8f0] border border-[#d4cfbf] px-4 py-2.5 flex items-center justify-between gap-3 shrink-0 relative z-30">
+                    <div className="flex items-baseline gap-3 min-w-0">
+                        <h1 className="text-base font-black text-[#3d472f] tracking-tight">
+                            <span className="text-[#5d6c4a]">페플</span> 관리
+                        </h1>
+                        <p className="text-[10px] text-[#7a7565] font-medium truncate">
+                            {userProfile?.name || ''} · {userProfile?.roleGroup === 'sys_admin' ? '관리자' : userProfile?.roleGroup === 'approver_final' ? '대표' : '승인자'}
+                        </p>
                     </div>
-                    <div className="flex-1 py-2 space-y-0.5">
+                    <div className="flex items-center gap-2 shrink-0">
+                        <NotificationBell userId={userProfile?.uid} onNavigate={(tab) => setActiveTab(tab === 'HISTORY' ? 'LEAVE' : tab)} />
+                        {/* 데이터 관리 드롭다운 (전역 유틸) */}
+                        <div className="relative" ref={dataMenuRef}>
+                            <button onClick={() => toggleModal('dataMenu')} className="px-3 py-1.5 text-xs font-bold text-[#5a5545] bg-[#faf8f0] border border-[#d4cfbf] hover:bg-[#f5f3e8] flex items-center gap-1.5 transition-colors">
+                                <Layers size={14} /> 데이터 관리 <ChevronDown size={12} className={`transition-transform ${showDataMenu ? 'rotate-180' : ''}`} />
+                            </button>
+                            {showDataMenu && (
+                                <div className="absolute right-0 top-full mt-1 w-56 bg-[#faf8f0] border border-[#d4cfbf] shadow-md z-50">
+                                    <div className="p-2 border-b border-[#d4cfbf]">
+                                        <button onClick={() => attendanceFileInputRef.current?.click()} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#f5f3e8] flex items-center gap-2 font-bold"><Download size={14} /> 근무기록 업로드</button>
+                                        <button onClick={() => rosterFileInputRef.current?.click()} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#f5f3e8] flex items-center gap-2 font-bold"><Users size={14} /> 명단 업로드</button>
+                                    </div>
+                                    <div className="p-2 border-b border-[#d4cfbf]">
+                                        <button onClick={() => openUserForm()} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#f5f3e8] flex items-center gap-2 font-bold"><Users size={14} /> 신규 직원 추가</button>
+                                        <button onClick={() => openModal('calendar')} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#f5f3e8] flex items-center gap-2 font-bold"><Calendar size={14} /> 근태 기록 열기</button>
+                                    </div>
+                                    <div className="p-2 border-b border-[#d4cfbf]">
+                                        <button onClick={downloadCSV} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#f5f3e8] flex items-center gap-2 font-bold"><Download size={14} /> 전체 명단 다운로드</button>
+                                        <button onClick={downloadLeaveCSV} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#f5f3e8] flex items-center gap-2 font-bold"><Download size={14} /> 연차 현황 다운로드</button>
+                                    </div>
+                                    <div className="p-2 bg-[#f5ebe7]">
+                                        <button onClick={handleResetData} className="w-full text-left px-3 py-2 text-xs font-bold text-[#8d5a4d] hover:bg-[#eddfd9] flex items-center gap-2"><RotateCcw size={14} /> 데이터 초기화</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <button onClick={logout} className="px-3 py-1.5 text-xs font-bold text-[#5a5545] bg-[#faf8f0] border border-[#d4cfbf] hover:bg-[#f5f3e8] flex items-center gap-1.5 transition-colors">
+                            <LogOut size={14} /> 로그아웃
+                        </button>
+                    </div>
+                </header>
+
+                {/* 숨김 파일 입력 — 데이터 관리 드롭다운에서 트리거 */}
+                <input type="file" ref={rosterFileInputRef} onChange={handleRosterUpload} accept=".csv, .xlsx, .xls" className="hidden" />
+                <input type="file" ref={attendanceFileInputRef} onChange={handleAttendanceUpload} accept=".csv, .xlsx, .xls" className="hidden" />
+
+                <div className="flex flex-1 gap-4 items-start">
+                    {/* ── 좌측 네비게이션: 가벼운 패널 ── */}
+                    <nav className="w-52 shrink-0 bg-[#faf8f0] border border-[#d4cfbf] p-2 self-start sticky top-4">
                         {(() => {
                             const isApprover = userProfile?.roleGroup === 'approver_senior' || userProfile?.roleGroup === 'approver_final';
-                            const items = [
-                                { type: 'item', key: 'HOME', label: '홈', icon: '🏠' },
-                                { type: 'item', key: 'PAYROLL', label: '급여정산', icon: '₩' },
-                                { type: 'group', key: 'HR', label: '인사관리', icon: '👤', children: [
-                                    { key: 'LIST', label: '인력 목록' },
-                                    { key: 'ACCOUNT', label: '계정·권한 관리' },
-                                ]},
-                                { type: 'item', key: 'LEAVE', label: '연차관리', icon: '📅' },
-                                ...(isApprover ? [{ type: 'item', key: 'APPROVALS', label: '연차결재', icon: '✅', badge: pendingApprovalCount }] : []),
-                                { type: 'item', key: 'EDIT_LOGS', label: '수정이력', icon: '📋' },
+                            const sections = [
+                                {
+                                    label: '대시보드',
+                                    items: [{ type: 'item', key: 'HOME', label: '홈', icon: '🏠' }],
+                                },
+                                {
+                                    label: '운영 관리',
+                                    items: [
+                                        { type: 'item', key: 'PAYROLL', label: '급여정산', icon: '₩' },
+                                        { type: 'group', key: 'HR', label: '인사관리', icon: '👤', children: [
+                                            { key: 'LIST', label: '인력 목록' },
+                                            { key: 'ACCOUNT', label: '계정·권한 관리' },
+                                        ]},
+                                        { type: 'item', key: 'LEAVE', label: '연차관리', icon: '📅' },
+                                    ],
+                                },
+                                {
+                                    label: '결재 / 기록',
+                                    items: [
+                                        ...(isApprover ? [{ type: 'item', key: 'APPROVALS', label: '연차결재', icon: '✅', badge: pendingApprovalCount }] : []),
+                                        { type: 'item', key: 'EDIT_LOGS', label: '수정이력', icon: '📋' },
+                                    ],
+                                },
                             ];
-                            return items.map((it) => {
+
+                            const renderItem = (it) => {
                                 if (it.type === 'item') {
                                     const isActive = activeTab === it.key;
                                     return (
                                         <button key={it.key} onClick={() => setActiveTab(it.key)}
-                                            className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5 transition-colors ${isActive ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0]' : 'text-[#b8c4a0] hover:bg-[#525a44] hover:text-[#f5f3e8]'}`}>
+                                            className={`w-full text-left px-3 py-2 text-xs font-bold flex items-center gap-2.5 transition-colors ${isActive ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#5a5545] hover:bg-[#f5f3e8]'}`}>
                                             <span className="text-sm w-5 text-center">{it.icon}</span>
                                             <span>{it.label}</span>
                                             {it.badge > 0 && (
@@ -1515,24 +1572,24 @@ function HRPayrollApp() {
                                 const isGroupActive = activeTab === it.key;
                                 return (
                                     <div key={it.key}>
-                                        <div className={`flex items-center transition-colors ${isGroupActive ? 'text-[#f5f3e8] bg-[#525a44]' : 'text-[#b8c4a0] hover:bg-[#525a44] hover:text-[#f5f3e8]'}`}>
+                                        <div className={`flex items-center transition-colors ${isGroupActive ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#5a5545] hover:bg-[#f5f3e8]'}`}>
                                             <button onClick={() => { setActiveTab(it.key); setHrSubTab('LIST'); setHrMenuOpen(true); setHrFilterSource(null); }}
-                                                className="flex-1 text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2.5">
+                                                className="flex-1 text-left px-3 py-2 text-xs font-bold flex items-center gap-2.5">
                                                 <span className="text-sm w-5 text-center">{it.icon}</span> {it.label}
                                             </button>
                                             <button onClick={(e) => { e.stopPropagation(); setHrMenuOpen(o => !o); }}
                                                 aria-label={hrMenuOpen ? '인사관리 메뉴 접기' : '인사관리 메뉴 펼치기'}
-                                                className="px-3 py-2.5 hover:text-[#f5f3e8]">
+                                                className="px-3 py-2 hover:opacity-80">
                                                 <ChevronDown size={12} className={`transition-transform ${hrMenuOpen ? 'rotate-180' : ''}`} />
                                             </button>
                                         </div>
                                         {hrMenuOpen && (
-                                            <div className="ml-7 border-l border-[#353d2c]">
+                                            <div className="ml-7 border-l border-[#d4cfbf]">
                                                 {it.children.map(child => {
                                                     const isChildActive = isGroupActive && hrSubTab === child.key;
                                                     return (
                                                         <button key={child.key} onClick={() => { setActiveTab(it.key); setHrSubTab(child.key); setHrFilterSource(null); }}
-                                                            className={`w-full text-left pl-3 pr-4 py-1.5 text-[11px] font-bold flex items-center transition-colors ${isChildActive ? 'bg-[#5d6c4a] text-[#f5f3e8] border-l-3 border-[#d4dcc0] -ml-px' : 'text-[#9aab8a] hover:bg-[#525a44] hover:text-[#f5f3e8]'}`}>
+                                                            className={`w-full text-left pl-3 pr-3 py-1.5 text-[11px] font-bold flex items-center transition-colors ${isChildActive ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#f5f3e8]'}`}>
                                                             {child.label}
                                                         </button>
                                                     );
@@ -1541,48 +1598,23 @@ function HRPayrollApp() {
                                         )}
                                     </div>
                                 );
-                            });
-                        })()}
-                    </div>
-                    {/* 하단: 데이터 관리 + 알림 */}
-                    <div className="border-t border-[#353d2c] p-2 space-y-1">
-                        <div className="relative" ref={dataMenuRef}>
-                            <button onClick={() => toggleModal('dataMenu')} className="w-full text-left px-3 py-2 text-xs font-bold text-[#b8c4a0] hover:bg-[#525a44] hover:text-[#f5f3e8] flex items-center gap-2 transition-colors">
-                                <Layers size={14} /> 데이터 관리 <ChevronDown size={12} className={`ml-auto transition-transform ${showDataMenu ? 'rotate-180' : ''}`} />
-                            </button>
-                            {showDataMenu && (
-                                <div className="absolute left-0 bottom-full mb-1 w-56 bg-[#f5f3e8] border-2 border-[#3d472f] shadow-lg z-50">
-                                    <div className="p-2 border-b-2 border-[#e8e4d4]">
-                                        <button onClick={() => attendanceFileInputRef.current?.click()} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#e8e4d4] flex items-center gap-2 font-bold"><Download size={14} /> 근무기록 업로드</button>
-                                        <button onClick={() => rosterFileInputRef.current?.click()} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#e8e4d4] flex items-center gap-2 font-bold"><Users size={14} /> 명단 업로드</button>
-                                    </div>
-                                    <div className="p-2 border-b-2 border-[#e8e4d4]">
-                                        <button onClick={() => openUserForm()} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#e8e4d4] flex items-center gap-2 font-bold"><Users size={14} /> 신규 직원 추가</button>
-                                        <button onClick={() => openModal('calendar')} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#e8e4d4] flex items-center gap-2 font-bold"><Calendar size={14} /> 근태 기록 열기</button>
-                                    </div>
-                                    <div className="p-2 border-b-2 border-[#e8e4d4]">
-                                        <button onClick={downloadCSV} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#e8e4d4] flex items-center gap-2 font-bold"><Download size={14} /> 전체 명단 다운로드</button>
-                                        <button onClick={downloadLeaveCSV} className="w-full text-left px-3 py-2 text-sm text-[#4a4535] hover:bg-[#e8e4d4] flex items-center gap-2 font-bold"><Download size={14} /> 연차 현황 다운로드</button>
-                                    </div>
-                                    <div className="p-2 bg-[#f8f0ef]">
-                                        <button onClick={handleResetData} className="w-full text-left px-3 py-2 text-xs font-bold text-[#a65d57] hover:bg-[#f0e5e4] flex items-center gap-2"><RotateCcw size={14} /> 데이터 초기화</button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <div className="px-3 py-1 flex items-center">
-                            <NotificationBell userId={userProfile?.uid} onNavigate={(tab) => setActiveTab(tab === 'HISTORY' ? 'LEAVE' : tab)} />
-                        </div>
-                        <button onClick={logout} className="w-full text-left px-3 py-2 text-xs font-bold text-[#b8c4a0] hover:bg-[#525a44] hover:text-[#f5f3e8] flex items-center gap-2 transition-colors border-t border-[#353d2c] mt-1 pt-2">
-                            <LogOut size={14} /> 로그아웃
-                        </button>
-                    </div>
-                    <input type="file" ref={rosterFileInputRef} onChange={handleRosterUpload} accept=".csv, .xlsx, .xls" className="hidden" />
-                    <input type="file" ref={attendanceFileInputRef} onChange={handleAttendanceUpload} accept=".csv, .xlsx, .xls" className="hidden" />
-                </nav>
+                            };
 
-                {/* ── 본문 영역 ── */}
-                <main className="flex-1 p-4 space-y-4 overflow-auto">
+                            return sections
+                                .filter(sec => sec.items.length > 0)
+                                .map((sec, idx) => (
+                                    <div key={sec.label} className={idx > 0 ? 'mt-3 pt-3 border-t border-[#d4cfbf]' : ''}>
+                                        <div className="px-3 pb-1 text-[10px] uppercase tracking-wide text-[#9a9585] font-bold">{sec.label}</div>
+                                        <div className="space-y-0.5">
+                                            {sec.items.map(renderItem)}
+                                        </div>
+                                    </div>
+                                ));
+                        })()}
+                    </nav>
+
+                    {/* ── 본문 영역 ── */}
+                    <main className="flex-1 space-y-4 overflow-auto min-w-0">
 
                 {activeTab === 'HOME' && (
                     <HomeDashboard
@@ -1697,6 +1729,7 @@ function HRPayrollApp() {
                 )}
 
                 </main>
+                </div>
             </div>
 
             {showResignModal && (
