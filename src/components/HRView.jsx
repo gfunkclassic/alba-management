@@ -96,6 +96,15 @@ export default function HRView({
     const isMissingEmail = (u) => !String(u.email || '').trim();
     const missingEmailCount = filteredData.filter(u => !isInactiveEmployee(u) && isMissingEmail(u)).length;
 
+    // 이메일 형식 오류 점검: 빈 이메일은 미입력 칩에서 담당, 여기서는 값이 있는데 기본 형식에 맞지 않는 경우만
+    const EMAIL_FORMAT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isInvalidEmailFormat = (u) => {
+        const v = String(u.email || '').trim();
+        if (!v) return false; // 빈 값은 형식 오류로 세지 않음
+        return !EMAIL_FORMAT_RE.test(v);
+    };
+    const invalidEmailCount = filteredData.filter(u => !isInactiveEmployee(u) && isInvalidEmailFormat(u)).length;
+
     const baseData = typeFilter === 'ALL' ? filteredData
         : typeFilter === 'ALBA' ? filteredData.filter(u => (u.employmentType || u.position || '아르바이트') === '아르바이트')
         : filteredData.filter(u => (u.employmentType || u.position || '아르바이트') !== '아르바이트');
@@ -182,6 +191,16 @@ export default function HRView({
                     ) : (
                         <span className="px-2 py-1 bg-[#faf8f0] border border-[#d4cfbf] text-[#9a9585] flex items-center gap-1.5">
                             <Mail size={12} /> 이메일 미입력 0명
+                        </span>
+                    )}
+                    {/* 이메일 형식 오류 점검 칩 (표시 전용, 퇴사자 제외, 빈 이메일 제외) */}
+                    {invalidEmailCount > 0 ? (
+                        <span className="px-2 py-1 bg-[#f5ebe7] border border-[#cba79c] text-[#8d5a4d] font-bold flex items-center gap-1.5">
+                            <AlertTriangle size={12} /> 이메일 형식 오류 {invalidEmailCount}명
+                        </span>
+                    ) : (
+                        <span className="px-2 py-1 bg-[#faf8f0] border border-[#d4cfbf] text-[#9a9585] flex items-center gap-1.5">
+                            <AlertTriangle size={12} /> 이메일 형식 오류 0명
                         </span>
                     )}
                 </div>
