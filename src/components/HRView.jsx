@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
-import { Search, RotateCcw, Monitor, Users, Briefcase, Wallet, Calendar, AlertTriangle, FileText, UserMinus, Check, Edit, Trash2, Phone, Mail, Shield } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, RotateCcw, Monitor, Users, Briefcase, Wallet, Calendar, AlertTriangle, FileText, UserMinus, Check, Edit, Trash2, Phone, Mail, Shield, UserX } from 'lucide-react';
 import StatCard from './ui/StatCard';
 import InfoRow from './ui/InfoRow';
 import { ConfirmModal } from './modals/DialogModals';
+import { useAuth } from '../contexts/AuthContext';
+
+// 이메일 정규화 (계정 미생성 비교용)
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
 
 // 성별 값을 여러 후보 필드에서 안전하게 가져오기 (표시 전용)
 // 우선순위: gender → sex → genderLabel → personalGender → personalInfo.gender
@@ -86,6 +90,16 @@ export default function HRView({
     const [typeFilter, setTypeFilter] = useState('ALL'); // ALL | ALBA | STAFF
     const [showMissingGenderOnly, setShowMissingGenderOnly] = useState(false);
 
+    // 계정 미생성 점검용: users 컬렉션 이메일 집합 (1회 fetch, AuthContext 재사용)
+    const { getAllUsers } = useAuth();
+    const [accountUsers, setAccountUsers] = useState([]);
+    useEffect(() => {
+        let active = true;
+        getAllUsers?.().then(data => { if (active && Array.isArray(data)) setAccountUsers(data); }).catch(() => {});
+        return () => { active = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // 성별 미입력 카운트는 검색/팀/상태/재직 필터 적용 후 데이터(filteredData) 기준
     // — 새 prop 없이 기존 흐름을 깨지 않기 위함. 운영 점검 시 viewMode='전체'로 두면 사실상 전 인원 점검 가능
     const isGenderMissing = (u) => displayGender(getGenderValue(u)) === '-';
@@ -104,6 +118,19 @@ export default function HRView({
         return !EMAIL_FORMAT_RE.test(v);
     };
     const invalidEmailCount = filteredData.filter(u => !isInactiveEmployee(u) && isInvalidEmailFormat(u)).length;
+
+    // 계정 미생성 점검: employees에는 있고 이메일 정상이지만 users에 매칭 이메일이 없는 인원
+    const accountEmailSet = new Set(
+        accountUsers.map(u => normalizeEmail(u.email)).filter(Boolean)
+    );
+    const isMissingAccount = (u) => {
+        if (isInactiveEmployee(u)) return false;
+        const email = normalizeEmail(u.email);
+        if (!email) return false; // 빈 이메일은 '이메일 미입력' 칩 담당
+        if (!EMAIL_FORMAT_RE.test(email)) return false; // 형식 오류는 '이메일 형식 오류' 칩 담당
+        return !accountEmailSet.has(email);
+    };
+    const missingAccountCount = filteredData.filter(isMissingAccount).length;
 
     const baseData = typeFilter === 'ALL' ? filteredData
         : typeFilter === 'ALBA' ? filteredData.filter(u => (u.employmentType || u.position || '아르바이트') === '아르바이트')
@@ -201,6 +228,16 @@ export default function HRView({
                     ) : (
                         <span className="px-2 py-1 bg-[#faf8f0] border border-[#d4cfbf] text-[#9a9585] flex items-center gap-1.5">
                             <AlertTriangle size={12} /> 이메일 형식 오류 0명
+                        </span>
+                    )}
+                    {/* 계정 미생성 점검 칩 (표시 전용, 이메일 정상인데 users 미존재) */}
+                    {missingAccountCount > 0 ? (
+                        <span className="px-2 py-1 bg-[#f5f1e3] border border-[#c9a66a] text-[#7a5a1a] font-bold flex items-center gap-1.5">
+                            <UserX size={12} /> 계정 미생성 {missingAccountCount}명
+                        </span>
+                    ) : (
+                        <span className="px-2 py-1 bg-[#faf8f0] border border-[#d4cfbf] text-[#9a9585] flex items-center gap-1.5">
+                            <UserX size={12} /> 계정 미생성 0명
                         </span>
                     )}
                 </div>
