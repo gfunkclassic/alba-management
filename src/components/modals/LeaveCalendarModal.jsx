@@ -4,10 +4,10 @@ import { Sun, X, ChevronLeft, ChevronRight, Edit } from 'lucide-react';
 // 연차 유형 설정 — value, label, 환산 일수, 색상
 const LEAVE_TYPES = [
     { value: '연차', label: '연차 (1일)', days: 1, color: 'bg-[#5d6c4a] text-[#f5f3e8]' },
-    { value: '반차(오전)', label: '반차 — 오전 (0.5일)', days: 0.5, color: 'bg-[#4a6070] text-[#f5f3e8]' },
-    { value: '반차(오후)', label: '반차 — 오후 (0.5일)', days: 0.5, color: 'bg-[#4a6070] text-[#f5f3e8]' },
+    { value: '반차(오전)', label: '반차 — 오전 (0.5일)', days: 0.5, color: 'bg-[#5a6878] text-[#f5f3e8]' },
+    { value: '반차(오후)', label: '반차 — 오후 (0.5일)', days: 0.5, color: 'bg-[#5a6878] text-[#f5f3e8]' },
     { value: '시간차', label: '시간차 (직접 입력)', days: null, color: 'bg-[#c65911] text-[#f5f3e8]' },
-    { value: '결근', label: '결근', days: 0, color: 'bg-[#a65d57] text-[#f5f3e8]' },
+    { value: '결근', label: '결근', days: 0, color: 'bg-[#8d5a4d] text-[#f5f3e8]' },
 ];
 
 // 유형에 따른 배지 색상
@@ -75,18 +75,18 @@ export default function LeaveCalendarModal({ users, leaveRecords, onClose, onAdd
                             ))}
                         </div>
                     </div>
-                    <button onClick={onClose} className="bg-[#f5f3e8] hover:bg-[#e8e4d4] p-1.5 border-2 border-[#3d472f] text-[#3d472f]"><X size={18} /></button>
+                    <button onClick={onClose} className="bg-[#f5f3e8] hover:bg-[#f5f3e8] p-1.5 border-2 border-[#3d472f] text-[#3d472f]"><X size={18} /></button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 bg-[#e8e4d4]">
                     {/* Calendar */}
-                    <div className="md:col-span-2 bg-[#f5f3e8] p-4 border-2 border-[#c5c0b0]">
+                    <div className="md:col-span-2 bg-[#f5f3e8] p-4 border border-[#d4cfbf]">
                         <div className="flex items-center gap-2 mb-4">
-                            <button onClick={() => moveMonth(-1)} className="p-1 hover:bg-[#e8e4d4] text-[#5a5545] border border-[#c5c0b0]"><ChevronLeft size={20} /></button>
+                            <button onClick={() => moveMonth(-1)} className="p-1 hover:bg-[#f5f3e8] text-[#5a5545] border border-[#c5c0b0]"><ChevronLeft size={20} /></button>
                             <h2 className="text-lg font-black text-[#3d472f] tracking-tight">{viewYear}.{String(viewMonth + 1).padStart(2, '0')}</h2>
-                            <button onClick={() => moveMonth(1)} className="p-1 hover:bg-[#e8e4d4] text-[#5a5545] border border-[#c5c0b0]"><ChevronRight size={20} /></button>
+                            <button onClick={() => moveMonth(1)} className="p-1 hover:bg-[#f5f3e8] text-[#5a5545] border border-[#c5c0b0]"><ChevronRight size={20} /></button>
                         </div>
-                        <div className="grid grid-cols-7 gap-px bg-[#c5c0b0] border-2 border-[#c5c0b0]">
-                            {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (<div key={d} className={`text-center py-2 text-xs font-bold bg-[#e8e4d4] ${i === 0 ? 'text-[#a65d57]' : i === 6 ? 'text-[#4a6070]' : 'text-[#5a5545]'}`}>{d}</div>))}
+                        <div className="grid grid-cols-7 gap-px bg-[#c5c0b0] border border-[#d4cfbf]">
+                            {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (<div key={d} className={`text-center py-2 text-xs font-bold bg-[#e8e4d4] ${i === 0 ? 'text-[#8d5a4d]' : i === 6 ? 'text-[#5a6878]' : 'text-[#5a5545]'}`}>{d}</div>))}
                             {Array.from({ length: firstDayOfMonth }).map((_, i) => (<div key={`empty-${i}`} className="h-20 bg-[#faf8f0]"></div>))}
                             {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
                                 const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -95,7 +95,7 @@ export default function LeaveCalendarModal({ users, leaveRecords, onClose, onAdd
                                 const leavesOnDay = getLeavesForDate(dateStr);
                                 return (
                                     <button key={day} onClick={() => handleDayClick(day)} className={`h-20 p-1 text-left transition relative flex flex-col bg-[#f5f3e8] hover:bg-[#e8ebd8] ${isToday ? 'ring-2 ring-inset ring-[#5d6c4a]' : ''} ${selectedDate === dateStr ? 'bg-[#e8ebd8] ring-2 ring-inset ring-[#5d6c4a]' : ''}`}>
-                                        <span className={`text-xs font-bold ${dayOfWeek === 0 ? 'text-[#a65d57]' : (dayOfWeek === 6 ? 'text-[#4a6070]' : 'text-[#7a7565]')} ${isToday ? '!text-[#5d6c4a]' : ''}`}>{day}</span>
+                                        <span className={`text-xs font-bold ${dayOfWeek === 0 ? 'text-[#8d5a4d]' : (dayOfWeek === 6 ? 'text-[#5a6878]' : 'text-[#7a7565]')} ${isToday ? '!text-[#5d6c4a]' : ''}`}>{day}</span>
                                         <div className="flex-1 overflow-y-auto mt-1 space-y-0.5">
                                             {leavesOnDay.slice(0, 3).map((leave, idx) => (
                                                 <div key={idx} className={`text-[8px] px-1 py-0.5 truncate font-bold ${getBadgeColor(leave.type)}`}>
@@ -111,16 +111,16 @@ export default function LeaveCalendarModal({ users, leaveRecords, onClose, onAdd
                     </div>
 
                     {/* Right Panel */}
-                    <div className="bg-[#f5f3e8] p-5 border-2 border-[#c5c0b0] flex flex-col">
+                    <div className="bg-[#f5f3e8] p-5 border border-[#d4cfbf] flex flex-col">
                         <h4 className="font-bold text-[#3d472f] mb-4 flex items-center gap-2 pb-2 border-b-2 border-[#e8e4d4]"><Edit size={16} className="text-[#5d6c4a]" /> 연차 등록</h4>
                         {selectedDate ? (
                             <div className="space-y-3 flex-1 flex flex-col">
-                                <div className="bg-[#e8e4d4] p-3 border-2 border-[#c5c0b0]"><p className="text-sm font-bold text-[#5d6c4a]">{selectedDate}</p></div>
+                                <div className="bg-[#e8e4d4] p-3 border border-[#d4cfbf]"><p className="text-sm font-bold text-[#5d6c4a]">{selectedDate}</p></div>
 
                                 {/* 직원 선택 */}
                                 <div>
                                     <label className="text-[10px] font-bold text-[#7a7565] block mb-1">직원 선택</label>
-                                    <select value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} className="w-full p-2 border-2 border-[#c5c0b0] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none">
+                                    <select value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} className="w-full p-2 border border-[#d4cfbf] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none">
                                         <option value="">선택하세요</option>
                                         {users.filter(u => !u.resignDate).map(user => (<option key={user.id} value={user.id}>{user.name} ({user.team})</option>))}
                                     </select>
@@ -169,7 +169,7 @@ export default function LeaveCalendarModal({ users, leaveRecords, onClose, onAdd
                                                         <span className={`text-[9px] px-1.5 py-0.5 font-bold ${getBadgeColor(leave.type)}`}>{leave.type}</span>
                                                         <span className="text-[9px] text-[#7a7565]">-{days}일</span>
                                                     </div>
-                                                    <button onClick={() => onDeleteLeave(leave.userId, leave.date)} className="text-[#a65d57] hover:bg-[#f8f0ef] p-1"><X size={14} /></button>
+                                                    <button onClick={() => onDeleteLeave(leave.userId, leave.date)} className="text-[#8d5a4d] hover:bg-[#f5ebe7] p-1"><X size={14} /></button>
                                                 </div>
                                             );
                                         })}

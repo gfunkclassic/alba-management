@@ -43,7 +43,7 @@ function ChangeBadge({ field, before, after }) {
     return (
         <span className="inline-flex items-center gap-1 text-xs bg-[#f5f3e8] border border-[#c5c0b0] px-2 py-0.5 mr-1 mb-1">
             <span className="font-bold text-[#5a5545]">{label}</span>
-            <span className="text-[#a65d57] line-through">{bv || '(빈값)'}</span>
+            <span className="text-[#8d5a4d] line-through">{bv || '(빈값)'}</span>
             <span className="text-[#3d472f]">→</span>
             <span className="text-[#5d6c4a] font-bold">{av || '(빈값)'}</span>
         </span>
@@ -128,9 +128,9 @@ export default function AttendanceEditLogViewer() {
 
     if (error) {
         return (
-            <div className="bg-[#f8f0ef] border-2 border-[#dcc0bc] p-6 text-center">
-                <AlertTriangle className="mx-auto mb-2 text-[#a65d57]" size={24} />
-                <p className="text-sm font-bold text-[#a65d57]">{error}</p>
+            <div className="bg-[#f5ebe7] border-2 border-[#cba79c] p-6 text-center">
+                <AlertTriangle className="mx-auto mb-2 text-[#8d5a4d]" size={24} />
+                <p className="text-sm font-bold text-[#8d5a4d]">{error}</p>
                 <p className="text-xs text-[#7a7565] mt-1">admin 권한이 있는 계정으로 로그인되어 있는지 확인해 주세요.</p>
             </div>
         );
@@ -171,7 +171,7 @@ export default function AttendanceEditLogViewer() {
 
             {/* 목록 */}
             {filtered.length === 0 ? (
-                <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] p-10 text-center">
+                <div className="bg-[#f5f3e8] border border-[#d4cfbf] p-10 text-center">
                     <Clock size={32} className="mx-auto mb-3 text-[#c5c0b0]" />
                     <p className="text-sm font-bold text-[#7a7565]">해당 기간의 수정 이력이 없습니다.</p>
                     <p className="text-xs text-[#a09a88] mt-1">근태 수정 시 자동으로 기록됩니다.</p>
@@ -181,7 +181,7 @@ export default function AttendanceEditLogViewer() {
                     {filtered.map(log => {
                         const isExpanded = expandedId === log.id;
                         return (
-                            <div key={log.id} className="bg-[#f5f3e8] border-2 border-[#c5c0b0] hover:border-[#5d6c4a] transition-colors">
+                            <div key={log.id} className="bg-[#f5f3e8] border border-[#d4cfbf] hover:border-[#5d6c4a] transition-colors">
                                 {/* 요약 행 */}
                                 <button
                                     onClick={() => toggleExpand(log.id)}
@@ -270,8 +270,8 @@ export default function AttendanceEditLogViewer() {
                                             {/* Before / After 전체 */}
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                 <div>
-                                                    <p className="text-xs font-bold text-[#a65d57] mb-1">Before</p>
-                                                    <div className="text-xs bg-[#f8f0ef] border border-[#dcc0bc] p-2 space-y-0.5">
+                                                    <p className="text-xs font-bold text-[#8d5a4d] mb-1">Before</p>
+                                                    <div className="text-xs bg-[#f5ebe7] border border-[#cba79c] p-2 space-y-0.5">
                                                         {log.before ? Object.entries(log.before).map(([k, v]) => (
                                                             <div key={k} className="flex gap-1">
                                                                 <span className="text-[#7a7565] min-w-[50px]">{FIELD_LABELS[k] || k}:</span>

@@ -6,7 +6,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confi
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-[#fdf3e3] rounded-lg shadow-xl max-w-sm w-full overflow-hidden border border-[#d8973c]">
+            <div className="bg-[#fdf3e3] rounded-lg shadow-xl max-w-sm w-full overflow-hidden border border-[#a78049]">
                 <div className="p-6">
                     <div className="flex items-start gap-4">
                         <div className={`p-2 rounded-full mt-1 shrink-0 ${isDanger ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
@@ -30,7 +30,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confi
                             onConfirm();
                             onClose();
                         }}
-                        className={`px-4 py-2 text-sm font-bold text-white rounded transition-colors ${isDanger ? 'bg-red-500 hover:bg-red-600' : 'bg-[#d8973c] hover:bg-[#c68426]'
+                        className={`px-4 py-2 text-sm font-bold text-white rounded transition-colors ${isDanger ? 'bg-red-500 hover:bg-red-600' : 'bg-[#a78049] hover:bg-[#c68426]'
                             }`}
                     >
                         {confirmText}
@@ -46,7 +46,7 @@ export function AlertModal({ isOpen, onClose, title, message, isSuccess = false 
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-[#fdf3e3] rounded-lg shadow-xl max-w-sm w-full overflow-hidden border border-[#d8973c]">
+            <div className="bg-[#fdf3e3] rounded-lg shadow-xl max-w-sm w-full overflow-hidden border border-[#a78049]">
                 <div className="p-6 text-center relative">
                     <button onClick={onClose} className="absolute top-4 right-4 text-[#9a9585] hover:text-[#5a5545]">
                         <X size={20} />
@@ -62,7 +62,7 @@ export function AlertModal({ isOpen, onClose, title, message, isSuccess = false 
                 <div className="bg-[#f5ead6] px-6 py-4 flex justify-center border-t border-[#e8d5b5]">
                     <button
                         onClick={onClose}
-                        className="w-full max-w-[120px] px-4 py-2 text-sm font-bold bg-[#d8973c] hover:bg-[#c68426] text-white rounded transition-colors"
+                        className="w-full max-w-[120px] px-4 py-2 text-sm font-bold bg-[#a78049] hover:bg-[#c68426] text-white rounded transition-colors"
                     >
                         확인
                     </button>
