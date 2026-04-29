@@ -13,7 +13,7 @@ const ACTION_LABEL = {
 };
 const ACTION_COLOR = {
     APPROVE: 'text-[#5d6c4a]',
-    REJECT: 'text-[#a65d57]',
+    REJECT: 'text-[#8d5a4d]',
 };
 const STAGE_LABEL = {
     TEAM: '1차 (팀)',
@@ -113,7 +113,7 @@ export default function AdminApprovalHistory() {
     if (!canApprove(userProfile.roleGroup)) return null;
 
     return (
-        <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0] mt-8">
+        <div className="bg-[#f5f3e8] border border-[#d4cfbf] mt-8">
             <LeaveDetailModal isOpen={!!detailTarget} onClose={() => setDetailTarget(null)} request={detailTarget} />
 
             <button
@@ -126,13 +126,13 @@ export default function AdminApprovalHistory() {
             </button>
 
             {isOpen && (
-            <div className="border-t-2 border-[#c5c0b0]">
+            <div className="border-t border-[#d4cfbf]">
             <div className="flex justify-end p-2 border-b border-[#e8e4d4]">
-                <button onClick={loadHistory} className="text-xs text-[#5d6c4a] font-bold border border-[#b8c4a0] px-2 py-1 hover:bg-[#e8e4d4]">새로고침</button>
+                <button onClick={loadHistory} className="text-xs text-[#5d6c4a] font-bold border border-[#b8c4a0] px-2 py-1 hover:bg-[#f5f3e8]">새로고침</button>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                    <thead className="bg-[#e8e4d4] text-xs font-bold text-[#5d6c4a] uppercase">
+                    <thead className="bg-[#f5f3e8] text-xs font-bold text-[#5d6c4a] uppercase">
                         <tr>
                             <th className="p-3 pl-4 text-left">처리 일시</th>
                             <th className="p-3 text-left">신청자</th>
@@ -148,7 +148,7 @@ export default function AdminApprovalHistory() {
                         ) : history.length === 0 ? (
                             <tr><td colSpan={6} className="p-8 text-center text-[#9a9585] text-xs">최근 승인 내역이 없습니다.</td></tr>
                         ) : history.map((item) => (
-                            <tr key={item.id} className="hover:bg-[#f4f5eb]">
+                            <tr key={item.id} className="hover:bg-[#f5f3e8]">
                                 <td className="p-3 pl-4 text-xs text-[#7a7565] whitespace-nowrap">
                                     {new Date(item.acted_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 </td>

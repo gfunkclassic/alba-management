@@ -5,15 +5,15 @@ import { ConfirmModal } from '../modals/DialogModals';
 import AdminApprovalHistory from './AdminApprovalHistory';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
-const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]', HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]' };
+const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#5a6878] text-[#f5f3e8]', HALF_PM: 'bg-[#5a6878] text-[#f5f3e8]' };
 const STATUS_LABEL = { SUBMITTED: '승인대기', TEAM_APPROVED: '1차승인', FINAL_PENDING: '최종대기', CEO_PENDING: '승인대기(대표)', FINAL_APPROVED: '최종승인', REJECTED: '반려', CANCELLED: '취소' };
 const STATUS_COLOR = {
-    SUBMITTED: 'bg-[#d8973c] text-white',
+    SUBMITTED: 'bg-[#a78049] text-white',
     TEAM_APPROVED: 'bg-[#7a8c5f] text-white',
     FINAL_PENDING: 'bg-[#5d6c4a] text-white',
-    CEO_PENDING: 'bg-[#4a6070] text-white',
+    CEO_PENDING: 'bg-[#5a6878] text-white',
     FINAL_APPROVED: 'bg-[#3d6b5e] text-white',
-    REJECTED: 'bg-[#a65d57] text-white',
+    REJECTED: 'bg-[#8d5a4d] text-white',
     CANCELLED: 'bg-[#c5c0b0] text-[#5a5545]',
 };
 
@@ -21,18 +21,18 @@ function RejectModal({ onConfirm, onCancel }) {
     const [note, setNote] = useState('');
     return (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#f5f3e8] border-2 border-[#a65d57] w-full max-w-sm p-6">
+            <div className="bg-[#f5f3e8] border-2 border-[#8d5a4d] w-full max-w-sm p-6">
                 <h3 className="font-bold text-[#3d472f] mb-3">반려 사유 입력</h3>
                 <textarea
                     value={note}
                     onChange={e => setNote(e.target.value)}
                     placeholder="반려 사유를 입력해주세요 (필수)"
                     rows={3}
-                    className="w-full p-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm resize-none outline-none focus:border-[#a65d57] mb-3"
+                    className="w-full p-2 border border-[#d4cfbf] bg-[#faf8f0] text-sm resize-none outline-none focus:border-[#8d5a4d] mb-3"
                 />
                 <div className="flex gap-2">
-                    <button onClick={onCancel} className="flex-1 py-2 border-2 border-[#c5c0b0] text-xs font-bold text-[#5a5545] hover:bg-[#e8e4d4]">취소</button>
-                    <button onClick={() => onConfirm(note.trim())} disabled={!note.trim()} className="flex-1 py-2 bg-[#a65d57] border-2 border-[#7a3f3a] text-xs font-bold text-white hover:bg-[#7a3f3a] disabled:opacity-40 disabled:cursor-not-allowed">반려 확정</button>
+                    <button onClick={onCancel} className="flex-1 py-2 border border-[#d4cfbf] text-xs font-bold text-[#5a5545] hover:bg-[#e8e4d4]">취소</button>
+                    <button onClick={() => onConfirm(note.trim())} disabled={!note.trim()} className="flex-1 py-2 bg-[#8d5a4d] border-2 border-[#7a4d40] text-xs font-bold text-white hover:bg-[#7a4d40] disabled:opacity-40 disabled:cursor-not-allowed">반려 확정</button>
                 </div>
             </div>
         </div>
@@ -89,7 +89,7 @@ export default function LeaveApprovalInbox({ activeGivenDelegation = null }) {
     const pendingCount = requests.filter(r => r.status === 'SUBMITTED').length;
 
     return (
-        <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">
+        <div className="bg-[#f5f3e8] border border-[#d4cfbf]">
             {rejectTarget && <RejectModal onConfirm={confirmReject} onCancel={() => setRejectTarget(null)} />}
             <ConfirmModal
                 isOpen={!!confirmApproveTarget}
@@ -103,17 +103,17 @@ export default function LeaveApprovalInbox({ activeGivenDelegation = null }) {
                 cancelText="취소"
             />
 
-            <div className="p-4 border-b-2 border-[#c5c0b0] flex flex-wrap gap-2 items-center justify-between">
+            <div className="p-4 border-b border-[#d4cfbf] flex flex-wrap gap-2 items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Clock size={18} className="text-[#5d6c4a]" />
                     <span className="font-bold text-[#3d472f] text-sm">팀 승인함</span>
                     {pendingCount > 0 && (
-                        <span className="bg-[#d8973c] text-white text-[10px] font-black px-2 py-0.5">{pendingCount}건 대기</span>
+                        <span className="bg-[#a78049] text-white text-[10px] font-black px-2 py-0.5">{pendingCount}건 대기</span>
                     )}
                 </div>
                 <div className="flex gap-2">
                     <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-                        className="border-2 border-[#c5c0b0] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
+                        className="border border-[#d4cfbf] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
                         <option value="ALL">전체</option>
                         <option value="SUBMITTED">승인대기(팀)</option>
                         <option value="TEAM_APPROVED">1차 승인</option>
@@ -121,7 +121,7 @@ export default function LeaveApprovalInbox({ activeGivenDelegation = null }) {
                         <option value="FINAL_APPROVED">최종 승인</option>
                         <option value="REJECTED">반려</option>
                     </select>
-                    <button onClick={load} className="border-2 border-[#c5c0b0] p-1.5 text-[#5a5545] hover:bg-[#e8e4d4]">
+                    <button onClick={load} className="border border-[#d4cfbf] p-1.5 text-[#5a5545] hover:bg-[#e8e4d4]">
                         <RefreshCw size={14} />
                     </button>
                 </div>
@@ -144,7 +144,7 @@ export default function LeaveApprovalInbox({ activeGivenDelegation = null }) {
                         {loading ? (
                             <tr><td colSpan={7} className="p-8 text-center"><Loader size={16} className="animate-spin mx-auto text-[#9a9585]" /></td></tr>
                         ) : filtered.map(req => (
-                            <tr key={req.id} className={`hover:bg-[#f4f5eb] ${req.status !== 'SUBMITTED' ? 'opacity-60' : ''}`}>
+                            <tr key={req.id} className={`hover:bg-[#f5f3e8] ${req.status !== 'SUBMITTED' ? 'opacity-60' : ''}`}>
                                 <td className="p-3 pl-4">
                                     <div className="flex items-center gap-2">
                                         <div className="w-6 h-6 bg-[#5d6c4a] text-[#f5f3e8] text-[10px] font-bold flex items-center justify-center shrink-0">
@@ -167,7 +167,7 @@ export default function LeaveApprovalInbox({ activeGivenDelegation = null }) {
                                 <td className="p-3 text-center">
                                     {req.status === 'SUBMITTED' ? (
                                         activeGivenDelegation ? (
-                                            <span className="text-[10px] font-bold px-2 py-1 bg-[#fdf6e3] border border-[#d8973c] text-[#a06820]">
+                                            <span className="text-[10px] font-bold px-2 py-1 bg-[#f5f1e3] border border-[#a78049] text-[#7a5a1a]">
                                                 {activeGivenDelegation._toName} 위임 중
                                             </span>
                                         ) : (
@@ -177,7 +177,7 @@ export default function LeaveApprovalInbox({ activeGivenDelegation = null }) {
                                                     {processing === req.id ? <Loader size={10} className="animate-spin" /> : <CheckCircle size={12} />} 승인
                                                 </button>
                                                 <button onClick={() => handleReject(req)} disabled={!!processing}
-                                                    className="flex items-center gap-1 px-2 py-1 bg-[#a65d57] border border-[#7a3f3a] text-white text-[10px] font-bold hover:bg-[#7a3f3a] disabled:opacity-50">
+                                                    className="flex items-center gap-1 px-2 py-1 bg-[#8d5a4d] border border-[#7a4d40] text-white text-[10px] font-bold hover:bg-[#7a4d40] disabled:opacity-50">
                                                     <XCircle size={12} /> 반려
                                                 </button>
                                             </div>

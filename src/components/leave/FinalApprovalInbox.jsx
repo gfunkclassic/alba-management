@@ -7,17 +7,17 @@ import CEODelegateInbox from './CEODelegateInbox';
 import LeaveDetailModal from '../modals/LeaveDetailModal';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
-const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]', HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]' };
+const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#5a6878] text-[#f5f3e8]', HALF_PM: 'bg-[#5a6878] text-[#f5f3e8]' };
 const DEDUCTION = { FULL: 1.0, HALF_AM: 0.5, HALF_PM: 0.5 };
-const TEAM_COLOR = { '카페': 'bg-[#d8973c]', '생산기획': 'bg-[#5d6c4a]', 'QC': 'bg-[#4a6070]', 'ER': 'bg-[#a65d57]', 'LM': 'bg-[#7a7565]' };
+const TEAM_COLOR = { '카페': 'bg-[#a78049]', '생산기획': 'bg-[#5d6c4a]', 'QC': 'bg-[#5a6878]', 'ER': 'bg-[#8d5a4d]', 'LM': 'bg-[#7a7565]' };
 const STATUS_LABEL = { SUBMITTED: '승인대기(팀)', TEAM_APPROVED: '1차승인', FINAL_PENDING: '최종대기', CEO_PENDING: '승인대기(대표)', FINAL_APPROVED: '최종승인', REJECTED: '반려', CANCELLED: '취소' };
 const STATUS_COLOR = {
-    SUBMITTED: 'bg-[#d8973c] text-white',
+    SUBMITTED: 'bg-[#a78049] text-white',
     TEAM_APPROVED: 'bg-[#7a8c5f] text-white',
     FINAL_PENDING: 'bg-[#5d6c4a] text-white',
-    CEO_PENDING: 'bg-[#4a6070] text-white',
+    CEO_PENDING: 'bg-[#5a6878] text-white',
     FINAL_APPROVED: 'bg-[#3d6b5e] text-white',
-    REJECTED: 'bg-[#a65d57] text-white',
+    REJECTED: 'bg-[#8d5a4d] text-white',
     CANCELLED: 'bg-[#c5c0b0] text-[#5a5545]',
 };
 
@@ -25,14 +25,14 @@ function RejectModal({ title, onConfirm, onCancel }) {
     const [note, setNote] = useState('');
     return (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#f5f3e8] border-2 border-[#a65d57] w-full max-w-sm p-6">
+            <div className="bg-[#f5f3e8] border-2 border-[#8d5a4d] w-full max-w-sm p-6">
                 <h3 className="font-bold text-[#3d472f] mb-3">{title || '반려 사유 입력'}</h3>
                 <textarea value={note} onChange={e => setNote(e.target.value)}
                     placeholder="반려 사유를 입력해주세요 (필수)" rows={3}
-                    className="w-full p-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm resize-none outline-none focus:border-[#a65d57] mb-3" />
+                    className="w-full p-2 border border-[#d4cfbf] bg-[#faf8f0] text-sm resize-none outline-none focus:border-[#8d5a4d] mb-3" />
                 <div className="flex gap-2">
-                    <button onClick={onCancel} className="flex-1 py-2 border-2 border-[#c5c0b0] text-xs font-bold text-[#5a5545] hover:bg-[#e8e4d4]">취소</button>
-                    <button onClick={() => onConfirm(note.trim())} disabled={!note.trim()} className="flex-1 py-2 bg-[#a65d57] border-2 border-[#7a3f3a] text-xs font-bold text-white hover:bg-[#7a3f3a] disabled:opacity-40 disabled:cursor-not-allowed">반려 확정</button>
+                    <button onClick={onCancel} className="flex-1 py-2 border border-[#d4cfbf] text-xs font-bold text-[#5a5545] hover:bg-[#f5f3e8]">취소</button>
+                    <button onClick={() => onConfirm(note.trim())} disabled={!note.trim()} className="flex-1 py-2 bg-[#8d5a4d] border-2 border-[#7a4d40] text-xs font-bold text-white hover:bg-[#7a4d40] disabled:opacity-40 disabled:cursor-not-allowed">반려 확정</button>
                 </div>
             </div>
         </div>
@@ -134,7 +134,7 @@ export default function FinalApprovalInbox() {
         : requests.filter(r => r.status === 'SUBMITTED').length;
 
     return (
-        <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">
+        <div className="bg-[#f5f3e8] border border-[#d4cfbf]">
             {rejectTarget && (
                 <RejectModal
                     title={isFinalMode ? '최종 반려 사유 입력' : '팀 대행 반려 사유 입력'}
@@ -161,32 +161,32 @@ export default function FinalApprovalInbox() {
             />
 
             {/* 헤더 + 모드 토글 */}
-            <div className="p-4 border-b-2 border-[#c5c0b0] flex flex-wrap items-center justify-between gap-3">
+            <div className="p-4 border-b border-[#d4cfbf] flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <CheckCircle size={18} className="text-[#5d6c4a]" />
                     <span className="font-bold text-[#3d472f] text-sm">
                         {isFinalMode ? '승인함 (실장)' : '팀 승인 대행함'}
                     </span>
                     {pendingCount > 0 && (
-                        <span className={`text-[10px] font-black text-white px-2 py-0.5 ${isFinalMode ? 'bg-[#5d6c4a]' : 'bg-[#d8973c]'}`}>
+                        <span className={`text-[10px] font-black text-white px-2 py-0.5 ${isFinalMode ? 'bg-[#5d6c4a]' : 'bg-[#a78049]'}`}>
                             {pendingCount}건 대기
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-2">
                     {/* 모드 토글 */}
-                    <div className="flex border-2 border-[#3d472f] bg-[#f5f3e8]">
+                    <div className="flex border border-[#d4cfbf] bg-[#faf8f0]">
                         {[
                             { key: 'FINAL', label: '승인' },
                             { key: 'PROXY', label: '팀 대행' },
                         ].map(m => (
                             <button key={m.key} onClick={() => setMode(m.key)}
-                                className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${mode === m.key ? 'bg-[#3d472f] text-[#f5f3e8]' : 'text-[#5a5545] hover:bg-[#e8e4d4]'}`}>
+                                className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${mode === m.key ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#5a5545] hover:bg-[#f5f3e8]'}`}>
                                 {m.label}
                             </button>
                         ))}
                     </div>
-                    <button onClick={load} className="border-2 border-[#c5c0b0] p-1.5 text-[#5a5545] hover:bg-[#e8e4d4]">
+                    <button onClick={load} className="border border-[#d4cfbf] p-1.5 text-[#5a5545] hover:bg-[#f5f3e8]">
                         <RefreshCw size={14} />
                     </button>
                 </div>
@@ -194,7 +194,7 @@ export default function FinalApprovalInbox() {
 
             {/* PROXY 모드 안내 */}
             {mode === 'PROXY' && (
-                <div className="px-4 py-2 bg-[#fdf6e3] border-b border-[#e8d8a0] text-[10px] text-[#a06820] font-bold">
+                <div className="px-4 py-2 bg-[#f5f1e3] border-b border-[#c9a66a] text-[10px] text-[#7a5a1a] font-bold">
                     ⚡ 팀 관리자 부재 시 대행 승인 모드 — approvals 로그에 "FINAL_APPROVER 대행"으로 기록됩니다.
                 </div>
             )}
@@ -202,7 +202,7 @@ export default function FinalApprovalInbox() {
             {/* 테이블 */}
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                    <thead className="bg-[#e8e4d4] text-xs font-bold text-[#5d6c4a] uppercase">
+                    <thead className="bg-[#f5f3e8] text-xs font-bold text-[#5d6c4a] uppercase">
                         <tr>
                             <th className="p-3 pl-4 text-left">신청자</th>
                             <th className="p-3 text-center">팀</th>
@@ -220,14 +220,14 @@ export default function FinalApprovalInbox() {
                         ) : requests.length === 0 ? (
                             <tr><td colSpan={7} className="p-8 text-center text-xs text-[#9a9585]">
                                 {isFinalMode
-                                    ? <span>팀 승인 완료된 대기 신청이 없습니다.<br /><span className="text-[#a65d57] font-bold mt-1 inline-block">💡 새로운 신청은 [팀 대행] 탭에서 확인하세요.</span></span>
+                                    ? <span>팀 승인 완료된 대기 신청이 없습니다.<br /><span className="text-[#8d5a4d] font-bold mt-1 inline-block">💡 새로운 신청은 [팀 대행] 탭에서 확인하세요.</span></span>
                                     : 'SUBMITTED 상태 신청이 없습니다.'}
                             </td></tr>
                         ) : requests.map(req => (
                             <React.Fragment key={req.id}>
-                                <tr className="hover:bg-[#f4f5eb]">
+                                <tr className="hover:bg-[#f5f3e8]">
                                     <td className="p-3 pl-4">
-                                        <button onClick={() => setDetailTarget(req)} className="flex items-center gap-2 hover:bg-[#e8e4d4] p-1 rounded transition-colors group">
+                                        <button onClick={() => setDetailTarget(req)} className="flex items-center gap-2 hover:bg-[#f5f3e8] p-1 rounded transition-colors group">
                                             <div className="w-6 h-6 bg-[#5d6c4a] text-[#f5f3e8] text-[10px] font-bold flex items-center justify-center shrink-0">
                                                 {req._userName?.[0] || '?'}
                                             </div>
@@ -253,17 +253,17 @@ export default function FinalApprovalInbox() {
                                     <td className="p-3 text-center">
                                         {(isFinalMode ? (req.status === 'TEAM_APPROVED' || req.status === 'FINAL_PENDING') : req.status === 'SUBMITTED') ? (
                                             isFinalMode && activeGivenSeniorDelegation && !req.final_approvals?.[userProfile?.uid] ? (
-                                                <span className="text-[10px] font-bold px-2 py-1 bg-[#fdf6e3] border border-[#d8973c] text-[#a06820]">
+                                                <span className="text-[10px] font-bold px-2 py-1 bg-[#f5f1e3] border border-[#a78049] text-[#7a5a1a]">
                                                     {activeGivenSeniorDelegation._toName} 위임 중
                                                 </span>
                                             ) : (
                                                 <div className="flex justify-center gap-1">
                                                     <button onClick={() => setConfirmApproveTarget(req)} className="flex items-center gap-1 bg-[#5d6c4a] text-white px-2 py-1 text-xs hover:bg-[#4a5639] transition-colors"><CheckCircle size={12} /> {approveLabel}</button>
-                                                    <button onClick={() => setRejectTarget(req)} className="flex items-center gap-1 bg-[#a65d57] text-white px-2 py-1 text-xs hover:bg-[#8b4d47] transition-colors"><XCircle size={12} /> 반려</button>
+                                                    <button onClick={() => setRejectTarget(req)} className="flex items-center gap-1 bg-[#8d5a4d] text-white px-2 py-1 text-xs hover:bg-[#7a4d40] transition-colors"><XCircle size={12} /> 반려</button>
                                                 </div>
                                             )
                                         ) : req.status === 'REJECTED' ? (
-                                            <div className="text-left text-[10px] text-[#a65d57] space-y-0.5">
+                                            <div className="text-left text-[10px] text-[#8d5a4d] space-y-0.5">
                                                 <div className="font-bold">{req.rejected_by_name || req.ceo_decision?.name || (req.final_approvals ? (Object.values(req.final_approvals).find(v => v.status === 'REJECTED')?.name || null) : null) || '-'}</div>
                                                 <div className="text-[#7a7565] break-all whitespace-pre-wrap">{req.rejected_reason !== undefined ? (req.rejected_reason || '(사유 없음)') : (req.ceo_decision?.note || (req.final_approvals ? (Object.values(req.final_approvals).find(v => v.status === 'REJECTED')?.note || '') : '') || '(사유 없음)')}</div>
                                             </div>
@@ -273,7 +273,7 @@ export default function FinalApprovalInbox() {
                                 {errors[req.id] && (
                                     <tr>
                                         <td colSpan={7} className="px-4 pb-2">
-                                            <div className="flex items-center gap-2 bg-[#f8f0ef] border border-[#dcc0bc] px-3 py-2 text-xs text-[#a65d57]">
+                                            <div className="flex items-center gap-2 bg-[#f5ebe7] border border-[#cba79c] px-3 py-2 text-xs text-[#8d5a4d]">
                                                 <AlertCircle size={12} className="shrink-0" />
                                                 <span className="font-bold">{errors[req.id]}</span>
                                             </div>
@@ -287,7 +287,7 @@ export default function FinalApprovalInbox() {
             </div>
 
             {/* 대표 위임 승인함 */}
-            <div className="border-t-2 border-[#c5c0b0] mt-2 pt-2">
+            <div className="border-t border-[#d4cfbf] mt-2 pt-2">
                 {ceoDelegation
                     ? <CEODelegateInbox delegation={ceoDelegation} refreshKey={ceoRefreshKey} />
                     : <div className="p-4 text-xs text-[#9a9585] bg-[#f5f3e8]">대표 위임 승인함 — 현재 활성 대표 위임 없음</div>
