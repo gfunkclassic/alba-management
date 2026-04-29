@@ -261,7 +261,7 @@ export function AuthProvider({ children }) {
     };
 
     // 계정 생성 (FINAL_APPROVER만 호출 가능 — secondary app 트릭으로 세션 유지)
-    const createUser = async ({ name, email, role, team_id }) => {
+    const createUser = async ({ name, email, role, roleGroup, position, contact_email, team_id }) => {
         const adminUser = auth.currentUser;
 
         // 보조 Firebase 앱 인스턴스로 계정 생성 (주 세션에 영향 없음)
