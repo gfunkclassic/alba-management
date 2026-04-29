@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Users, UserPlus, Sun, AlertCircle, Check, X, LogOut, Search, RefreshCw, CheckCircle, Clock, ShieldOff, Edit2, UserCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useEmployees } from '../../hooks/useEmployees';
 import { ROLE_GROUP_OPTIONS, ROLE_GROUP_LABEL, ROLE_GROUP_BADGE, normalizeProfile, getFunctionalPermissions } from '../../utils/roleUtils';
 import LeaveBalanceManager from '../leave/LeaveBalanceManager';
 import SeniorDelegationManager from '../leave/SeniorDelegationManager';
@@ -16,52 +15,14 @@ const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
 
 function CreateUserPanel({ onCreated, accountUsers = [] }) {
     const { createUser, teams, addTeam } = useAuth();
-    const { employees } = useEmployees();
-    const [form, setForm] = useState({ name: '', email: '', contact_email: '', roleGroup: 'employee', position: '아르바이트', team_id: '' });
+    const [form, setForm] = useState({ name: '', email: '', roleGroup: 'employee', position: '아르바이트', team_id: '' });
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [isAddingNewTeam, setIsAddingNewTeam] = useState(false);
     const [newTeamName, setNewTeamName] = useState('');
-    const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
-    const [autofillNotice, setAutofillNotice] = useState('');
 
-    // 계정 생성 후보용 인원 목록 (재직 + 이메일 보유)
+    // 기존 계정 이메일 집합 (submit 가드용)
     const accountEmailSet = new Set(accountUsers.map(u => normalizeEmail(u.email)));
-    const employeeOptions = (employees || [])
-        .filter(emp => !emp.resignDate && emp.employmentStatus !== '퇴사')
-        .filter(emp => normalizeEmail(emp.email).includes('@'))
-        .map(emp => {
-            const hasAccount = accountEmailSet.has(normalizeEmail(emp.email));
-            return { ...emp, _hasAccount: hasAccount };
-        })
-        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-
-    const handlePickEmployee = (e) => {
-        const idStr = e.target.value;
-        setSelectedEmployeeId(idStr);
-        setAutofillNotice('');
-        if (!idStr) return;
-        const emp = employeeOptions.find(x => String(x.id) === String(idStr));
-        if (!emp) return;
-        if (emp._hasAccount) {
-            setAutofillNotice(`${emp.name}님은 이미 계정이 있습니다. 자동 입력을 건너뜁니다.`);
-            return;
-        }
-        // 자동 입력 (roleGroup은 자동 매핑하지 않음)
-        const teamMatch = teams && teams.includes(emp.team) ? emp.team : '';
-        setForm(f => ({
-            ...f,
-            name: emp.name || f.name,
-            email: emp.email || f.email,
-            contact_email: emp.email || f.contact_email,
-            position: (emp.jobTitle && String(emp.jobTitle).trim()) || emp.position || f.position,
-            team_id: teamMatch || f.team_id,
-        }));
-        const notes = [];
-        if (!teamMatch) notes.push('팀 값이 계정 관리의 팀 목록과 정확히 일치하지 않아 팀은 자동 입력하지 않았습니다.');
-        notes.push('권한 그룹은 직접 확인 후 선택해 주세요.');
-        setAutofillNotice(notes.join(' '));
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -73,11 +34,11 @@ function CreateUserPanel({ onCreated, accountUsers = [] }) {
         }
         setLoading(true);
         try {
-            await createUser(form);
+            // contact_email은 UI 노출 제거 — 로그인 이메일과 동일하게 보정
+            const payload = { ...form, contact_email: form.email };
+            await createUser(payload);
             setResult({ success: true, message: `${form.name} (${form.email}) 계정 생성 완료. 초기 비밀번호: 123456` });
-            setForm({ name: '', email: '', contact_email: '', roleGroup: 'employee', position: '아르바이트', team_id: '카페' });
-            setSelectedEmployeeId('');
-            setAutofillNotice('');
+            setForm({ name: '', email: '', roleGroup: 'employee', position: '아르바이트', team_id: '' });
             onCreated?.();
         } catch (err) {
             if (err.code === 'auth/email-already-in-use') {
@@ -107,40 +68,13 @@ function CreateUserPanel({ onCreated, accountUsers = [] }) {
 
     return (
         <div className="bg-[#f5f3e8] border-2 border-[#3d472f] p-6">
-            <h3 className="font-bold text-[#3d472f] mb-4 flex items-center gap-2">
+            <h3 className="font-bold text-[#3d472f] mb-2 flex items-center gap-2">
                 <UserPlus size={18} className="text-[#5d6c4a]" /> 계정 생성
             </h3>
-
-            {/* 기존 인원에서 자동 입력 (선택) */}
-            <div className="mb-4 p-3 bg-[#faf8f0] border border-[#d4cfbf]">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                    <label className="text-[11px] font-bold text-[#5d6c4a] uppercase tracking-wide flex items-center gap-1.5">
-                        <Users size={12} /> 기존 인원에서 자동 입력
-                    </label>
-                    {selectedEmployeeId && (
-                        <button type="button" onClick={() => { setSelectedEmployeeId(''); setAutofillNotice(''); }} className="text-[10px] font-bold text-[#5a5545] hover:text-[#3d472f] hover:underline">선택 해제</button>
-                    )}
-                </div>
-                <p className="text-[10px] text-[#8a8575] mb-2">인원 현황에 등록된 이름과 이메일을 계정 생성 폼에 불러옵니다. 권한 그룹은 직접 확인 후 선택해 주세요.</p>
-                <select
-                    value={selectedEmployeeId}
-                    onChange={handlePickEmployee}
-                    className="w-full p-2 border border-[#d4cfbf] bg-[#faf8f0] text-sm text-[#5a5545] focus:border-[#5d6c4a] outline-none"
-                >
-                    <option value="">— 인원 선택 (선택 시 자동 입력) —</option>
-                    {employeeOptions.map(emp => (
-                        <option key={emp.id} value={emp.id} disabled={emp._hasAccount}>
-                            {emp.name}{emp.team ? ` / ${emp.team}` : ''}{emp.employmentType ? ` / ${emp.employmentType}` : ''} / {emp.email}{emp._hasAccount ? ' [계정 있음]' : ''}
-                        </option>
-                    ))}
-                </select>
-                {autofillNotice && (
-                    <p className="text-[10px] text-[#8a8575] mt-2 leading-snug">{autofillNotice}</p>
-                )}
-                {employeeOptions.length === 0 && (
-                    <p className="text-[10px] text-[#8a8575] mt-2">자동 입력 가능한 재직 인원(이메일 보유)이 없습니다.</p>
-                )}
-            </div>
+            <p className="text-[11px] text-[#8a8575] mb-4 leading-snug">
+                팀 관리자, 실장, 대표, 최종관리자 등 운영 권한 계정을 생성합니다.<br />
+                아르바이트 신규 입사자는 인원 현황에서 먼저 등록한 뒤 관리하는 흐름을 권장합니다.
+            </p>
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
@@ -150,10 +84,6 @@ function CreateUserPanel({ onCreated, accountUsers = [] }) {
                 <div>
                     <label className="text-[10px] font-bold text-[#7a7565] block mb-1">로그인 이메일 *</label>
                     <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required placeholder="hong-login@company.com" className={inputCls} />
-                </div>
-                <div>
-                    <label className="text-[10px] font-bold text-[#7a7565] block mb-1">표시용 이메일 <span className="text-[#9a9585] font-normal">(= 회사메일, 선택)</span></label>
-                    <input type="email" value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} placeholder="hong@company.com (비어두면 로그인이메일 사용)" className={inputCls} />
                 </div>
                 <div>
                     <label className="text-[10px] font-bold text-[#7a7565] block mb-1">권한 그룹 *</label>
