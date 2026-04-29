@@ -96,79 +96,87 @@ export default function HRView({
         : filteredData.filter(u => (u.employmentType || u.position || '아르바이트') !== '아르바이트');
     const displayData = showMissingGenderOnly ? baseData.filter(isGenderMissing) : baseData;
 
+    // 홈 톤 토큰 (HRView 내부 재사용)
+    const INPUT_BASE = "border border-[#d4cfbf] bg-[#faf8f0] text-sm text-[#5a5545] focus:border-[#5d6c4a] outline-none";
+    const SEG_GROUP = "flex bg-[#faf8f0] border border-[#d4cfbf]";
+    const segBtn = (active, danger = false) =>
+        `px-3 py-1.5 text-xs font-bold transition ${active
+            ? (danger ? 'bg-[#8d5a4d] text-[#f5f3e8]' : 'bg-[#5d6c4a] text-[#f5f3e8]')
+            : 'text-[#7a7565] hover:bg-[#f5f3e8]'}`;
+
     return (
         <>
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <StatCard title="전체 인원" value={`${stats.totalActive}명`} icon={<Users size={20} className="text-[#5d6c4a]" />} />
-                <StatCard title="4대보험 미가입" value={`${stats.insuranceNeeded}명`} icon={<AlertTriangle size={20} className="text-[#a65d57]" />} danger={stats.insuranceNeeded > 0} />
-                <StatCard title="계약 갱신 요망 (14일 이내)" value={`${stats.needRenewal}명`} icon={<RotateCcw size={20} className="text-[#d8973c]" />} warning={stats.needRenewal > 0} />
-                <StatCard title="총 예상 급여" value={`₩${stats.totalWage.toLocaleString()}`} sub="실제 근무 기록 기준" icon={<Wallet size={20} className="text-[#5d6c4a]" />} />
+                <StatCard title="4대보험 미가입" value={`${stats.insuranceNeeded}명`} icon={<AlertTriangle size={20} className="text-[#8d5a4d]" />} danger={stats.insuranceNeeded > 0} />
+                <StatCard title="계약 갱신 요망 (14일 이내)" value={`${stats.needRenewal}명`} icon={<RotateCcw size={20} className="text-[#a78049]" />} warning={stats.needRenewal > 0} />
+                <StatCard title="총 예상 급여" value={`₩${stats.totalWage.toLocaleString()}`} sub="실제 근무 기록 기준" icon={<Wallet size={20} className="text-[#5a6878]" />} />
             </section>
 
-            <section className="bg-[#f5f3e8] p-3 border-2 border-[#c5c0b0] flex flex-wrap gap-3 items-center mt-4">
+            <section className="bg-[#faf8f0] p-3 border border-[#d4cfbf] flex flex-wrap gap-3 items-center mt-4">
                 <div className="relative flex-1 min-w-[200px]">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9a9585]" />
-                    <input type="text" placeholder="이름, 연락처 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none" />
+                    <input type="text" placeholder="이름, 연락처 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pl-10 pr-4 py-2 ${INPUT_BASE}`} />
                 </div>
-                <select value={filterStatus} onChange={handleFilterStatusChange} className="px-3 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm font-bold text-[#5a5545] outline-none">
+                <select value={filterStatus} onChange={handleFilterStatusChange} className={`px-3 py-2 font-bold ${INPUT_BASE}`}>
                     <option value="ALL">전체 상태</option>
                     <option value="RENEWAL_NEEDED">계약 갱신 임박</option>
                     <option value="INSURANCE_NEEDED">4대보험 미가입</option>
                 </select>
-                <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)} className="px-3 py-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm font-bold text-[#5a5545] outline-none">
+                <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)} className={`px-3 py-2 font-bold ${INPUT_BASE}`}>
                     {Object.keys(teamCounts).map(team => (<option key={team} value={team}>{team} ({teamCounts[team]})</option>))}
                 </select>
                 {/* 고용유형 필터 */}
-                <div className="flex bg-[#e8e4d4] border-2 border-[#c5c0b0]">
+                <div className={SEG_GROUP}>
                     {[{ key: 'ALL', label: '전체' }, { key: 'ALBA', label: '아르바이트' }, { key: 'STAFF', label: '직원/계약직' }].map(f => (
-                        <button key={f.key} onClick={() => setTypeFilter(f.key)} className={`px-3 py-1.5 text-xs font-bold transition ${typeFilter === f.key ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#d4dcc0]'} ${f.key !== 'ALL' ? 'border-l border-[#c5c0b0]' : ''}`}>{f.label}</button>
+                        <button key={f.key} onClick={() => setTypeFilter(f.key)} className={`${segBtn(typeFilter === f.key)} ${f.key !== 'ALL' ? 'border-l border-[#d4cfbf]' : ''}`}>{f.label}</button>
                     ))}
                 </div>
                 {/* 재직/퇴사 필터 */}
-                <div className="flex bg-[#e8e4d4] border-2 border-[#c5c0b0]">
-                    <button onClick={() => setViewMode('ACTIVE')} className={`px-3 py-1.5 text-xs font-bold transition ${viewMode === 'ACTIVE' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#d4dcc0]'}`}>재직</button>
-                    <button onClick={() => setViewMode('RESIGNED')} className={`px-3 py-1.5 text-xs font-bold border-l border-[#c5c0b0] transition ${viewMode === 'RESIGNED' ? 'bg-[#a65d57] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#e6d0ce]'}`}>퇴사</button>
-                    <button onClick={() => setViewMode('ALL')} className={`px-3 py-1.5 text-xs font-bold border-l border-[#c5c0b0] transition ${viewMode === 'ALL' ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#7a7565] hover:bg-[#d4dcc0]'}`}>전체</button>
+                <div className={SEG_GROUP}>
+                    <button onClick={() => setViewMode('ACTIVE')} className={segBtn(viewMode === 'ACTIVE')}>재직</button>
+                    <button onClick={() => setViewMode('RESIGNED')} className={`${segBtn(viewMode === 'RESIGNED', true)} border-l border-[#d4cfbf]`}>퇴사</button>
+                    <button onClick={() => setViewMode('ALL')} className={`${segBtn(viewMode === 'ALL')} border-l border-[#d4cfbf]`}>전체</button>
                 </div>
             </section>
 
             {/* 홈 진입 안내 배너 + 성별 미입력 점검 칩 (운영용 안내 그룹) */}
             <div className="mt-3 space-y-2">
-            {filterSource && FILTER_SOURCE_LABEL[filterSource] && (
-                <div className="flex items-center justify-between gap-2 px-3 py-2 bg-[#e8ebd8] border border-[#b8c4a0] text-[11px]">
-                    <span className="text-[#3d472f] font-bold">{FILTER_SOURCE_LABEL[filterSource]}</span>
-                    <button onClick={handleClearHomeFilter} className="px-2 py-0.5 bg-[#f5f3e8] border border-[#c5c0b0] text-[#5a5545] font-bold hover:bg-[#e8e4d4]">
-                        전체 보기
-                    </button>
-                </div>
-            )}
-
-            {/* 성별 미입력 점검 안내 칩 (운영용) */}
-            <div className="flex items-center gap-2 text-xs">
-                {showMissingGenderOnly ? (
-                    <>
-                        <span className="px-2 py-1 bg-[#fdf6e3] border border-[#d8973c] text-[#7a5a1a] font-bold flex items-center gap-1">
-                            <AlertTriangle size={12} /> 성별 미입력만 보기 중 ({missingGenderCount}명)
-                        </span>
-                        <button onClick={() => setShowMissingGenderOnly(false)} className="px-2 py-1 bg-[#f5f3e8] border border-[#c5c0b0] text-[#5a5545] font-bold hover:bg-[#e8e4d4]">전체 보기</button>
-                    </>
-                ) : missingGenderCount > 0 ? (
-                    <button onClick={() => setShowMissingGenderOnly(true)} className="px-2 py-1 bg-[#fdf6e3] border border-[#d8973c] text-[#7a5a1a] font-bold flex items-center gap-1 hover:bg-[#f9eccb]">
-                        <AlertTriangle size={12} /> 성별 미입력 {missingGenderCount}명 · 클릭해서 보기
-                    </button>
-                ) : (
-                    <span className="px-2 py-1 bg-[#f5f3e8] border border-[#c5c0b0] text-[#9a9585] flex items-center gap-1">
-                        <Check size={12} /> 성별 미입력 0명
-                    </span>
+                {filterSource && FILTER_SOURCE_LABEL[filterSource] && (
+                    <div className="flex items-center justify-between gap-2 px-3 py-2 bg-[#f5f1e3] border border-[#c9a66a] text-[11px]">
+                        <span className="text-[#7a5a1a] font-bold">{FILTER_SOURCE_LABEL[filterSource]}</span>
+                        <button onClick={handleClearHomeFilter} className="px-2 py-0.5 bg-[#faf8f0] border border-[#d4cfbf] text-[#5a5545] font-bold hover:bg-[#f5f3e8]">
+                            전체 보기
+                        </button>
+                    </div>
                 )}
-            </div>
+
+                {/* 성별 미입력 점검 안내 칩 (운영용) */}
+                <div className="flex items-center gap-2 text-xs">
+                    {showMissingGenderOnly ? (
+                        <>
+                            <span className="px-2 py-1 bg-[#f5f1e3] border border-[#c9a66a] text-[#7a5a1a] font-bold flex items-center gap-1.5">
+                                <AlertTriangle size={12} /> 성별 미입력만 보기 중 ({missingGenderCount}명)
+                            </span>
+                            <button onClick={() => setShowMissingGenderOnly(false)} className="px-2 py-1 bg-[#faf8f0] border border-[#d4cfbf] text-[#5a5545] font-bold hover:bg-[#f5f3e8]">전체 보기</button>
+                        </>
+                    ) : missingGenderCount > 0 ? (
+                        <button onClick={() => setShowMissingGenderOnly(true)} className="px-2 py-1 bg-[#f5f1e3] border border-[#c9a66a] text-[#7a5a1a] font-bold flex items-center gap-1.5 hover:bg-[#ede7d2]">
+                            <AlertTriangle size={12} /> 성별 미입력 {missingGenderCount}명 · 클릭해서 보기
+                        </button>
+                    ) : (
+                        <span className="px-2 py-1 bg-[#faf8f0] border border-[#d4cfbf] text-[#9a9585] flex items-center gap-1.5">
+                            <Check size={12} /> 성별 미입력 0명
+                        </span>
+                    )}
+                </div>
             </div>
 
             <div className="flex flex-col lg:flex-row gap-4 mt-4 lg:items-stretch">
-                <div className="flex-1 bg-[#f5f3e8] border-2 border-[#c5c0b0] shadow-md overflow-hidden flex flex-col lg:h-[700px] max-h-[700px]">
+                <div className="flex-1 bg-[#faf8f0] border border-[#d4cfbf] overflow-hidden flex flex-col lg:h-[700px] max-h-[700px]">
                     <div className="overflow-x-auto overflow-y-auto flex-1">
                         <table className="w-full">
-                            <thead className="bg-[#e8e4d4] sticky top-0 z-10 border-b-2 border-[#c5c0b0] text-[10px] font-bold text-[#5d6c4a] uppercase tracking-wider">
+                            <thead className="bg-[#f5f3e8] sticky top-0 z-10 border-b border-[#d4cfbf] text-[10px] font-bold text-[#5d6c4a] uppercase tracking-wider">
                                 {typeFilter === 'STAFF' ? (
                                     <tr><th className="p-2.5 pl-3 text-left">성별</th><th className="p-2.5 text-left">이름</th><th className="p-2.5 text-left">부서</th><th className="p-2.5 text-left">직급</th><th className="p-2.5 text-left">입사일</th><th className="p-2.5 text-center">4대보험</th><th className="p-2.5 text-left">진급일</th><th className="p-2.5 pr-3 text-right">관리</th></tr>
                                 ) : typeFilter === 'ALBA' ? (
@@ -183,7 +191,7 @@ export default function HRView({
                                     const isAlba = eType === '아르바이트';
                                     const insured = user.insuranceStatus;
                                     return (
-                                        <tr key={user.id} onClick={() => handleSelectUser(user)} className={`group cursor-pointer hover:bg-[#f4f5eb] transition-colors text-xs ${selectedUser?.id === user.id ? 'bg-[#e8ebd8]' : ''}`}>
+                                        <tr key={user.id} onClick={() => handleSelectUser(user)} className={`group cursor-pointer hover:bg-[#f5f3e8] transition-colors text-xs ${selectedUser?.id === user.id ? 'bg-[#e8ebd8]' : ''}`}>
                                             <td className="p-2.5 pl-3 text-[#7a7565]">{displayGender(getGenderValue(user))}</td>
                                             <td className="p-2.5 font-bold text-[#3d472f]">{user.name}</td>
                                             {typeFilter === 'STAFF' ? (
@@ -191,34 +199,34 @@ export default function HRView({
                                                     <td className="p-2.5 text-[#5a5545]">{user.team}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.jobTitle || '-'}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.startDate}</td>
-                                                    <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#a65d57]">✗</span>}</td>
+                                                    <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#8d5a4d]">✗</span>}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.promotionDate || '-'}</td>
                                                 </>
                                             ) : typeFilter === 'ALBA' ? (
                                                 <>
                                                     <td className="p-2.5 text-[#5a5545]">{user.team}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.startDate}</td>
-                                                    <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#a65d57]">✗</span>}</td>
+                                                    <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#8d5a4d]">✗</span>}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.renewalDate || '-'}</td>
                                                     <td className="p-2.5 text-center text-[#5a5545]">{user.checkIn}~{user.checkOut}</td>
                                                     <td className="p-2.5 text-right font-bold text-[#3d472f]">₩{(user.wage || 0).toLocaleString()}</td>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <td className="p-2.5"><span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold border ${isAlba ? 'bg-[#e8ebd8] text-[#5d6c4a] border-[#b8c4a0]' : 'bg-[#D6E4F0] text-[#2F5597] border-[#a0b8d0]'}`}>{eType}</span></td>
+                                                    <td className="p-2.5"><span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold border ${isAlba ? 'bg-[#e8ebd8] text-[#5d6c4a] border-[#b8c4a0]' : 'bg-[#e8edf0] text-[#5a6878] border-[#c5cbd2]'}`}>{eType}</span></td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.team}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.startDate}</td>
-                                                    <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#a65d57]">✗</span>}</td>
+                                                    <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#8d5a4d]">✗</span>}</td>
                                                     <td className="p-2.5">
-                                                        {user.resignDate ? <span className="text-[10px] font-bold text-[#a65d57]">퇴사</span> : <span className="text-[10px] font-bold text-[#5d6c4a]">재직</span>}
+                                                        {user.resignDate ? <span className="text-[10px] font-bold text-[#8d5a4d]">퇴사</span> : <span className="text-[10px] font-bold text-[#5d6c4a]">재직</span>}
                                                     </td>
                                                 </>
                                             )}
                                             <td className="p-2.5 pr-3 text-right">
                                                 <div className="flex items-center justify-end gap-1.5">
-                                                    <button onClick={(e) => openUserForm(user, e)} className="p-1 bg-[#e8e4d4] text-[#5d6c4a] hover:bg-[#d4dcc0] border border-[#c5c0b0]" title='수정'><Edit size={12} /></button>
-                                                    {!user.resignDate && <button onClick={(e) => openResignModal(user, e)} className="p-1 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#f0e5e4] border border-[#dcc0bc]" title='퇴사'><UserMinus size={12} /></button>}
-                                                    <button onClick={(e) => { e.stopPropagation(); setDeleteTargetUser(user); }} className="p-1 bg-[#f8f0ef] text-[#a65d57] hover:bg-[#a65d57] hover:text-[#f8f0ef] border border-[#a65d57] transition-colors" title='삭제'><Trash2 size={12} /></button>
+                                                    <button onClick={(e) => openUserForm(user, e)} className="p-1 bg-[#faf8f0] text-[#5d6c4a] hover:bg-[#f5f3e8] border border-[#d4cfbf]" title='수정'><Edit size={12} /></button>
+                                                    {!user.resignDate && <button onClick={(e) => openResignModal(user, e)} className="p-1 bg-[#faf8f0] text-[#a78049] hover:bg-[#f5f1e3] border border-[#c9a66a]" title='퇴사'><UserMinus size={12} /></button>}
+                                                    <button onClick={(e) => { e.stopPropagation(); setDeleteTargetUser(user); }} className="p-1 bg-[#faf8f0] text-[#8d5a4d] hover:bg-[#8d5a4d] hover:text-[#faf8f0] border border-[#cba79c] transition-colors" title='삭제'><Trash2 size={12} /></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -229,147 +237,147 @@ export default function HRView({
                     </div>
                 </div>
 
-                <div className="w-full lg:w-80 bg-[#f5f3e8] border-2 border-[#c5c0b0] shadow-md flex flex-col h-[700px]">
+                <div className="w-full lg:w-80 bg-[#faf8f0] border border-[#d4cfbf] flex flex-col h-[700px]">
                     {selectedUser ? (() => {
                         const eType = selectedUser.employmentType || selectedUser.position || '아르바이트';
                         const eStatus = selectedUser.employmentStatus || (selectedUser.resignDate ? '퇴사' : '재직');
                         const isAlbaUser = eType === '아르바이트';
                         const tenureLabel = calcTenure(selectedUser.startDate, selectedUser.resignDate);
                         const statusBadgeCls = selectedUser.resignDate
-                            ? 'bg-[#a65d57] border-[#8b4d47] text-[#f5f3e8]'
-                            : eStatus === '수습' ? 'bg-[#fdf6e3] border-[#d8973c] text-[#7a5a1a]'
-                            : eStatus === '퇴사예정' ? 'bg-[#f8f0ef] border-[#dcc0bc] text-[#a65d57]'
+                            ? 'bg-[#8d5a4d] border-[#7a4d40] text-[#f5f3e8]'
+                            : eStatus === '수습' ? 'bg-[#f5f1e3] border-[#c9a66a] text-[#7a5a1a]'
+                            : eStatus === '퇴사예정' ? 'bg-[#f5ebe7] border-[#cba79c] text-[#8d5a4d]'
                             : 'bg-[#d4dcc0] border-[#b8c4a0] text-[#3d472f]';
                         const typeBadgeCls = isAlbaUser
                             ? 'bg-[#e8ebd8] border-[#b8c4a0] text-[#5d6c4a]'
-                            : 'bg-[#D6E4F0] border-[#a0b8d0] text-[#2F5597]';
+                            : 'bg-[#e8edf0] border-[#c5cbd2] text-[#5a6878]';
                         return (
-                        <div className="flex flex-col h-full">
-                            <div className="p-4 bg-[#5d6c4a] border-b-2 border-[#3d472f]">
-                                <div className="flex justify-between items-start mb-2 gap-2">
-                                    <h2 className="text-2xl font-black text-[#f5f3e8] tracking-tight truncate">{selectedUser.name || '-'}</h2>
-                                    <div className="flex flex-col items-end gap-1 shrink-0">
-                                        <span className={`px-2 py-0.5 text-[10px] font-bold border-2 ${statusBadgeCls}`}>{eStatus}</span>
-                                        <span className={`px-2 py-0.5 text-[10px] font-bold border-2 ${typeBadgeCls}`}>{eType}</span>
+                            <div className="flex flex-col h-full">
+                                <div className="p-4 bg-[#5d6c4a] border-b border-[#3d472f]">
+                                    <div className="flex justify-between items-start mb-2 gap-2">
+                                        <h2 className="text-2xl font-black text-[#f5f3e8] tracking-tight truncate">{selectedUser.name || '-'}</h2>
+                                        <div className="flex flex-col items-end gap-1 shrink-0">
+                                            <span className={`px-2 py-0.5 text-[10px] font-bold border ${statusBadgeCls}`}>{eStatus}</span>
+                                            <span className={`px-2 py-0.5 text-[10px] font-bold border ${typeBadgeCls}`}>{eType}</span>
+                                        </div>
                                     </div>
+                                    <p className="text-[#d4dcc0] text-xs font-bold flex items-center gap-1.5">
+                                        <Briefcase size={12} />
+                                        <span>{selectedUser.team || '-'}</span>
+                                        <span className="text-[#b8c4a0]">·</span>
+                                        <span>{(!isAlbaUser && selectedUser.jobTitle) ? selectedUser.jobTitle : (isAlbaUser ? '아르바이트' : '-')}</span>
+                                    </p>
+                                    {selectedUser.resignDate && (
+                                        <div className="mt-3 p-3 bg-[#7a4d40] border-l-4 border-[#3d3929] text-xs">
+                                            <div className="font-bold text-[#f5f3e8]">퇴사일: {selectedUser.resignDate}</div>
+                                            {selectedUser.resignReason && <div className="mt-1 text-[#dcc0bc]">사유: {selectedUser.resignReason}</div>}
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="text-[#d4dcc0] text-xs font-bold flex items-center gap-1.5">
-                                    <Briefcase size={12} />
-                                    <span>{selectedUser.team || '-'}</span>
-                                    <span className="text-[#b8c4a0]">·</span>
-                                    <span>{(!isAlbaUser && selectedUser.jobTitle) ? selectedUser.jobTitle : (isAlbaUser ? '아르바이트' : '-')}</span>
-                                </p>
-                                {selectedUser.resignDate && (
-                                    <div className="mt-3 p-3 bg-[#8b4d47] border-l-4 border-[#3d3929] text-xs">
-                                        <div className="font-bold text-[#f5f3e8]">퇴사일: {selectedUser.resignDate}</div>
-                                        {selectedUser.resignReason && <div className="mt-1 text-[#dcc0bc]">사유: {selectedUser.resignReason}</div>}
+                                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                                    <div>
+                                        <h3 className="text-[11px] font-bold text-[#5d6c4a] uppercase tracking-wide mb-1.5">기본 정보</h3>
+                                        <div className="bg-[#f5f3e8] p-3 border border-[#d4cfbf] space-y-2">
+                                            <InfoRow icon={<Users size={14} />} label="성별" value={displayGender(getGenderValue(selectedUser))} />
+                                            <InfoRow icon={<Phone size={14} />} label="연락처" value={maskPII ? '***-****-****' : selectedUser.phone} />
+                                            <InfoRow icon={<Mail size={14} />} label="이메일" value={selectedUser.email} />
+                                            <InfoRow icon={<Calendar size={14} />} label="입사일" value={selectedUser.startDate} />
+                                            <InfoRow icon={<RotateCcw size={14} />} label="근속" value={tenureLabel} />
+                                        </div>
                                     </div>
-                                )}
-                            </div>
-                            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                                <div>
-                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-1.5">기본 정보</h3>
-                                    <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
-                                        <InfoRow icon={<Users size={14} />} label="성별" value={displayGender(getGenderValue(selectedUser))} />
-                                        <InfoRow icon={<Phone size={14} />} label="연락처" value={maskPII ? '***-****-****' : selectedUser.phone} />
-                                        <InfoRow icon={<Mail size={14} />} label="이메일" value={selectedUser.email} />
-                                        <InfoRow icon={<Calendar size={14} />} label="입사일" value={selectedUser.startDate} />
-                                        <InfoRow icon={<RotateCcw size={14} />} label="근속" value={tenureLabel} />
-                                    </div>
-                                </div>
 
-                                <div>
-                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-1.5">근무 / 계약 정보</h3>
-                                    <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
-                                        {isAlbaUser ? (
-                                            <>
-                                                <InfoRow icon={<Monitor size={14} />} label="근무시간" value={(selectedUser.checkIn && selectedUser.checkOut) ? `${selectedUser.checkIn} - ${selectedUser.checkOut}` : '-'} />
-                                                <InfoRow icon={<Calendar size={14} />} label="주 근무일수" value={selectedUser.workDays} />
-                                                <InfoRow icon={<Wallet size={14} />} label="시급" value={selectedUser.wage ? `₩${Number(selectedUser.wage).toLocaleString()}` : '-'} />
-                                                <InfoRow icon={<RotateCcw size={14} />} label="계약 갱신일" value={selectedUser.renewalDate} />
-                                            </>
-                                        ) : (
-                                            <>
-                                                <InfoRow icon={<Briefcase size={14} />} label="직급" value={selectedUser.jobTitle} />
-                                                <InfoRow icon={<Calendar size={14} />} label="진급일" value={selectedUser.promotionDate} />
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-1.5 flex items-center justify-between">
-                                        <span>4대보험</span>
-                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 border ${selectedUser.insuranceStatus ? 'bg-[#e8ebd8] border-[#b8c4a0] text-[#5d6c4a]' : 'bg-[#f8f0ef] border-[#dcc0bc] text-[#a65d57]'}`}>
-                                            {selectedUser.insuranceStatus ? '가입' : '미가입'}
-                                        </span>
-                                    </h3>
-                                    <div className="bg-[#faf8f0] p-3 border-2 border-[#e8e4d4] space-y-2">
-                                        <InfoRow icon={<Shield size={14} />} label="신고일" value={selectedUser.insuranceDate} />
-                                    </div>
-                                </div>
-
-                                {selectedUser.resignDate && (
-                                    <div className="bg-[#f8f0ef] p-4 border-2 border-[#dcc0bc]">
-                                        <h3 className="text-xs font-bold text-[#a65d57] uppercase mb-1.5">퇴사 정보</h3>
-                                        <InfoRow icon={<Calendar size={14} />} label="퇴사일" value={selectedUser.resignDate} />
-                                        <InfoRow icon={<FileText size={14} />} label="사유" value={selectedUser.resignReason || '미기재'} />
-                                    </div>
-                                )}
-                                <div className="bg-[#e8ebd8] p-4 border-2 border-[#b8c4a0]">
-                                    <h3 className="text-xs font-bold text-[#5d6c4a] uppercase mb-1.5 flex items-center justify-between">
-                                        예상 급여
-                                        <span className="text-[10px] bg-[#5d6c4a] text-[#f5f3e8] px-1.5 py-0.5">{selectedUser.insuranceStatus ? '세전' : '3.3%공제'}</span>
-                                    </h3>
-                                    {(() => {
-                                        const wage = calculateMonthlyWage(selectedUser, payrollMonth);
-                                        if (selectedUser.insuranceStatus) {
-                                            return (
+                                    <div>
+                                        <h3 className="text-[11px] font-bold text-[#5d6c4a] uppercase tracking-wide mb-1.5">근무 / 계약 정보</h3>
+                                        <div className="bg-[#f5f3e8] p-3 border border-[#d4cfbf] space-y-2">
+                                            {isAlbaUser ? (
                                                 <>
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className="text-[#7a7565] text-xs font-bold">월 기본급 (예상)</span>
-                                                        <span className="text-[#3d472f] font-mono font-bold">₩{wage.estimated.toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center pt-2 border-t-2 border-[#d4dcc0]">
-                                                        <span className="text-[#5d6c4a] text-sm font-black">실적 합계</span>
-                                                        <span className="text-[#2d3721] font-black text-lg">₩{wage.actual.toLocaleString()}</span>
-                                                    </div>
-                                                    <p className="text-[10px] text-[#7a7565] text-right mt-1">4대보험 공제는 노무사 산정 후 확정</p>
+                                                    <InfoRow icon={<Monitor size={14} />} label="근무시간" value={(selectedUser.checkIn && selectedUser.checkOut) ? `${selectedUser.checkIn} - ${selectedUser.checkOut}` : '-'} />
+                                                    <InfoRow icon={<Calendar size={14} />} label="주 근무일수" value={selectedUser.workDays} />
+                                                    <InfoRow icon={<Wallet size={14} />} label="시급" value={selectedUser.wage ? `₩${Number(selectedUser.wage).toLocaleString()}` : '-'} />
+                                                    <InfoRow icon={<RotateCcw size={14} />} label="계약 갱신일" value={selectedUser.renewalDate} />
                                                 </>
-                                            );
-                                        } else {
-                                            return (
+                                            ) : (
                                                 <>
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className="text-[#7a7565] text-xs font-bold">월 기본급 (예상)</span>
-                                                        <span className="text-[#3d472f] font-mono font-bold">₩{wage.estimated.toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-[#7a7565] text-xs font-bold">실적 합계</span>
-                                                        <span className="text-[#3d472f] font-mono font-bold">₩{wage.actual.toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center text-[#a65d57] mt-1 mb-2">
-                                                        <span className="text-xs font-bold">- 3.3% 공제</span>
-                                                        <span className="font-mono font-bold">-₩{wage.strictDeduction.toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center pt-2 border-t-2 border-[#d4dcc0]">
-                                                        <span className="text-[#5d6c4a] text-sm font-black">실지급액</span>
-                                                        <span className="text-[#2d3721] font-black text-lg">₩{wage.strictFinalPayout.toLocaleString()}</span>
-                                                    </div>
+                                                    <InfoRow icon={<Briefcase size={14} />} label="직급" value={selectedUser.jobTitle} />
+                                                    <InfoRow icon={<Calendar size={14} />} label="진급일" value={selectedUser.promotionDate} />
                                                 </>
-                                            );
-                                        }
-                                    })()}
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h3 className="text-[11px] font-bold text-[#5d6c4a] uppercase tracking-wide mb-1.5 flex items-center justify-between">
+                                            <span>4대보험</span>
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 border ${selectedUser.insuranceStatus ? 'bg-[#e8ebd8] border-[#b8c4a0] text-[#5d6c4a]' : 'bg-[#f5ebe7] border-[#cba79c] text-[#8d5a4d]'}`}>
+                                                {selectedUser.insuranceStatus ? '가입' : '미가입'}
+                                            </span>
+                                        </h3>
+                                        <div className="bg-[#f5f3e8] p-3 border border-[#d4cfbf] space-y-2">
+                                            <InfoRow icon={<Shield size={14} />} label="신고일" value={selectedUser.insuranceDate} />
+                                        </div>
+                                    </div>
+
+                                    {selectedUser.resignDate && (
+                                        <div className="bg-[#f5ebe7] p-4 border border-[#cba79c]">
+                                            <h3 className="text-[11px] font-bold text-[#8d5a4d] uppercase tracking-wide mb-1.5">퇴사 정보</h3>
+                                            <InfoRow icon={<Calendar size={14} />} label="퇴사일" value={selectedUser.resignDate} />
+                                            <InfoRow icon={<FileText size={14} />} label="사유" value={selectedUser.resignReason || '미기재'} />
+                                        </div>
+                                    )}
+                                    <div className="bg-[#e8ebd8] p-4 border border-[#b8c4a0]">
+                                        <h3 className="text-[11px] font-bold text-[#5d6c4a] uppercase tracking-wide mb-1.5 flex items-center justify-between">
+                                            예상 급여
+                                            <span className="text-[10px] bg-[#5d6c4a] text-[#f5f3e8] px-1.5 py-0.5">{selectedUser.insuranceStatus ? '세전' : '3.3%공제'}</span>
+                                        </h3>
+                                        {(() => {
+                                            const wage = calculateMonthlyWage(selectedUser, payrollMonth);
+                                            if (selectedUser.insuranceStatus) {
+                                                return (
+                                                    <>
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="text-[#7a7565] text-xs font-bold">월 기본급 (예상)</span>
+                                                            <span className="text-[#3d472f] font-mono font-bold">₩{wage.estimated.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center pt-2 border-t border-[#b8c4a0]">
+                                                            <span className="text-[#5d6c4a] text-sm font-black">실적 합계</span>
+                                                            <span className="text-[#2d3721] font-black text-lg">₩{wage.actual.toLocaleString()}</span>
+                                                        </div>
+                                                        <p className="text-[10px] text-[#7a7565] text-right mt-1">4대보험 공제는 노무사 산정 후 확정</p>
+                                                    </>
+                                                );
+                                            } else {
+                                                return (
+                                                    <>
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="text-[#7a7565] text-xs font-bold">월 기본급 (예상)</span>
+                                                            <span className="text-[#3d472f] font-mono font-bold">₩{wage.estimated.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-[#7a7565] text-xs font-bold">실적 합계</span>
+                                                            <span className="text-[#3d472f] font-mono font-bold">₩{wage.actual.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center text-[#8d5a4d] mt-1 mb-2">
+                                                            <span className="text-xs font-bold">- 3.3% 공제</span>
+                                                            <span className="font-mono font-bold">-₩{wage.strictDeduction.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center pt-2 border-t border-[#b8c4a0]">
+                                                            <span className="text-[#5d6c4a] text-sm font-black">실지급액</span>
+                                                            <span className="text-[#2d3721] font-black text-lg">₩{wage.strictFinalPayout.toLocaleString()}</span>
+                                                        </div>
+                                                    </>
+                                                );
+                                            }
+                                        })()}
+                                    </div>
+                                </div>
+                                <div className="p-4 border-t border-[#d4cfbf] bg-[#faf8f0]">
+                                    <button onClick={() => openModal('calendar')} className="w-full py-3 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border border-[#3d472f] flex justify-center items-center gap-2"><Calendar size={16} /> 근태 관리 열기</button>
                                 </div>
                             </div>
-                            <div className="p-4 border-t-2 border-[#e8e4d4] bg-[#faf8f0]">
-                                <button onClick={() => openModal('calendar')} className="w-full py-3 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border-2 border-[#3d472f] flex justify-center items-center gap-2"><Calendar size={16} /> 근태 관리 열기</button>
-                            </div>
-                        </div>
                         );
                     })() : (
                         <div className="flex-1 flex flex-col items-center justify-center text-[#9a9585] p-8 text-center">
-                            <div className="w-14 h-14 rounded-full bg-[#e8e4d4] flex items-center justify-center mb-3 border border-[#d4cfbf]">
+                            <div className="w-14 h-14 rounded-full bg-[#f5f3e8] flex items-center justify-center mb-3 border border-[#d4cfbf]">
                                 <Users size={28} className="text-[#9a9585]" />
                             </div>
                             <p className="text-sm font-bold text-[#7a7565] mb-1">직원 상세</p>
