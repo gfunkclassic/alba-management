@@ -5,21 +5,21 @@ import { ConfirmModal } from '../modals/DialogModals';
 import LeaveDetailModal from '../modals/LeaveDetailModal';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
-const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#4a6070] text-[#f5f3e8]', HALF_PM: 'bg-[#4a6070] text-[#f5f3e8]' };
-const TEAM_COLOR = { '카페': 'bg-[#d8973c]', '생산기획': 'bg-[#5d6c4a]', 'QC': 'bg-[#4a6070]', 'ER': 'bg-[#a65d57]', 'LM': 'bg-[#7a7565]' };
+const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#5a6878] text-[#f5f3e8]', HALF_PM: 'bg-[#5a6878] text-[#f5f3e8]' };
+const TEAM_COLOR = { '카페': 'bg-[#a78049]', '생산기획': 'bg-[#5d6c4a]', 'QC': 'bg-[#5a6878]', 'ER': 'bg-[#8d5a4d]', 'LM': 'bg-[#7a7565]' };
 
 function RejectModal({ onConfirm, onCancel }) {
     const [note, setNote] = useState('');
     return (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#f5f3e8] border-2 border-[#a65d57] w-full max-w-sm p-6">
+            <div className="bg-[#f5f3e8] border-2 border-[#8d5a4d] w-full max-w-sm p-6">
                 <h3 className="font-bold text-[#3d472f] mb-3">반려 사유</h3>
                 <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="반려 사유를 입력해주세요 (필수)" rows={3}
-                    className="w-full p-2 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm resize-none outline-none focus:border-[#a65d57] mb-3" />
+                    className="w-full p-2 border border-[#d4cfbf] bg-[#faf8f0] text-sm resize-none outline-none focus:border-[#8d5a4d] mb-3" />
                 <div className="flex gap-2">
-                    <button onClick={onCancel} className="flex-1 py-2 border-2 border-[#c5c0b0] text-xs font-bold text-[#5a5545] hover:bg-[#e8e4d4]">취소</button>
+                    <button onClick={onCancel} className="flex-1 py-2 border border-[#d4cfbf] text-xs font-bold text-[#5a5545] hover:bg-[#f5f3e8]">취소</button>
                     <button onClick={() => onConfirm(note.trim())} disabled={!note.trim()}
-                        className="flex-1 py-2 bg-[#a65d57] border-2 border-[#7a3f3a] text-xs font-bold text-white hover:bg-[#7a3f3a] disabled:opacity-40 disabled:cursor-not-allowed">
+                        className="flex-1 py-2 bg-[#8d5a4d] border-2 border-[#7a4d40] text-xs font-bold text-white hover:bg-[#7a4d40] disabled:opacity-40 disabled:cursor-not-allowed">
                         반려 확정
                     </button>
                 </div>
@@ -80,7 +80,7 @@ export default function CEODelegateInbox({ delegation, refreshKey = 0 }) {
     };
 
     return (
-        <div className="bg-[#f5f3e8] border-2 border-[#c5c0b0]">
+        <div className="bg-[#f5f3e8] border border-[#d4cfbf]">
             {rejectTarget && (
                 <RejectModal onConfirm={confirmReject} onCancel={() => setRejectTarget(null)} />
             )}
@@ -98,7 +98,7 @@ export default function CEODelegateInbox({ delegation, refreshKey = 0 }) {
             />
 
             {/* 헤더 */}
-            <div className="p-4 border-b-2 border-[#c5c0b0] flex items-center justify-between">
+            <div className="p-4 border-b border-[#d4cfbf] flex items-center justify-between">
                 <div className="flex items-center gap-2 flex-wrap">
                     <CheckCircle size={18} className="text-[#5d6c4a]" />
                     <span className="font-bold text-[#3d472f] text-sm">대표 위임 승인함</span>
@@ -107,20 +107,20 @@ export default function CEODelegateInbox({ delegation, refreshKey = 0 }) {
                         <span className="text-[10px] font-black text-white px-2 py-0.5 bg-[#5d6c4a]">{requests.length}건 대기</span>
                     )}
                 </div>
-                <button onClick={load} className="border-2 border-[#c5c0b0] p-1.5 text-[#5a5545] hover:bg-[#e8e4d4]">
+                <button onClick={load} className="border border-[#d4cfbf] p-1.5 text-[#5a5545] hover:bg-[#f5f3e8]">
                     <RefreshCw size={14} />
                 </button>
             </div>
 
             {/* 위임 정보 배너 */}
-            <div className="px-4 py-2 bg-[#fdf6e3] border-b border-[#e8d8a0] text-[10px] text-[#a06820] font-bold">
+            <div className="px-4 py-2 bg-[#f5f1e3] border-b border-[#c9a66a] text-[10px] text-[#7a5a1a] font-bold">
                 ⚡ 위임 기간: {delegation.start_date} ~ {delegation.end_date} · {delegation._fromName} 대표 위임 처리
             </div>
 
             {/* 테이블 */}
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                    <thead className="bg-[#e8e4d4] text-xs font-bold text-[#5d6c4a] uppercase">
+                    <thead className="bg-[#f5f3e8] text-xs font-bold text-[#5d6c4a] uppercase">
                         <tr>
                             <th className="p-3 pl-4 text-left">신청자</th>
                             <th className="p-3 text-center">팀</th>
@@ -137,10 +137,10 @@ export default function CEODelegateInbox({ delegation, refreshKey = 0 }) {
                             <tr><td colSpan={6} className="p-8 text-center text-xs text-[#9a9585]">처리 대기 중인 신청이 없습니다.</td></tr>
                         ) : requests.map(req => (
                             <React.Fragment key={req.id}>
-                                <tr className="hover:bg-[#f4f5eb]">
+                                <tr className="hover:bg-[#f5f3e8]">
                                     <td className="p-3 pl-4">
                                         <button onClick={() => setDetailTarget(req)}
-                                            className="flex items-center gap-2 hover:bg-[#e8e4d4] p-1 rounded transition-colors group">
+                                            className="flex items-center gap-2 hover:bg-[#f5f3e8] p-1 rounded transition-colors group">
                                             <div className="w-6 h-6 bg-[#5d6c4a] text-[#f5f3e8] text-[10px] font-bold flex items-center justify-center shrink-0">
                                                 {req._userName?.[0] || '?'}
                                             </div>
@@ -159,7 +159,7 @@ export default function CEODelegateInbox({ delegation, refreshKey = 0 }) {
                                     <td className="p-3 text-xs text-[#7a7565] whitespace-pre-wrap">{req.reason || '-'}</td>
                                     <td className="p-3 text-center">
                                         <div className="flex flex-col items-center gap-1">
-                                            <span className="text-[9px] text-[#9a9585] bg-[#fdf6e3] border border-[#e8d8a0] px-1.5 py-0.5">
+                                            <span className="text-[9px] text-[#9a9585] bg-[#f5f1e3] border border-[#c9a66a] px-1.5 py-0.5">
                                                 원 결재자: {delegation._fromName}
                                             </span>
                                             {processing === req.id ? (
@@ -171,7 +171,7 @@ export default function CEODelegateInbox({ delegation, refreshKey = 0 }) {
                                                         <CheckCircle size={12} /> 승인
                                                     </button>
                                                     <button onClick={() => setRejectTarget(req)}
-                                                        className="flex items-center gap-1 bg-[#a65d57] text-white px-2 py-1 text-xs hover:bg-[#8b4d47] transition-colors">
+                                                        className="flex items-center gap-1 bg-[#8d5a4d] text-white px-2 py-1 text-xs hover:bg-[#7a4d40] transition-colors">
                                                         <XCircle size={12} /> 반려
                                                     </button>
                                                 </div>
@@ -184,7 +184,7 @@ export default function CEODelegateInbox({ delegation, refreshKey = 0 }) {
                                 {errors[req.id] && (
                                     <tr>
                                         <td colSpan={6} className="px-4 pb-2">
-                                            <div className="flex items-center gap-2 bg-[#f8f0ef] border border-[#dcc0bc] px-3 py-2 text-xs text-[#a65d57]">
+                                            <div className="flex items-center gap-2 bg-[#f5ebe7] border border-[#cba79c] px-3 py-2 text-xs text-[#8d5a4d]">
                                                 <AlertCircle size={12} className="shrink-0" />
                                                 <span className="font-bold">{errors[req.id]}</span>
                                             </div>
