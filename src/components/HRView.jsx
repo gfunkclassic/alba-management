@@ -91,6 +91,11 @@ export default function HRView({
     const isGenderMissing = (u) => displayGender(getGenderValue(u)) === '-';
     const missingGenderCount = filteredData.filter(isGenderMissing).length;
 
+    // 이메일 미입력 점검: 같은 filteredData 기준 + 퇴사자 제외 (자동 계정 생성 도입 전 데이터 품질 점검용)
+    const isInactiveEmployee = (u) => u.employmentStatus === '퇴사' || u.resignDate;
+    const isMissingEmail = (u) => !String(u.email || '').trim();
+    const missingEmailCount = filteredData.filter(u => !isInactiveEmployee(u) && isMissingEmail(u)).length;
+
     const baseData = typeFilter === 'ALL' ? filteredData
         : typeFilter === 'ALBA' ? filteredData.filter(u => (u.employmentType || u.position || '아르바이트') === '아르바이트')
         : filteredData.filter(u => (u.employmentType || u.position || '아르바이트') !== '아르바이트');
@@ -167,6 +172,16 @@ export default function HRView({
                     ) : (
                         <span className="px-2 py-1 bg-[#faf8f0] border border-[#d4cfbf] text-[#9a9585] flex items-center gap-1.5">
                             <Check size={12} /> 성별 미입력 0명
+                        </span>
+                    )}
+                    {/* 이메일 미입력 점검 칩 (표시 전용, 퇴사자 제외) */}
+                    {missingEmailCount > 0 ? (
+                        <span className="px-2 py-1 bg-[#f5f1e3] border border-[#c9a66a] text-[#7a5a1a] font-bold flex items-center gap-1.5">
+                            <Mail size={12} /> 이메일 미입력 {missingEmailCount}명
+                        </span>
+                    ) : (
+                        <span className="px-2 py-1 bg-[#faf8f0] border border-[#d4cfbf] text-[#9a9585] flex items-center gap-1.5">
+                            <Mail size={12} /> 이메일 미입력 0명
                         </span>
                     )}
                 </div>
