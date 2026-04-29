@@ -1572,8 +1572,8 @@ function HRPayrollApp() {
                                 const isGroupActive = activeTab === it.key;
                                 return (
                                     <div key={it.key}>
-                                        {/* 상위 메뉴: 활성 시 olive 채움 */}
-                                        <div className={`flex items-center transition-colors ${isGroupActive ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#5a5545] hover:bg-[#f5f3e8]'}`}>
+                                        {/* 상위 메뉴: 활성 시 olive 채움 (하위 블록과 시각 분리) */}
+                                        <div className={`flex items-center transition-colors ${isGroupActive ? 'bg-[#5d6c4a] text-[#f5f3e8] mb-1' : 'text-[#5a5545] hover:bg-[#f5f3e8]'}`}>
                                             <button onClick={() => { setActiveTab(it.key); setHrSubTab('LIST'); setHrMenuOpen(true); setHrFilterSource(null); }}
                                                 className="flex-1 text-left px-3 py-2 text-xs font-bold flex items-center gap-2.5">
                                                 <span className="text-sm w-5 text-center">{it.icon}</span> {it.label}
@@ -1591,7 +1591,7 @@ function HRPayrollApp() {
                                                     const isChildActive = isGroupActive && hrSubTab === child.key;
                                                     return (
                                                         <button key={child.key} onClick={() => { setActiveTab(it.key); setHrSubTab(child.key); setHrFilterSource(null); }}
-                                                            className={`block w-full text-left px-3 py-1.5 text-[12px] transition-colors ${isChildActive ? 'bg-[#f5f3e8] font-bold text-[#3d472f] border-l-2 border-[#5d6c4a]' : 'text-[#5a5545] hover:bg-[#f5f3e8]'}`}>
+                                                            className={`block w-full text-left pl-3 pr-3 py-1.5 text-[12px] rounded-sm transition-colors ${isChildActive ? 'bg-[#f5f3e8] font-bold text-[#3d472f] border-l-2 border-[#5d6c4a]' : 'text-[#5a5545] hover:bg-[#f5f3e8] hover:text-[#3d472f]'}`}>
                                                             {child.label}
                                                         </button>
                                                     );
