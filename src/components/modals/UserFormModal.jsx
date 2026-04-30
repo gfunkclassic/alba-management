@@ -9,6 +9,26 @@ const EMPLOYMENT_STATUSES = ['재직', '수습', '퇴사예정', '퇴사'];
 const normalizeEmail = (v) => String(v || '').trim().toLowerCase();
 const EMAIL_FORMAT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// 연락처 자동 하이픈 포맷 — 한국 휴대폰(010) 11자리 우선, 02 지역번호와 10자리도 자연스럽게 처리
+// 입력 중 점진적으로 하이픈을 붙이고, 11자리를 초과하는 숫자는 잘라낸다
+const formatPhoneNumber = (value) => {
+    if (value === null || value === undefined) return '';
+    const digits = String(value).replace(/\D/g, '').slice(0, 11);
+    if (!digits) return '';
+    // 서울 지역번호 02 (총 9~10자리)
+    if (digits.startsWith('02')) {
+        if (digits.length <= 2) return digits;
+        if (digits.length <= 5) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+        if (digits.length <= 9) return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+        return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6, 10)}`;
+    }
+    // 휴대폰(010, 011 등) / 기타 지역번호(031, 032 등)
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
+
 export default function UserFormModal({ user, onClose, onSave, onDelete }) {
     const { createUser, getAllUsers } = useAuth();
     const [submitting, setSubmitting] = useState(false);
@@ -43,6 +63,11 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
             if (!isNaN(numericValue)) setFormData(prev => ({ ...prev, [name]: numericValue === '' ? 0 : Number(numericValue) }));
             return;
         }
+        if (name === 'phone') {
+            // 입력 중 자동 하이픈 포맷 (숫자만 입력해도 자연스럽게 하이픈 추가)
+            setFormData(prev => ({ ...prev, phone: formatPhoneNumber(value) }));
+            return;
+        }
         setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
@@ -50,7 +75,9 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
         e.preventDefault();
         if (submitting) return;
         // position 필드를 employmentType으로 동기화 (하위호환)
-        const saveData = { ...formData, position: formData.employmentType };
+        // 연락처는 저장 직전 한 번 더 포맷 정규화 (paste/legacy 데이터 보호)
+        const normalizedPhone = formatPhoneNumber(formData.phone);
+        const saveData = { ...formData, phone: normalizedPhone, position: formData.employmentType };
         const isNewMode = !user;
         const trimmedEmail = String(formData.email || '').trim();
         const isAlbaEmployee = (formData.employmentType === '아르바이트') || (formData.position === '아르바이트');
