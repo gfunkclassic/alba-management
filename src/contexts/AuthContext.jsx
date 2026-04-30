@@ -8,6 +8,7 @@ import {
     EmailAuthProvider,
     reauthenticateWithCredential,
     createUserWithEmailAndPassword,
+    deleteUser,
     getAuth,
 } from 'firebase/auth';
 import { doc, getDoc, getDocFromServer, setDoc, updateDoc, collection, query, where, getDocs, getDocsFromServer, addDoc, orderBy, runTransaction, onSnapshot, writeBatch } from 'firebase/firestore';
@@ -278,31 +279,58 @@ export function AuthProvider({ children }) {
         );
         const secondaryAuth = getAuth(secondaryApp);
 
-        let newUid;
+        let userCred;
         try {
-            const userCred = await createUserWithEmailAndPassword(secondaryAuth, email, '123456');
-            newUid = userCred.user.uid;
+            // 1) Firebase Auth 계정 생성 (보조 앱 → 관리자 세션 무영향)
+            userCred = await createUserWithEmailAndPassword(secondaryAuth, email, '123456');
+            const newUid = userCred.user.uid;
+
+            // 2) Firestore에 프로필 문서 생성
+            try {
+                await setDoc(doc(db, 'users', newUid), {
+                    uid: newUid,
+                    name,
+                    email,
+                    // 표시용 이메일: 로그인 식별자와 다를 수 있음 (선택적)
+                    ...(contact_email && contact_email !== email ? { contact_email } : {}),
+                    role: roleGroup || role,        // 하위호환
+                    roleGroup: roleGroup || role,   // 새 권한
+                    ...(position ? { position } : {}),
+                    team_id: team_id || null,
+                    is_temp_password: true,
+                    created_at: new Date().toISOString(),
+                    created_by: adminUser.uid,
+                });
+            } catch (firestoreErr) {
+                // Firestore 저장 실패 → Auth 계정 rollback (반쪽 생성 방지)
+                console.error('[createUser] Firestore users/{uid} 저장 실패. Auth 계정 rollback 시도:', {
+                    uid: newUid,
+                    code: firestoreErr?.code,
+                    message: firestoreErr?.message,
+                });
+                try {
+                    // 보조 Auth에 방금 생성된 사용자가 로그인 상태이므로 deleteUser 가능
+                    await deleteUser(userCred.user);
+                    console.warn('[createUser] Auth 계정 rollback 완료 (uid=' + newUid + ')');
+                } catch (rollbackErr) {
+                    // rollback 실패 — 수동 정리 필요. 메인 admin 세션에는 영향 없음.
+                    console.error('[createUser] Auth 계정 rollback 실패. Firebase Console에서 수동 삭제 필요:', {
+                        uid: newUid,
+                        email,
+                        code: rollbackErr?.code,
+                        message: rollbackErr?.message,
+                    });
+                }
+                throw firestoreErr;
+            }
+
+            return newUid;
         } finally {
-            await deleteApp(secondaryApp); // 보조 앱 정리
+            // 보조 앱 정리 (성공/실패/롤백 무관, 메인 auth 세션 무영향)
+            try { await deleteApp(secondaryApp); } catch (cleanupErr) {
+                console.warn('[createUser] secondary app cleanup 실패(무시):', cleanupErr?.message);
+            }
         }
-
-        // Firestore에 프로필 문서 생성
-        await setDoc(doc(db, 'users', newUid), {
-            uid: newUid,
-            name,
-            email,
-            // 표시용 이메일: 로그인 식별자와 다를 수 있음 (선택적)
-            ...(contact_email && contact_email !== email ? { contact_email } : {}),
-            role: roleGroup || role,        // 하위호환
-            roleGroup: roleGroup || role,   // 새 권한
-            ...(position ? { position } : {}),
-            team_id: team_id || null,
-            is_temp_password: true,
-            created_at: new Date().toISOString(),
-            created_by: adminUser.uid,
-        });
-
-        return newUid;
     };
 
 
