@@ -157,7 +157,7 @@ export default function HRView({
             <section className="bg-[#faf8f0] p-3 border border-[#d4cfbf] flex flex-wrap gap-3 items-center mt-4">
                 <div className="relative flex-1 min-w-[200px]">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9a9585]" />
-                    <input type="text" placeholder="이름, 연락처 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pl-10 pr-4 py-2 ${INPUT_BASE}`} />
+                    <input type="text" placeholder="이름, 연락처, 이메일 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pl-10 pr-4 py-2 ${INPUT_BASE}`} />
                 </div>
                 <select value={filterStatus} onChange={handleFilterStatusChange} className={`px-3 py-2 font-bold ${INPUT_BASE}`}>
                     <option value="ALL">전체 상태</option>

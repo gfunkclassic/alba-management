@@ -570,7 +570,12 @@ function HRPayrollApp() {
             const isResigned = !!user.resignDate;
             if (viewMode === 'ACTIVE' && isResigned) return false;
             if (viewMode === 'RESIGNED' && !isResigned) return false;
-            const matchesSearch = user.name.includes(searchTerm) || user.phone?.includes(searchTerm);
+            // 검색: 이름 / 연락처 / 이메일(대소문자 무시) — 빈 검색어는 전체 매치
+            const term = (searchTerm || '').toLowerCase();
+            const nameMatch = (user.name || '').toLowerCase().includes(term);
+            const phoneMatch = (user.phone || '').toLowerCase().includes(term);
+            const emailMatch = (user.email || '').toLowerCase().includes(term);
+            const matchesSearch = !term || nameMatch || phoneMatch || emailMatch;
             const matchesTeam = filterTeam === '전체' || user.team === filterTeam;
             let matchesStatus = true;
             if (filterStatus === 'RENEWAL_NEEDED') {
