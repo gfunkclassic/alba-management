@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 import { Edit, UserPlus, X } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const EMPLOYMENT_TYPES = ['아르바이트', '계약직', '정직원'];
 const EMPLOYMENT_STATUSES = ['재직', '수습', '퇴사예정', '퇴사'];
 
+// 자동 계정 생성용 helper (표시 전용 비교)
+const normalizeEmail = (v) => String(v || '').trim().toLowerCase();
+const EMAIL_FORMAT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function UserFormModal({ user, onClose, onSave, onDelete }) {
+    const { createUser, getAllUsers } = useAuth();
+    const [submitting, setSubmitting] = useState(false);
     const [formData, setFormData] = useState(() => {
         const defaults = {
             name: '', team: '', gender: '', bank: '', account: '',
@@ -39,11 +46,72 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
         setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        if (submitting) return;
         // position 필드를 employmentType으로 동기화 (하위호환)
         const saveData = { ...formData, position: formData.employmentType };
-        onSave(saveData);
+        const isNewMode = !user;
+        const trimmedEmail = String(formData.email || '').trim();
+        const isAlbaEmployee = (formData.employmentType === '아르바이트') || (formData.position === '아르바이트');
+
+        setSubmitting(true);
+        // 1) 직원 등록/수정 저장 — 실패하면 그대로 종료(기존 흐름 유지)
+        try {
+            await Promise.resolve(onSave(saveData));
+        } catch (err) {
+            // 부모(handleUserSave)가 자체 에러 처리. 우리는 종료만.
+            setSubmitting(false);
+            return;
+        }
+        // onSave 성공 시 부모가 closeModal('userForm')을 호출 → 모달 곧 언마운트
+        // 직원 등록은 이미 완료. 자동 계정 생성은 신규 + 아르바이트 + 이메일 정상 + 미중복 케이스만.
+
+        if (!isNewMode) return; // 수정 모드: 자동 생성 대상 아님
+        if (!isAlbaEmployee) return; // 아르바이트 외: 자동 생성 대상 아님(수동 흐름 유지)
+
+        if (!trimmedEmail) {
+            window.alert('직원 정보는 저장되었습니다.\n이메일이 없어 아르바이트 계정 자동 생성은 건너뛰었습니다.');
+            return;
+        }
+        if (!EMAIL_FORMAT_RE.test(trimmedEmail)) {
+            window.alert('직원 정보는 저장되었습니다.\n이메일 형식이 올바르지 않아 아르바이트 계정 자동 생성은 건너뛰었습니다.');
+            return;
+        }
+
+        // 사전 중복 체크 (실패 시 createUser의 auth/email-already-in-use 캐치로 보강)
+        try {
+            const existing = await getAllUsers();
+            const target = normalizeEmail(trimmedEmail);
+            const dup = (existing || []).some((u) => normalizeEmail(u.email) === target);
+            if (dup) {
+                window.alert('직원 정보는 저장되었습니다.\n동일 이메일 계정이 이미 있어 아르바이트 계정 자동 생성은 건너뛰었습니다.');
+                return;
+            }
+        } catch (err) {
+            console.warn('[UserFormModal] 계정 중복 사전 체크 실패 (계정 생성 시 재확인):', err);
+        }
+
+        // 2) 자동 계정 생성 — 실패해도 직원 등록은 그대로 유지
+        try {
+            await createUser({
+                name: formData.name,
+                email: trimmedEmail,
+                contact_email: trimmedEmail,
+                roleGroup: 'employee',
+                role: 'employee',
+                position: '아르바이트',
+                team_id: formData.team || null,
+            });
+            window.alert('직원 정보가 저장되었고, 아르바이트 계정이 자동 생성되었습니다.\n초기 비밀번호는 123456입니다.');
+        } catch (err) {
+            if (err && err.code === 'auth/email-already-in-use') {
+                window.alert('직원 정보는 저장되었습니다.\n동일 이메일 계정이 이미 있어 아르바이트 계정 자동 생성은 건너뛰었습니다.');
+            } else {
+                console.error('[UserFormModal] 아르바이트 계정 자동 생성 실패:', err);
+                window.alert('직원 정보는 저장되었지만 아르바이트 계정 자동 생성에 실패했습니다.\n계정·권한 관리에서 수동으로 생성해 주세요.');
+            }
+        }
     };
 
     const INPUT = "w-full p-2 border border-[#d4cfbf] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none";
@@ -148,8 +216,8 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
                             )}
                         </div>
                         <div className="flex gap-2">
-                            <button type="button" onClick={onClose} className="px-4 py-2 bg-[#f5f3e8] text-[#5a5545] font-bold text-sm hover:bg-[#e0ddd0] border border-[#d4cfbf]">취소</button>
-                            <button type="submit" className="px-6 py-2 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border-2 border-[#3d472f]">저장</button>
+                            <button type="button" onClick={onClose} disabled={submitting} className="px-4 py-2 bg-[#f5f3e8] text-[#5a5545] font-bold text-sm hover:bg-[#e0ddd0] border border-[#d4cfbf] disabled:opacity-50 disabled:cursor-not-allowed">취소</button>
+                            <button type="submit" disabled={submitting} className="px-6 py-2 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border-2 border-[#3d472f] disabled:opacity-60 disabled:cursor-not-allowed">{submitting ? '저장 중...' : '저장'}</button>
                         </div>
                     </div>
                 </form>
