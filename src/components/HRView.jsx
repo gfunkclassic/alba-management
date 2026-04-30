@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, RotateCcw, Monitor, Users, Briefcase, Wallet, Calendar, AlertTriangle, FileText, UserMinus, Check, Edit, Trash2, Phone, Mail, Shield, UserX } from 'lucide-react';
+import { Search, RotateCcw, Monitor, Users, Briefcase, Wallet, Calendar, AlertTriangle, FileText, UserMinus, Check, Edit, Trash2, Phone, Mail, Shield, UserX, UserPlus } from 'lucide-react';
 import StatCard from './ui/StatCard';
 import InfoRow from './ui/InfoRow';
 import { ConfirmModal } from './modals/DialogModals';
@@ -179,6 +179,15 @@ export default function HRView({
                     <button onClick={() => setViewMode('RESIGNED')} className={`${segBtn(viewMode === 'RESIGNED', true)} border-l border-[#d4cfbf]`}>퇴사</button>
                     <button onClick={() => setViewMode('ALL')} className={`${segBtn(viewMode === 'ALL')} border-l border-[#d4cfbf]`}>전체</button>
                 </div>
+                {/* + 신규 등록 (기존 openUserForm 인자 없이 호출 → 신규 모드) */}
+                <button
+                    type="button"
+                    onClick={() => openUserForm()}
+                    className="ml-auto px-3 py-1.5 bg-[#5d6c4a] text-[#f5f3e8] text-xs font-bold hover:bg-[#4a5639] border border-[#3d472f] flex items-center gap-1.5"
+                    title="신규 등록"
+                >
+                    <UserPlus size={14} /> 신규 등록
+                </button>
             </section>
 
             {/* 홈 진입 안내 배너 + 성별 미입력 점검 칩 (운영용 안내 그룹) */}
