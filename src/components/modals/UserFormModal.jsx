@@ -93,23 +93,39 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
         }
 
         // 2) 자동 계정 생성 — 실패해도 직원 등록은 그대로 유지
+        const createPayload = {
+            name: formData.name,
+            email: trimmedEmail,
+            contact_email: trimmedEmail,
+            roleGroup: 'employee',
+            role: 'employee',
+            position: '아르바이트',
+            team_id: formData.team || null,
+        };
+        console.debug('[UserFormModal] createUser payload (사전):', createPayload);
         try {
-            await createUser({
-                name: formData.name,
-                email: trimmedEmail,
-                contact_email: trimmedEmail,
-                roleGroup: 'employee',
-                role: 'employee',
-                position: '아르바이트',
-                team_id: formData.team || null,
-            });
+            await createUser(createPayload);
             window.alert('직원 정보가 저장되었고, 아르바이트 계정이 자동 생성되었습니다.\n초기 비밀번호는 123456입니다.');
         } catch (err) {
             if (err && err.code === 'auth/email-already-in-use') {
                 window.alert('직원 정보는 저장되었습니다.\n동일 이메일 계정이 이미 있어 아르바이트 계정 자동 생성은 건너뛰었습니다.');
             } else {
-                console.error('[UserFormModal] 아르바이트 계정 자동 생성 실패:', err);
-                window.alert('직원 정보는 저장되었지만 아르바이트 계정 자동 생성에 실패했습니다.\n계정·권한 관리에서 수동으로 생성해 주세요.');
+                console.error('[UserFormModal] 아르바이트 계정 자동 생성 실패:', {
+                    error: err,
+                    code: err?.code,
+                    message: err?.message,
+                    payload: {
+                        name: createPayload.name,
+                        email: createPayload.email,
+                        roleGroup: createPayload.roleGroup,
+                        role: createPayload.role,
+                        position: createPayload.position,
+                        team_id: createPayload.team_id,
+                    },
+                });
+                const code = err?.code || 'unknown';
+                const message = err?.message || '원인 미확인';
+                window.alert(`직원 정보는 저장되었지만 아르바이트 계정 자동 생성에 실패했습니다.\n계정·권한 관리에서 수동으로 생성해 주세요.\n\n오류 코드: ${code}\n오류 메시지: ${message}`);
             }
         }
     };
