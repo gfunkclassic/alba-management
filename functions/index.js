@@ -1,6 +1,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getAuth } = require('firebase-admin/auth');
 
 initializeApp();
 const db = getFirestore();
@@ -517,10 +518,125 @@ exports.adminApproveUser = onCall({ region: 'asia-northeast3' }, async (req) => 
 });
 
 // ─────────────────────────────────────────────────────────────
-// 임시 개발용 패스워드 일괄 변경 함수 (테스트 완료 후 삭제 요망)
+// 4. createEmployeeAccount — 아르바이트 자동 계정 생성 (관리자 전용)
+//    - Firebase Auth 사용자 생성 + Firestore users/{uid} 문서 생성을
+//      서버에서 처리하여 클라이언트의 users 직접 쓰기 권한 회피.
+//    - 호출 권한: sys_admin / approver_final / approver_senior (manager 제외)
+//    - rollback: users 저장 실패 시 생성된 Auth 사용자 삭제
 // ─────────────────────────────────────────────────────────────
 const { onRequest } = require('firebase-functions/v2/https');
-const { getAuth } = require('firebase-admin/auth');
+
+const EMAIL_FORMAT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+exports.createEmployeeAccount = onCall({ region: 'asia-northeast3' }, async (req) => {
+    if (!req.auth) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
+
+    // 1) 호출자 권한 검증 — 관리자급만 허용 (manager 미허용)
+    const actorUid = req.auth.uid;
+    const actor = await getUserProfile(actorUid);
+    const allowedRoleGroups = ['sys_admin', 'approver_final', 'approver_senior'];
+    const allowedLegacyRoles = ['FINAL_APPROVER', 'SUPER_ADMIN'];
+    const hasPermission =
+        allowedRoleGroups.includes(actor.roleGroup) ||
+        allowedLegacyRoles.includes(actor.role);
+    if (!hasPermission) {
+        throw new HttpsError('permission-denied', '아르바이트 계정 자동 생성 권한이 없습니다.');
+    }
+
+    // 2) 입력 검증
+    const { name, email, team_id, position } = req.data || {};
+    const trimmedName = String(name || '').trim();
+    const trimmedEmail = String(email || '').trim().toLowerCase();
+    if (!trimmedName) throw new HttpsError('invalid-argument', 'name 필드가 필요합니다.');
+    if (!trimmedEmail) throw new HttpsError('invalid-argument', 'email 필드가 필요합니다.');
+    if (!EMAIL_FORMAT_RE.test(trimmedEmail)) throw new HttpsError('invalid-argument', '이메일 형식이 올바르지 않습니다.');
+    // position은 클라이언트 입력값을 신뢰하지 않고 서버에서 고정
+    const fixedPosition = '아르바이트';
+    if (position && position !== fixedPosition) {
+        throw new HttpsError('invalid-argument', 'position은 아르바이트만 허용됩니다.');
+    }
+    const safeTeamId = team_id ? String(team_id) : '';
+
+    const auth = getAuth();
+
+    // 3) 이메일 중복 사전 체크 (Firestore users + Auth)
+    try {
+        const dupSnap = await db.collection('users').where('email', '==', trimmedEmail).limit(1).get();
+        if (!dupSnap.empty) {
+            throw new HttpsError('already-exists', '동일 이메일 계정이 이미 존재합니다.');
+        }
+    } catch (e) {
+        if (e instanceof HttpsError) throw e;
+        console.warn('[createEmployeeAccount] users 중복 사전 조회 실패(무시, Auth에서 재확인):', e.message);
+    }
+
+    // 4) Firebase Auth 사용자 생성
+    let userRecord;
+    try {
+        userRecord = await auth.createUser({
+            email: trimmedEmail,
+            password: '123456',
+            displayName: trimmedName,
+            emailVerified: false,
+            disabled: false,
+        });
+    } catch (authErr) {
+        // 이미 존재하는 이메일
+        if (authErr.code === 'auth/email-already-exists') {
+            throw new HttpsError('already-exists', '동일 이메일 계정이 이미 Firebase Auth에 존재합니다.');
+        }
+        if (authErr.code === 'auth/invalid-email') {
+            throw new HttpsError('invalid-argument', '이메일 형식이 올바르지 않습니다.');
+        }
+        if (authErr.code === 'auth/invalid-password') {
+            throw new HttpsError('invalid-argument', '비밀번호 정책 위반.');
+        }
+        console.error('[createEmployeeAccount] Auth createUser 실패:', { email: trimmedEmail, code: authErr.code, message: authErr.message });
+        throw new HttpsError('internal', `Auth 계정 생성 실패: ${authErr.message}`);
+    }
+
+    const newUid = userRecord.uid;
+
+    // 5) Firestore users/{uid} 저장 (실패 시 Auth rollback)
+    try {
+        await db.collection('users').doc(newUid).set({
+            uid: newUid,
+            name: trimmedName,
+            email: trimmedEmail,
+            role: 'employee',
+            roleGroup: 'employee',
+            position: fixedPosition,
+            team_id: safeTeamId,
+            status: 'ACTIVE',
+            is_temp_password: true,
+            created_at: nowISO(),
+            created_by: actorUid,
+        });
+    } catch (firestoreErr) {
+        console.error('[createEmployeeAccount] users 문서 저장 실패. Auth rollback 시도:', {
+            uid: newUid, email: trimmedEmail, code: firestoreErr.code, message: firestoreErr.message,
+        });
+        try {
+            await auth.deleteUser(newUid);
+            console.warn('[createEmployeeAccount] Auth 계정 rollback 완료(uid=' + newUid + ')');
+        } catch (rollbackErr) {
+            console.error('[createEmployeeAccount] Auth 계정 rollback 실패. 수동 정리 필요:', {
+                uid: newUid, email: trimmedEmail, code: rollbackErr.code, message: rollbackErr.message,
+            });
+        }
+        throw new HttpsError('internal', `Firestore users 저장 실패: ${firestoreErr.message}`);
+    }
+
+    return {
+        success: true,
+        uid: newUid,
+        email: trimmedEmail,
+    };
+});
+
+// ─────────────────────────────────────────────────────────────
+// 임시 개발용 패스워드 일괄 변경 함수 (테스트 완료 후 삭제 요망)
+// ─────────────────────────────────────────────────────────────
 
 exports.devBulkSetPasswords = onRequest({ region: 'asia-northeast3' }, async (req, res) => {
     try {
