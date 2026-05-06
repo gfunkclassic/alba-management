@@ -528,6 +528,62 @@ const { onRequest } = require('firebase-functions/v2/https');
 
 const EMAIL_FORMAT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// ─────────────────────────────────────────────────────────────
+// helper: 입사일 기준 초기 leave_balance total_days 산정
+//  - leaveUtils.js와 동일한 개념을 functions 안에서 자체 구현(번들/import 위험 회피)
+//  - 결근/조정/이월/사용 미반영, 신규 등록 시점 단순 산정
+// ─────────────────────────────────────────────────────────────
+function parseDateOnly(value) {
+    if (!value) return null;
+    const s = String(value).trim();
+    // YYYY-MM-DD 또는 YYYY-MM-DDTHH:MM:SS 시작 패턴 모두 허용
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const d = Number(m[3]);
+    if (!y || !mo || !d) return null;
+    const dt = new Date(y, mo - 1, d);
+    if (isNaN(dt.getTime())) return null;
+    return dt;
+}
+
+function getDaysBetween(start, end) {
+    const ms = end.getTime() - start.getTime();
+    if (!isFinite(ms) || ms < 0) return 0;
+    return ms / (1000 * 60 * 60 * 24);
+}
+
+// 1년 미만: 입사일로부터 만 N개월 경과마다 1일, 최대 11일
+function calculateFirstYearLeave(start, today) {
+    if (!start || !today) return 0;
+    let months = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth());
+    // 일자가 입사일 이후가 아니면 아직 만 N개월 미경과 → 1개월 차감
+    if (today.getDate() < start.getDate()) months -= 1;
+    if (months < 0) months = 0;
+    if (months > 11) months = 11;
+    return months;
+}
+
+// 1년 이상: 15 + floor((years - 1) / 2), 최대 25
+function calculateLegalAnnualLeave(yearsWorked) {
+    if (!yearsWorked || yearsWorked < 1) return 0;
+    const additional = Math.floor((yearsWorked - 1) / 2);
+    return Math.min(15 + additional, 25);
+}
+
+function calculateInitialLeaveDays(startDateStr) {
+    const start = parseDateOnly(startDateStr);
+    if (!start) return 0;
+    const today = new Date();
+    const years = getDaysBetween(start, today) / 365;
+    let value;
+    if (years < 1) value = calculateFirstYearLeave(start, today);
+    else value = calculateLegalAnnualLeave(years);
+    if (!isFinite(value) || value < 0) return 0;
+    return Math.floor(value);
+}
+
 exports.createEmployeeAccount = onCall({ region: 'asia-northeast3' }, async (req) => {
     if (!req.auth) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
 
@@ -544,7 +600,7 @@ exports.createEmployeeAccount = onCall({ region: 'asia-northeast3' }, async (req
     }
 
     // 2) 입력 검증
-    const { name, email, team_id, position, employee_id } = req.data || {};
+    const { name, email, team_id, position, employee_id, startDate, start_date } = req.data || {};
     const trimmedName = String(name || '').trim();
     const trimmedEmail = String(email || '').trim().toLowerCase();
     if (!trimmedName) throw new HttpsError('invalid-argument', 'name 필드가 필요합니다.');
@@ -560,6 +616,12 @@ exports.createEmployeeAccount = onCall({ region: 'asia-northeast3' }, async (req
     const safeEmployeeId = (employee_id !== undefined && employee_id !== null && String(employee_id).trim() !== '')
         ? String(employee_id).trim()
         : '';
+    // 입사일 (startDate 우선, 없으면 start_date) — leave_balance 초기값 산정용
+    const rawStartDate = startDate || start_date || '';
+    const safeStartDate = (() => {
+        const dt = parseDateOnly(rawStartDate);
+        return dt ? rawStartDate : '';
+    })();
 
     const auth = getAuth();
 
@@ -633,10 +695,54 @@ exports.createEmployeeAccount = onCall({ region: 'asia-northeast3' }, async (req
         throw new HttpsError('internal', `Firestore users 저장 실패: ${firestoreErr.message}`);
     }
 
+    // 6) Firestore leave_balance/{uid}_{year} 자동 생성
+    //    실패 시 users + Auth 모두 rollback (반쪽 상태 방지)
+    const currentYear = new Date().getFullYear();
+    const initialLeaveDays = calculateInitialLeaveDays(safeStartDate);
+    const balanceDocId = `${newUid}_${currentYear}`;
+    try {
+        await db.collection('leave_balance').doc(balanceDocId).set({
+            user_id: newUid,
+            year: currentYear,
+            total_days: initialLeaveDays,
+            used_days: 0,
+            created_at: nowISO(),
+            updated_at: nowISO(),
+            source: 'auto_create_employee_account',
+            note: '신규 알바 계정 생성 시 입사일 기준 자동 생성',
+            ...(safeEmployeeId ? { employee_id: safeEmployeeId } : {}),
+            ...(safeStartDate ? { source_start_date: safeStartDate } : {}),
+        });
+    } catch (balanceErr) {
+        console.error('[createEmployeeAccount] leave_balance 저장 실패. users + Auth rollback 시도:', {
+            uid: newUid, email: trimmedEmail, code: balanceErr.code, message: balanceErr.message,
+        });
+        // users 문서 rollback
+        try {
+            await db.collection('users').doc(newUid).delete();
+            console.warn('[createEmployeeAccount] users 문서 rollback 완료(uid=' + newUid + ')');
+        } catch (userRollbackErr) {
+            console.error('[createEmployeeAccount] users 문서 rollback 실패. 수동 정리 필요:', {
+                uid: newUid, code: userRollbackErr.code, message: userRollbackErr.message,
+            });
+        }
+        // Auth 계정 rollback
+        try {
+            await auth.deleteUser(newUid);
+            console.warn('[createEmployeeAccount] Auth 계정 rollback 완료(uid=' + newUid + ')');
+        } catch (authRollbackErr) {
+            console.error('[createEmployeeAccount] Auth 계정 rollback 실패. 수동 정리 필요:', {
+                uid: newUid, email: trimmedEmail, code: authRollbackErr.code, message: authRollbackErr.message,
+            });
+        }
+        throw new HttpsError('internal', `leave_balance 저장 실패: ${balanceErr.message}`);
+    }
+
     return {
         success: true,
         uid: newUid,
         email: trimmedEmail,
+        initial_leave_days: initialLeaveDays,
     };
 });
 
