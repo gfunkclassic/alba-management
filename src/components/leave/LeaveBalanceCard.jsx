@@ -25,9 +25,12 @@ export default function LeaveBalanceCard({ balance, pendingDeduction = 0, loadin
             </div>
 
             {total === 0 ? (
-                <div className="flex items-center gap-2 text-xs text-[#9a9585] py-2">
-                    <AlertCircle size={14} />
-                    <span>관리자가 아직 연차를 배정하지 않았습니다.</span>
+                <div className="flex items-start gap-2 text-xs text-[#a78049] py-2">
+                    <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+                    <span className="leading-relaxed">
+                        연차 배정 대기 중입니다.<br />
+                        입사 정보 확인 후 관리자가 연차를 배정하면 잔여 연차가 표시됩니다.
+                    </span>
                 </div>
             ) : (
                 <>
