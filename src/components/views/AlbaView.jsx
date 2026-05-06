@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Calendar, Clock, Sun, List, LogOut, UserCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { doc, onSnapshot, collection, query, where, limit, getDocs } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, query, where, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
 import LeaveBalanceCard from '../leave/LeaveBalanceCard';
 import LeaveRequestForm from '../leave/LeaveRequestForm';
@@ -37,18 +37,30 @@ export default function AlbaView() {
     }, []);
 
     // 입사일 기준 예상 연차 (표시용 fallback) — 신청 가능 일수 계산에는 영향 없음
-    // employees 컬렉션에서 본인 이메일 매칭으로 startDate 조회 후 단순 법정 추정값 산출
+    // 1순위: userProfile.employee_id 직접 조회 (PR #92 신규 구조)
+    // 2순위: 본인 이메일 매칭(기존 fallback, employee_id 없는 계정 호환)
     useEffect(() => {
         const email = (userProfile?.email || '').trim().toLowerCase();
-        if (!email) { setEstimatedLeave(null); return; }
+        const employeeId = userProfile?.employee_id ? String(userProfile.employee_id).trim() : '';
+        if (!email && !employeeId) { setEstimatedLeave(null); return; }
         let cancelled = false;
         (async () => {
             try {
-                const q = query(collection(db, 'employees'), where('email', '==', email), limit(1));
-                const snap = await getDocs(q);
-                if (cancelled) return;
-                if (snap.empty) { setEstimatedLeave(null); return; }
-                const emp = snap.docs[0].data();
+                let emp = null;
+                // 1) employee_id 직접 조회
+                if (employeeId) {
+                    const docSnap = await getDoc(doc(db, 'employees', employeeId));
+                    if (cancelled) return;
+                    if (docSnap.exists()) emp = docSnap.data();
+                }
+                // 2) fallback: 이메일 매칭
+                if (!emp && email) {
+                    const q = query(collection(db, 'employees'), where('email', '==', email), limit(1));
+                    const snap = await getDocs(q);
+                    if (cancelled) return;
+                    if (!snap.empty) emp = snap.docs[0].data();
+                }
+                if (!emp) { setEstimatedLeave(null); return; }
                 const startDate = emp?.startDate;
                 if (!startDate) { setEstimatedLeave(null); return; }
                 const today = new Date();
@@ -79,7 +91,7 @@ export default function AlbaView() {
             }
         })();
         return () => { cancelled = true; };
-    }, [userProfile?.email]);
+    }, [userProfile?.email, userProfile?.employee_id]);
 
     // 잔여 연차 로드 + 진행 중 신청 pending 차감 계산
     const DEDUCTION_MAP = { FULL: 1.0, HALF_AM: 0.5, HALF_PM: 0.5 };

@@ -613,16 +613,21 @@ function HRPayrollApp() {
     }, [openModal]);
 
     const handleUserSave = useCallback(async (user) => {
+        let savedEmployee;
         if (formUser) {
             await updateEmployee(user);
             setSelectedUser(prev => prev?.id === user.id ? user : prev);
             showNotificationMsg('정보가 수정되었습니다.');
+            savedEmployee = user;
         } else {
             const newId = users.length > 0 ? Math.max(...users.map(u => u.id), 0) + 1 : 1;
-            await addEmployee({ ...user, id: newId });
+            savedEmployee = { ...user, id: newId };
+            await addEmployee(savedEmployee);
             showNotificationMsg('신규 인원이 등록되었습니다.');
         }
         closeModal('userForm');
+        // 자동 계정 생성에서 employee_id 연결을 위해 저장된 employee 객체를 반환
+        return savedEmployee;
     }, [formUser, closeModal, showNotificationMsg, updateEmployee, addEmployee, users]);
 
     const handleUserDelete = useCallback(async (userId) => {

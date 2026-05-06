@@ -119,12 +119,19 @@ export default function HRView({
     };
     const invalidEmailCount = filteredData.filter(u => !isInactiveEmployee(u) && isInvalidEmailFormat(u)).length;
 
-    // 계정 미생성 점검: employees에는 있고 이메일 정상이지만 users에 매칭 이메일이 없는 인원
+    // 계정 미생성 점검: employees에는 있고 이메일 정상이지만 users에 매칭이 없는 인원
+    // 1순위: users.employee_id ↔ employees.id 직접 매칭 (PR #92 신규 구조)
+    // 2순위: users.email ↔ employees.email 매칭 (기존 fallback, employee_id 없는 계정 호환)
     const accountEmailSet = new Set(
         accountUsers.map(u => normalizeEmail(u.email)).filter(Boolean)
     );
+    const accountEmployeeIdSet = new Set(
+        accountUsers.map(u => (u.employee_id ? String(u.employee_id) : '')).filter(Boolean)
+    );
     const isMissingAccount = (u) => {
         if (isInactiveEmployee(u)) return false;
+        // employee_id 매칭 우선 — 일치하면 계정 있음으로 판정
+        if (u.id !== undefined && u.id !== null && accountEmployeeIdSet.has(String(u.id))) return false;
         const email = normalizeEmail(u.email);
         if (!email) return false; // 빈 이메일은 '이메일 미입력' 칩 담당
         if (!EMAIL_FORMAT_RE.test(email)) return false; // 형식 오류는 '이메일 형식 오류' 칩 담당

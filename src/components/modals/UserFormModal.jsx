@@ -87,8 +87,10 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
 
         setSubmitting(true);
         // 1) 직원 등록/수정 저장 — 실패하면 그대로 종료(기존 흐름 유지)
+        //    부모 handleUserSave는 저장된 employee 객체(id 포함)를 반환합니다.
+        let savedEmployee;
         try {
-            await Promise.resolve(onSave(saveData));
+            savedEmployee = await Promise.resolve(onSave(saveData));
         } catch (err) {
             // 부모(handleUserSave)가 자체 에러 처리. 우리는 종료만.
             setSubmitting(false);
@@ -129,6 +131,10 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
             email: trimmedEmail,
             team_id: formData.team || '',
             position: '아르바이트',
+            // users.employee_id 단방향 연결 — 저장된 employee.id (없으면 미전송)
+            ...(savedEmployee?.id !== undefined && savedEmployee?.id !== null
+                ? { employee_id: String(savedEmployee.id) }
+                : {}),
         };
         console.debug('[UserFormModal] createEmployeeAccount payload (사전):', createPayload);
         try {
