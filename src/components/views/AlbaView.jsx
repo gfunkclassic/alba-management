@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Calendar, Clock, Sun, List, LogOut, UserCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
 import LeaveBalanceCard from '../leave/LeaveBalanceCard';
 import LeaveRequestForm from '../leave/LeaveRequestForm';
 import LeaveHistoryList from '../leave/LeaveHistoryList';
 import NotificationBell from '../notifications/NotificationBell';
 import DelegateApprovalInbox from '../leave/DelegateApprovalInbox';
+import { getLegalAnnualLeave, getFirstYearLeave } from '../../utils/leaveUtils';
+import { getDaysBetween } from '../../utils/dateUtils';
 
 export default function AlbaView() {
     const { userProfile, logout, getMyLeaveBalance, getMyLeaveRequests, getMyActiveReceivedDelegation } = useAuth();
@@ -18,6 +20,7 @@ export default function AlbaView() {
     const [balanceLoading, setBalanceLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [activeDelegation, setActiveDelegation] = useState(null);
+    const [estimatedLeave, setEstimatedLeave] = useState(null);
 
     // 실시간 프로필
     useEffect(() => {
@@ -32,6 +35,51 @@ export default function AlbaView() {
     useEffect(() => {
         getMyActiveReceivedDelegation().then(setActiveDelegation).catch(() => setActiveDelegation(null));
     }, []);
+
+    // 입사일 기준 예상 연차 (표시용 fallback) — 신청 가능 일수 계산에는 영향 없음
+    // employees 컬렉션에서 본인 이메일 매칭으로 startDate 조회 후 단순 법정 추정값 산출
+    useEffect(() => {
+        const email = (userProfile?.email || '').trim().toLowerCase();
+        if (!email) { setEstimatedLeave(null); return; }
+        let cancelled = false;
+        (async () => {
+            try {
+                const q = query(collection(db, 'employees'), where('email', '==', email), limit(1));
+                const snap = await getDocs(q);
+                if (cancelled) return;
+                if (snap.empty) { setEstimatedLeave(null); return; }
+                const emp = snap.docs[0].data();
+                const startDate = emp?.startDate;
+                if (!startDate) { setEstimatedLeave(null); return; }
+                const today = new Date();
+                const start = new Date(startDate);
+                if (isNaN(start.getTime())) { setEstimatedLeave(null); return; }
+                const yearsWorked = getDaysBetween(start, today) / 365;
+                let totalDays = 0;
+                let basis = '';
+                if (yearsWorked < 1) {
+                    // 결근/조정 미반영 단순 추정 — absences = {}
+                    totalDays = getFirstYearLeave(startDate, today, {});
+                    basis = '1년 미만 월차 (입사일 기준 단순 예상, 결근/조정 미반영)';
+                } else {
+                    totalDays = Math.floor(getLegalAnnualLeave(yearsWorked));
+                    basis = '법정 연차 (입사일 기준 단순 예상)';
+                }
+                setEstimatedLeave({
+                    totalDays,
+                    yearsWorked: Math.floor(yearsWorked * 10) / 10,
+                    startDate,
+                    basis,
+                    isEstimated: true,
+                });
+            } catch (e) {
+                // 매칭 실패는 표시 영향 없음 — fallback은 단순 미표시
+                console.warn('[AlbaView] employees 매칭 실패(예상 연차 미표시):', e?.message);
+                if (!cancelled) setEstimatedLeave(null);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [userProfile?.email]);
 
     // 잔여 연차 로드 + 진행 중 신청 pending 차감 계산
     const DEDUCTION_MAP = { FULL: 1.0, HALF_AM: 0.5, HALF_PM: 0.5 };
@@ -132,14 +180,14 @@ export default function AlbaView() {
                                 )}
                             </div>
                         </div>
-                        <LeaveBalanceCard balance={balance} pendingDeduction={pendingDeduction} loading={balanceLoading} />
+                        <LeaveBalanceCard balance={balance} pendingDeduction={pendingDeduction} loading={balanceLoading} estimatedLeave={estimatedLeave} />
                     </>
                 )}
 
                 {/* 연차 신청 */}
                 {tab === 'REQUEST' && (
                     <>
-                        <LeaveBalanceCard balance={balance} pendingDeduction={pendingDeduction} loading={balanceLoading} />
+                        <LeaveBalanceCard balance={balance} pendingDeduction={pendingDeduction} loading={balanceLoading} estimatedLeave={estimatedLeave} />
                         <LeaveRequestForm onSubmitted={(submittedType, count = 1) => {
                             const DEDUCTION_MAP = { FULL: 1.0, HALF_AM: 0.5, HALF_PM: 0.5 };
                             setPendingDeduction(p => p + (DEDUCTION_MAP[submittedType] ?? 1.0) * count);

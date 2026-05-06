@@ -1,7 +1,7 @@
 import React from 'react';
 import { Sun, AlertCircle } from 'lucide-react';
 
-export default function LeaveBalanceCard({ balance, pendingDeduction = 0, loading }) {
+export default function LeaveBalanceCard({ balance, pendingDeduction = 0, loading, estimatedLeave }) {
     if (loading) {
         return (
             <div className="bg-[#f5f3e8] border border-[#d4cfbf] p-6 animate-pulse">
@@ -25,12 +25,27 @@ export default function LeaveBalanceCard({ balance, pendingDeduction = 0, loadin
             </div>
 
             {total === 0 ? (
-                <div className="flex items-start gap-2 text-xs text-[#a78049] py-2">
-                    <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
-                    <span className="leading-relaxed">
-                        연차 배정 대기 중입니다.<br />
-                        입사 정보 확인 후 관리자가 연차를 배정하면 잔여 연차가 표시됩니다.
-                    </span>
+                <div className="space-y-2">
+                    <div className="flex items-start gap-2 text-xs text-[#a78049] py-2">
+                        <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+                        <span className="leading-relaxed">
+                            연차 배정 대기 중입니다.<br />
+                            입사 정보 확인 후 관리자가 연차를 배정하면 잔여 연차가 표시됩니다.
+                        </span>
+                    </div>
+                    {estimatedLeave && estimatedLeave.totalDays > 0 && (
+                        <div className="bg-[#fdf6e3] border border-[#d8c490] p-3">
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-bold text-[#a78049] uppercase tracking-wider">입사일 기준 예상 연차</span>
+                                <span className="text-[10px] text-[#9a9585]">참고용</span>
+                            </div>
+                            <p className="text-lg font-black text-[#a06820]">{estimatedLeave.totalDays}일</p>
+                            <p className="text-[10px] text-[#7a5a1a] mt-1 leading-relaxed">
+                                {estimatedLeave.basis}<br />
+                                관리자 배정 전 참고용입니다. 실제 신청 가능 연차는 관리자 배정 후 확정됩니다.
+                            </p>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <>
