@@ -49,15 +49,16 @@ export default function LeaveBalanceCard({ balance, pendingDeduction = 0, loadin
                 </div>
             ) : (
                 <>
-                    <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="grid grid-cols-4 gap-2 mb-4">
                         {[
                             { label: '총 부여', value: `${total}일`, color: 'text-[#3d472f]' },
+                            { label: '승인대기', value: `${pendingDeduction}일`, color: pendingDeduction > 0 ? 'text-[#a06820]' : 'text-[#9a9585]' },
                             { label: '사용', value: `${used}일`, color: 'text-[#a78049]' },
                             { label: '잔여', value: `${remaining}일`, color: remaining <= 3 ? 'text-[#8d5a4d]' : 'text-[#5d6c4a]' },
                         ].map(item => (
-                            <div key={item.label} className="text-center bg-[#faf8f0] border border-[#e8e4d4] p-3">
+                            <div key={item.label} className="text-center bg-[#faf8f0] border border-[#e8e4d4] p-2">
                                 <p className="text-[10px] font-bold text-[#7a7565] mb-1">{item.label}</p>
-                                <p className={`text-xl font-black ${item.color}`}>{item.value}</p>
+                                <p className={`text-lg font-black ${item.color}`}>{item.value}</p>
                             </div>
                         ))}
                     </div>
@@ -70,7 +71,9 @@ export default function LeaveBalanceCard({ balance, pendingDeduction = 0, loadin
                     </div>
                     <p className="text-[10px] text-[#9a9585] mt-1 text-right">{percent.toFixed(0)}% 사용</p>
                     {pendingDeduction > 0 && (
-                        <p className="text-[10px] text-[#a78049] font-bold mt-1">* 승인 대기 중 {pendingDeduction}일 포함 (반려 시 자동 복구)</p>
+                        <p className="text-[10px] text-[#a06820] font-bold mt-1 leading-relaxed">
+                            승인 대기 중인 연차는 잔여 연차에서 임시 차감됩니다. 반려 시 자동 복구됩니다.
+                        </p>
                     )}
                 </>
             )}
