@@ -544,7 +544,7 @@ exports.createEmployeeAccount = onCall({ region: 'asia-northeast3' }, async (req
     }
 
     // 2) 입력 검증
-    const { name, email, team_id, position } = req.data || {};
+    const { name, email, team_id, position, employee_id } = req.data || {};
     const trimmedName = String(name || '').trim();
     const trimmedEmail = String(email || '').trim().toLowerCase();
     if (!trimmedName) throw new HttpsError('invalid-argument', 'name 필드가 필요합니다.');
@@ -556,6 +556,10 @@ exports.createEmployeeAccount = onCall({ region: 'asia-northeast3' }, async (req
         throw new HttpsError('invalid-argument', 'position은 아르바이트만 허용됩니다.');
     }
     const safeTeamId = team_id ? String(team_id) : '';
+    // employee_id는 String 정규화. 없으면 빈 문자열(저장 시 미포함 처리)
+    const safeEmployeeId = (employee_id !== undefined && employee_id !== null && String(employee_id).trim() !== '')
+        ? String(employee_id).trim()
+        : '';
 
     const auth = getAuth();
 
@@ -611,6 +615,8 @@ exports.createEmployeeAccount = onCall({ region: 'asia-northeast3' }, async (req
             is_temp_password: true,
             created_at: nowISO(),
             created_by: actorUid,
+            // employees 문서와의 단방향 연결 (있을 때만 저장)
+            ...(safeEmployeeId ? { employee_id: safeEmployeeId } : {}),
         });
     } catch (firestoreErr) {
         console.error('[createEmployeeAccount] users 문서 저장 실패. Auth rollback 시도:', {
