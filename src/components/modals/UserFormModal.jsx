@@ -134,7 +134,7 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
         try {
             const result = await createEmployeeAccountFn(createPayload);
             console.debug('[UserFormModal] createEmployeeAccount 결과:', result?.data);
-            window.alert('직원 정보가 저장되었고, 아르바이트 계정이 자동 생성되었습니다.\n초기 비밀번호는 123456입니다.');
+            window.alert('직원 정보가 저장되었고, 아르바이트 계정이 자동 생성되었습니다.\n초기 비밀번호는 123456입니다.\n최초 로그인 후 비밀번호 변경이 필요합니다.');
         } catch (err) {
             // httpsCallable 에러: err.code (예: functions/already-exists, functions/permission-denied), err.message
             const code = err?.code || 'unknown';

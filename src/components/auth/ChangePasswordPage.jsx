@@ -78,7 +78,7 @@ export default function ChangePasswordPage() {
                                 <input
                                     type={showCurrent ? 'text' : 'password'}
                                     value={currentPw} onChange={e => setCurrentPw(e.target.value)}
-                                    placeholder="12345 (초기 비밀번호)" required
+                                    placeholder="123456 (초기 비밀번호)" required
                                     className="w-full px-3 py-2.5 pr-10 border-2 border-[#c5c0b0] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none"
                                 />
                                 <button type="button" onClick={() => setShowCurrent(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9a9585]">
