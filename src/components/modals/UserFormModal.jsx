@@ -135,6 +135,10 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
             ...(savedEmployee?.id !== undefined && savedEmployee?.id !== null
                 ? { employee_id: String(savedEmployee.id) }
                 : {}),
+            // 입사일 — 서버에서 leave_balance 초기 total_days 산정용 (없으면 서버는 0일)
+            ...(savedEmployee?.startDate
+                ? { startDate: String(savedEmployee.startDate) }
+                : (formData.startDate ? { startDate: String(formData.startDate) } : {})),
         };
         console.debug('[UserFormModal] createEmployeeAccount payload (사전):', createPayload);
         try {
