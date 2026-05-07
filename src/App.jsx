@@ -1089,7 +1089,7 @@ function HRPayrollApp() {
                         `${log.daysWorked}일`,
                         `${Math.round(log.totalHours * 10) / 10}h`,
                         log.holidayPay > 0 ? log.holidayPay : 0,
-                        log.holidayPay > 0 ? "-" : "2월 이월"
+                        log.holidayPay > 0 ? "-" : "다음 달 이월"
                     ]);
                     rowsAdded++;
                 });
