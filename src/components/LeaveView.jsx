@@ -1,7 +1,70 @@
 import React, { useMemo, useState } from 'react';
-import { Users, UserMinus, Calendar, Edit, AlertTriangle } from 'lucide-react';
+import { Users, UserMinus, Calendar, Edit, AlertTriangle, X } from 'lucide-react';
 import StatCard from './ui/StatCard';
 import InfoRow from './ui/InfoRow';
+
+// 이번 달 연차 카드/모달용 — leave_requests 구조 기준 helper
+// 활성 신청(SUBMITTED/TEAM_APPROVED/FINAL_PENDING/CEO_PENDING) + 승인완료(FINAL_APPROVED) 포함
+// 반려/취소(REJECTED/CANCELLED)는 제외
+const ACTIVE_REQ_STATUSES = new Set(['SUBMITTED', 'TEAM_APPROVED', 'FINAL_PENDING', 'CEO_PENDING', 'FINAL_APPROVED']);
+const PENDING_REQ_STATUSES = new Set(['SUBMITTED', 'TEAM_APPROVED', 'FINAL_PENDING', 'CEO_PENDING']);
+const APPROVED_REQ_STATUSES = new Set(['FINAL_APPROVED']);
+
+const STATUS_LABEL = {
+    SUBMITTED: '신청중',
+    TEAM_APPROVED: '팀 승인',
+    FINAL_PENDING: '최종 승인대기',
+    CEO_PENDING: '대표 승인대기',
+    FINAL_APPROVED: '승인완료',
+    REJECTED: '반려',
+    CANCELLED: '취소',
+};
+const TYPE_LABEL = {
+    FULL: '연차',
+    HALF_AM: '오전 반차',
+    HALF_PM: '오후 반차',
+};
+
+// 이번 달(YYYY-MM)에 포함되는 신청인지 판정
+// applied_dates 우선, 없으면 start_date~end_date 범위, 없으면 단일 date
+const reqIsInMonth = (req, ym) => {
+    if (Array.isArray(req.applied_dates) && req.applied_dates.length > 0) {
+        return req.applied_dates.some(d => String(d).startsWith(ym));
+    }
+    if (req.start_date && req.end_date) {
+        const s = String(req.start_date);
+        const e = String(req.end_date);
+        // 시작이 ym 이전이고 종료가 ym 이후이거나, 어느 한쪽이 ym에 걸치면 포함
+        const sYm = s.slice(0, 7);
+        const eYm = e.slice(0, 7);
+        return sYm <= ym && ym <= eYm;
+    }
+    if (req.date) return String(req.date).startsWith(ym);
+    return false;
+};
+
+// 신청의 대표 날짜 (정렬/표시용) — 이번 달에 포함된 첫 날짜 우선
+const reqDisplayDate = (req, ym) => {
+    if (Array.isArray(req.applied_dates) && req.applied_dates.length > 0) {
+        const inMonth = req.applied_dates.filter(d => String(d).startsWith(ym)).sort();
+        return inMonth[0] || req.applied_dates.slice().sort()[0];
+    }
+    return req.start_date || req.date || '';
+};
+
+// 기간 표시 문자열 (단일/연속/비연속 처리)
+const reqDateRangeLabel = (req) => {
+    if (Array.isArray(req.applied_dates) && req.applied_dates.length > 0) {
+        const sorted = [...req.applied_dates].sort();
+        if (sorted.length === 1) return sorted[0];
+        return `${sorted[0]} ~ ${sorted[sorted.length - 1]} (${sorted.length}일)`;
+    }
+    if (req.start_date && req.end_date) {
+        if (req.start_date === req.end_date) return req.start_date;
+        return `${req.start_date} ~ ${req.end_date}`;
+    }
+    return req.date || '-';
+};
 
 // 시각 클래스 토큰 (LeaveView 내부 한정 — 새 파일/유틸 분리 안 함)
 const CARD_BASE = 'bg-[#faf8f0] border border-[#d4cfbf]';
@@ -65,10 +128,70 @@ export default function LeaveView({
     users, viewMode, setViewMode, filteredData,
     selectedUser, handleSelectUser, calculateLeave,
     leaveBalancesByEmployeeId,
+    leaveRequests,
     openModal, setAdjustUser, setAdjustBaseline
 }) {
     // ─── 팀 필터 state (LeaveView 내부 한정) ──────────────────
     const [selectedTeam, setSelectedTeam] = useState('ALL');
+    // ─── 이번 달 연차 모달 state ─────────────────────────────
+    const [showMonthlyModal, setShowMonthlyModal] = useState(false);
+
+    // 팀 필터 변경 시 우측 상세 패널 초기화 — handleSelectUser(null)은 App.jsx에서 안전 처리됨
+    const handleTeamSelect = (team) => {
+        setSelectedTeam(team);
+        if (typeof handleSelectUser === 'function') {
+            handleSelectUser(null);
+        }
+    };
+
+    // 이번 달 (YYYY-MM)
+    const currentYM = useMemo(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }, []);
+
+    // user_id → user (employees) 매핑 — 모달에서 직원명/소속 표시용
+    // alba 본인 화면에서 leave_requests.user_id는 users.uid이고, employees에는 user_id 직접 매핑이 없음
+    // → users.employee_id ↔ employees.id 연결을 활용해 employees를 찾아야 하지만,
+    //   leave_requests에는 employees 정보가 없으므로 본 모달은 user_id 기준 표시 + name fallback 처리
+    const userByUid = useMemo(() => {
+        // leaveBalancesByEmployeeId가 employee_id 기준 Map이므로, balance.user_id로 employees를 역추적
+        const byUid = new Map();
+        for (const u of users) {
+            // employees doc에는 uid가 직접 없음. leave_balance에서 employee_id ↔ user_id 매칭으로 파악
+            const balance = leaveBalancesByEmployeeId?.[String(u.id)];
+            if (balance?.user_id) byUid.set(String(balance.user_id), u);
+        }
+        return byUid;
+    }, [users, leaveBalancesByEmployeeId]);
+
+    // 이번 달에 포함되는 신청 목록 (반려/취소 제외)
+    const monthlyRequests = useMemo(() => {
+        if (!Array.isArray(leaveRequests)) return [];
+        return leaveRequests
+            .filter(r => ACTIVE_REQ_STATUSES.has(r.status))
+            .filter(r => reqIsInMonth(r, currentYM))
+            .map(r => {
+                const emp = userByUid.get(String(r.user_id));
+                return {
+                    ...r,
+                    _employeeName: emp?.name || r.user_id || '-',
+                    _employeeTeam: emp ? teamOf(emp) : '-',
+                    _displayDate: reqDisplayDate(r, currentYM),
+                    _rangeLabel: reqDateRangeLabel(r),
+                };
+            })
+            .sort((a, b) => {
+                const da = String(a._displayDate);
+                const dbb = String(b._displayDate);
+                if (da !== dbb) return da.localeCompare(dbb);
+                return String(a._employeeName).localeCompare(String(b._employeeName));
+            });
+    }, [leaveRequests, currentYM, userByUid]);
+
+    const monthlyTotalCount = monthlyRequests.length;
+    const monthlyPendingCount = monthlyRequests.filter(r => PENDING_REQ_STATUSES.has(r.status)).length;
+    const monthlyApprovedCount = monthlyRequests.filter(r => APPROVED_REQ_STATUSES.has(r.status)).length;
 
     // ─── 상단 카드용 집계 (LeaveView 내부에서만 안전하게 계산) ──
     // 연차관리 화면 기준: 재직/퇴사 모두 "아르바이트"로 한정 (카드 숫자와 클릭 후 목록 일관성)
@@ -138,7 +261,7 @@ export default function LeaveView({
                         <div className="flex flex-wrap gap-1.5">
                             <button
                                 type="button"
-                                onClick={() => setSelectedTeam('ALL')}
+                                onClick={() => handleTeamSelect('ALL')}
                                 className={`${teamBtnBase} ${selectedTeam === 'ALL' ? teamBtnActive : teamBtnIdle}`}
                             >
                                 전체 <span className={selectedTeam === 'ALL' ? 'text-[#d4dcc0]' : 'text-[#3d472f]'}>{activeAlba.length}</span>
@@ -147,7 +270,7 @@ export default function LeaveView({
                                 <button
                                     key={team}
                                     type="button"
-                                    onClick={() => setSelectedTeam(team)}
+                                    onClick={() => handleTeamSelect(team)}
                                     className={`${teamBtnBase} ${selectedTeam === team ? teamBtnActive : teamBtnIdle}`}
                                 >
                                     {team} <span className={selectedTeam === team ? 'text-[#d4dcc0]' : 'text-[#3d472f]'}>{count}</span>
@@ -156,10 +279,13 @@ export default function LeaveView({
                         </div>
                     </div>
 
-                    {/* 이번 달 연차 — 정보 카드(클릭 불가). 캘린더 팝업은 다음 PR에서 연결 (TODO) */}
-                    <div className="p-5 border-2 bg-[#f5f3e8] border-[#c5c0b0]">
+                    {/* 이번 달 연차 — 클릭 시 월별 신청 목록 모달 표시 */}
+                    <div
+                        onClick={() => setShowMonthlyModal(true)}
+                        className="p-5 border-2 bg-[#f5f3e8] border-[#c5c0b0] cursor-pointer hover:border-[#5d6c4a] hover:bg-[#e8e4d4] transition-colors"
+                    >
                         <p className="text-[10px] font-bold text-[#6b7b54] uppercase tracking-wider mb-1">이번 달 연차</p>
-                        <h3 className="text-2xl font-black text-[#3d472f]">0건</h3>
+                        <h3 className="text-2xl font-black text-[#3d472f]">{monthlyTotalCount}건</h3>
                         <p className="text-[10px] text-[#7a7565] mt-1">신청 내역 기준</p>
                     </div>
 
@@ -328,6 +454,73 @@ export default function LeaveView({
                     </div>
                 )}
             </div>
+
+            {/* ── 이번 달 연차 현황 모달 ── */}
+            {showMonthlyModal && (
+                <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={() => setShowMonthlyModal(false)}>
+                    <div className="bg-[#f5f3e8] shadow-lg w-full max-w-2xl max-h-[85vh] flex flex-col border-2 border-[#3d472f]" onClick={(e) => e.stopPropagation()}>
+                        <div className="p-4 border-b-2 border-[#3d472f] flex justify-between items-center bg-[#5d6c4a]">
+                            <h3 className="font-bold text-[#f5f3e8] flex items-center gap-2">
+                                <Calendar size={18} /> 이번 달 연차 현황
+                            </h3>
+                            <button onClick={() => setShowMonthlyModal(false)} className="text-[#d4dcc0] hover:text-[#f5f3e8]"><X size={20} /></button>
+                        </div>
+                        <div className="p-4 border-b border-[#d4cfbf] bg-[#faf8f0]">
+                            <div className="flex items-baseline justify-between flex-wrap gap-2">
+                                <p className="text-sm font-bold text-[#3d472f]">{currentYM.replace('-', '년 ')}월</p>
+                                <div className="flex gap-3 text-xs">
+                                    <span className="text-[#7a7565]">총 <strong className="text-[#3d472f]">{monthlyTotalCount}</strong>건</span>
+                                    <span className="text-[#a78049]">승인대기 <strong>{monthlyPendingCount}</strong>건</span>
+                                    <span className="text-[#5d6c4a]">승인완료 <strong>{monthlyApprovedCount}</strong>건</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto">
+                            {monthlyRequests.length === 0 ? (
+                                <div className="p-8 text-center text-xs text-[#9a9585]">이번 달 연차 신청 내역이 없습니다.</div>
+                            ) : (
+                                <table className="w-full text-xs">
+                                    <thead className="bg-[#f5f3e8] sticky top-0 z-10 border-b border-[#d4cfbf] text-[#5d6c4a] uppercase tracking-wider font-bold">
+                                        <tr>
+                                            <th className="p-2 pl-4 text-left">직원</th>
+                                            <th className="p-2 text-center">소속</th>
+                                            <th className="p-2 text-left">기간</th>
+                                            <th className="p-2 text-center">유형</th>
+                                            <th className="p-2 text-center">일수</th>
+                                            <th className="p-2 pr-4 text-center">상태</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[#ebe8db]">
+                                        {monthlyRequests.map(r => {
+                                            const isPending = PENDING_REQ_STATUSES.has(r.status);
+                                            const isApproved = APPROVED_REQ_STATUSES.has(r.status);
+                                            return (
+                                                <tr key={r.id} className="hover:bg-[#f5f3e8]">
+                                                    <td className="p-2 pl-4 font-bold text-[#3d472f]">{r._employeeName}</td>
+                                                    <td className="p-2 text-center">
+                                                        <span className="text-[10px] font-bold bg-[#f5f3e8] border border-[#d4cfbf] px-1.5 py-0.5">{r._employeeTeam}</span>
+                                                    </td>
+                                                    <td className="p-2 font-mono text-[11px] text-[#5a5545]">{r._rangeLabel}</td>
+                                                    <td className="p-2 text-center text-[#5a5545]">{TYPE_LABEL[r.type] || r.type || '-'}</td>
+                                                    <td className="p-2 text-center font-bold text-[#5a5545]">{fmtDays(r.day_count ?? 1)}</td>
+                                                    <td className="p-2 pr-4 text-center">
+                                                        <span className={`inline-block px-2 py-0.5 text-[10px] font-bold border ${isPending ? 'bg-[#fdf6e3] text-[#a06820] border-[#d8c490]' : isApproved ? 'bg-[#e8ebd8] text-[#5d6c4a] border-[#b8c4a0]' : 'bg-[#f5f3e8] text-[#7a7565] border-[#d4cfbf]'}`}>
+                                                            {STATUS_LABEL[r.status] || r.status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                        <div className="p-3 border-t border-[#d4cfbf] flex justify-end bg-[#faf8f0]">
+                            <button onClick={() => setShowMonthlyModal(false)} className="px-4 py-2 text-xs bg-[#f5f3e8] text-[#5a5545] font-bold hover:bg-[#e0ddd0] border border-[#d4cfbf]">닫기</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
