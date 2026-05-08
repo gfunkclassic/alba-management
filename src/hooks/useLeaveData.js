@@ -10,11 +10,13 @@ export function useLeaveData() {
     // leave_balance read-only 구독 — 관리자 연차관리 화면 baseline 우선 표시용
     // key: String(employee_id), value: { total_days, used_days, baseline_* ... }
     const [leaveBalancesByEmployeeId, setLeaveBalancesByEmployeeId] = useState({});
+    // leave_requests read-only 구독 — 관리자 연차관리 화면 "이번 달 연차" 카드/모달용
+    const [leaveRequests, setLeaveRequests] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         let resolved = 0;
-        const checkDone = () => { resolved++; if (resolved >= 5) setLoading(false); };
+        const checkDone = () => { resolved++; if (resolved >= 6) setLoading(false); };
 
         const unsubLeave = onSnapshot(collection(db, 'leave_records'), snap => {
             const data = {};
@@ -62,7 +64,14 @@ export function useLeaveData() {
             checkDone();
         }, () => checkDone());
 
-        return () => { unsubLeave(); unsubAdj(); unsubCarry(); unsubPayroll(); unsubBalance(); };
+        // leave_requests 구독 (read-only) — 이번 달 연차 카드/모달 표시용
+        const unsubReq = onSnapshot(collection(db, 'leave_requests'), snap => {
+            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            setLeaveRequests(list);
+            checkDone();
+        }, () => checkDone());
+
+        return () => { unsubLeave(); unsubAdj(); unsubCarry(); unsubPayroll(); unsubBalance(); unsubReq(); };
     }, []);
 
     const addLeaveRecord = useCallback(async (userId, date, type) => {
@@ -118,6 +127,7 @@ export function useLeaveData() {
     return {
         leaveRecords, adjustments, carryovers, payrollStatus, loading,
         leaveBalancesByEmployeeId,
+        leaveRequests,
         addLeaveRecord, deleteLeaveRecord, saveAdjustment, savePayrollStatus, batchImport,
     };
 }

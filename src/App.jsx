@@ -56,7 +56,7 @@ function HRPayrollApp() {
     const { employees: users, loading: empLoading, addEmployee, updateEmployee, deleteEmployee, batchImport: batchImportEmployees } = useEmployees();
     const { attendance, saveAttendance: saveAttendanceFn, batchImport: batchImportAttendance } = useAttendance();
     const { leaveRecords, adjustments, carryovers, payrollStatus,
-        leaveBalancesByEmployeeId,
+        leaveBalancesByEmployeeId, leaveRequests,
         addLeaveRecord, deleteLeaveRecord, saveAdjustment: saveAdjustmentFn,
         savePayrollStatus, batchImport: batchImportLeave } = useLeaveData();
 
@@ -1744,6 +1744,7 @@ function HRPayrollApp() {
                         users={users} viewMode={viewMode} setViewMode={setViewMode} filteredData={filteredData}
                         selectedUser={selectedUser} handleSelectUser={handleSelectUser} calculateLeave={calculateLeave}
                         leaveBalancesByEmployeeId={leaveBalancesByEmployeeId}
+                        leaveRequests={leaveRequests}
                         openModal={openModal} setAdjustUser={setAdjustUser}
                         setAdjustBaseline={setAdjustBaseline}
                     />
