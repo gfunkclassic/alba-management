@@ -270,10 +270,7 @@ export default function LeaveView({
                                                     <p className="text-[10px] text-[#7a5a1a] leading-relaxed">
                                                         {balance?.system_start_date || '2026-05-08'} 기준 입사일부터 누적 발생/사용/잔여 연차 기준값이 반영되었습니다.
                                                         {balance?.pre_system_used_days !== undefined && (
-                                                            <><br />프로그램 사용 전 사용분: {fmtDays(balance.pre_system_used_days)}</>
-                                                        )}
-                                                        {balance?.baseline_calculated_total_days !== undefined && (
-                                                            <><br />계산상 발생연차: {fmtDays(balance.baseline_calculated_total_days)} (운영 기준 선반영 포함)</>
+                                                            <><br />프로그램 사용 전 누적 사용분: {fmtDays(balance.pre_system_used_days)}</>
                                                         )}
                                                     </p>
                                                 </div>
