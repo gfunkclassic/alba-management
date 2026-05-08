@@ -7,11 +7,14 @@ export function useLeaveData() {
     const [adjustments, setAdjustments] = useState({});
     const [carryovers, setCarryovers] = useState({});
     const [payrollStatus, setPayrollStatus] = useState({});
+    // leave_balance read-only 구독 — 관리자 연차관리 화면 baseline 우선 표시용
+    // key: String(employee_id), value: { total_days, used_days, baseline_* ... }
+    const [leaveBalancesByEmployeeId, setLeaveBalancesByEmployeeId] = useState({});
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         let resolved = 0;
-        const checkDone = () => { resolved++; if (resolved >= 4) setLoading(false); };
+        const checkDone = () => { resolved++; if (resolved >= 5) setLoading(false); };
 
         const unsubLeave = onSnapshot(collection(db, 'leave_records'), snap => {
             const data = {};
@@ -39,7 +42,27 @@ export function useLeaveData() {
             checkDone();
         }, () => checkDone());
 
-        return () => { unsubLeave(); unsubAdj(); unsubCarry(); unsubPayroll(); };
+        // 현재 연도 leave_balance 구독 (read-only, employee_id 우선 매핑)
+        // 동일 employee의 다년도 문서가 있으면 가장 최신 year를 우선
+        const currentYear = new Date().getFullYear();
+        const unsubBalance = onSnapshot(collection(db, 'leave_balance'), snap => {
+            const byEmpId = {};
+            snap.docs.forEach(d => {
+                const data = d.data() || {};
+                const empId = data.employee_id ? String(data.employee_id) : '';
+                if (!empId) return;
+                const year = Number(data.year) || currentYear;
+                if (year !== currentYear) {
+                    // 다른 연도 문서는 유지하지 않음 (현재 연도 우선). 향후 정책 변경 시 확장 가능
+                    return;
+                }
+                byEmpId[empId] = { ...data, _docId: d.id };
+            });
+            setLeaveBalancesByEmployeeId(byEmpId);
+            checkDone();
+        }, () => checkDone());
+
+        return () => { unsubLeave(); unsubAdj(); unsubCarry(); unsubPayroll(); unsubBalance(); };
     }, []);
 
     const addLeaveRecord = useCallback(async (userId, date, type) => {
@@ -94,6 +117,7 @@ export function useLeaveData() {
 
     return {
         leaveRecords, adjustments, carryovers, payrollStatus, loading,
+        leaveBalancesByEmployeeId,
         addLeaveRecord, deleteLeaveRecord, saveAdjustment, savePayrollStatus, batchImport,
     };
 }
