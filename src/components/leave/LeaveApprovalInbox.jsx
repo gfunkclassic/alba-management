@@ -6,7 +6,8 @@ import AdminApprovalHistory from './AdminApprovalHistory';
 
 const TYPE_LABEL = { FULL: '연차', HALF_AM: '오전반차', HALF_PM: '오후반차' };
 const TYPE_COLOR = { FULL: 'bg-[#5d6c4a] text-[#f5f3e8]', HALF_AM: 'bg-[#5a6878] text-[#f5f3e8]', HALF_PM: 'bg-[#5a6878] text-[#f5f3e8]' };
-const STATUS_LABEL = { SUBMITTED: '승인대기', TEAM_APPROVED: '1차승인', FINAL_PENDING: '최종대기', CEO_PENDING: '승인대기(대표)', FINAL_APPROVED: '최종승인', REJECTED: '반려', CANCELLED: '취소' };
+// 표시 라벨 — Firestore 상태값(키)은 변경 없음. 화면 노출 텍스트만 운영자 친화 문구로 정리
+const STATUS_LABEL = { SUBMITTED: '팀장 승인 대기', TEAM_APPROVED: '실장 승인 대기', FINAL_PENDING: '실장 승인 진행중', CEO_PENDING: '대표 승인 대기', FINAL_APPROVED: '승인완료', REJECTED: '반려', CANCELLED: '취소' };
 const STATUS_COLOR = {
     SUBMITTED: 'bg-[#a78049] text-white',
     TEAM_APPROVED: 'bg-[#7a8c5f] text-white',
@@ -106,7 +107,7 @@ export default function LeaveApprovalInbox({ activeGivenDelegation = null }) {
             <div className="p-4 border-b border-[#d4cfbf] flex flex-wrap gap-2 items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Clock size={18} className="text-[#5d6c4a]" />
-                    <span className="font-bold text-[#3d472f] text-sm">팀 승인함</span>
+                    <span className="font-bold text-[#3d472f] text-sm">팀장 승인함</span>
                     {pendingCount > 0 && (
                         <span className="bg-[#a78049] text-white text-[10px] font-black px-2 py-0.5">{pendingCount}건 대기</span>
                     )}
@@ -115,10 +116,10 @@ export default function LeaveApprovalInbox({ activeGivenDelegation = null }) {
                     <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
                         className="border border-[#d4cfbf] bg-[#faf8f0] text-xs px-2 py-1.5 outline-none focus:border-[#5d6c4a]">
                         <option value="ALL">전체</option>
-                        <option value="SUBMITTED">승인대기(팀)</option>
-                        <option value="TEAM_APPROVED">1차 승인</option>
-                        <option value="FINAL_PENDING">최종 대기</option>
-                        <option value="FINAL_APPROVED">최종 승인</option>
+                        <option value="SUBMITTED">팀장 승인 대기</option>
+                        <option value="TEAM_APPROVED">실장 승인 대기</option>
+                        <option value="FINAL_PENDING">실장 승인 진행중</option>
+                        <option value="FINAL_APPROVED">승인완료</option>
                         <option value="REJECTED">반려</option>
                     </select>
                     <button onClick={load} className="border border-[#d4cfbf] p-1.5 text-[#5a5545] hover:bg-[#e8e4d4]">
@@ -187,7 +188,20 @@ export default function LeaveApprovalInbox({ activeGivenDelegation = null }) {
                             </tr>
                         ))}
                         {!loading && filtered.length === 0 && (
-                            <tr><td colSpan={7} className="p-8 text-center text-[#9a9585] text-xs">해당하는 신청이 없습니다.</td></tr>
+                            <tr><td colSpan={7} className="p-8 text-center text-[#9a9585] text-xs">
+                                {filterStatus === 'SUBMITTED' ? (
+                                    <span>
+                                        현재 팀장 승인 대기 중인 연차 신청이 없습니다.<br />
+                                        <span className="text-[#5d6c4a] font-bold mt-1 inline-block">팀원이 연차를 신청하면 이 화면에서 1차 승인 또는 반려를 처리할 수 있습니다.</span>
+                                        <br /><span className="text-[10px] text-[#9a9585] mt-2 inline-block">결재 흐름: 팀장 승인 → 실장 병렬 승인 → 대표 최종 승인</span>
+                                    </span>
+                                ) : (
+                                    <span>
+                                        해당하는 신청이 없습니다.
+                                        <br /><span className="text-[10px] text-[#9a9585] mt-2 inline-block">결재 흐름: 팀장 승인 → 실장 병렬 승인 → 대표 최종 승인</span>
+                                    </span>
+                                )}
+                            </td></tr>
                         )}
                     </tbody>
                 </table>
