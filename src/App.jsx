@@ -178,6 +178,7 @@ function HRPayrollApp() {
 
     const [formUser, setFormUser] = useState(null);
     const [adjustUser, setAdjustUser] = useState(null);
+    const [adjustBaseline, setAdjustBaseline] = useState(null); // baseline 모드 조정 컨텍스트 ({ balanceDocId, currentAdjustment } 또는 null)
     const [resignTargetUser, setResignTargetUser] = useState(null);
     const [resignDateInput, setResignDateInput] = useState('');
     const [resignReasonInput, setResignReasonInput] = useState('');
@@ -667,12 +668,32 @@ function HRPayrollApp() {
         showNotificationMsg('삭제 완료');
     }, [showNotificationMsg, deleteLeaveRecord]);
 
-    const handleSaveAdjustment = useCallback(async (userId, amount) => {
-        await saveAdjustmentFn(userId, amount);
-        showNotificationMsg('연차 조정 완료');
-        closeModal('adjust');
-        setAdjustUser(null);
-    }, [closeModal, showNotificationMsg, saveAdjustmentFn]);
+    const handleSaveAdjustment = useCallback(async (userId, amount, reason, baselineCtx) => {
+        // baselineCtx: { balanceDocId } | null
+        // - baseline 모드: leave_balance/{docId}.adjustment_days(+ 사유) merge 저장
+        // - fallback 모드: 기존 leave_adjustments/{userId} 저장 흐름 유지
+        try {
+            if (baselineCtx?.balanceDocId) {
+                const payload = {
+                    adjustment_days: Number.isFinite(Number(amount)) ? Number(amount) : 0,
+                    adjustment_updated_at: new Date().toISOString(),
+                };
+                if (reason && String(reason).trim()) payload.adjustment_reason = String(reason).trim();
+                if (userProfile?.uid) payload.adjustment_updated_by_uid = userProfile.uid;
+                if (userProfile?.name) payload.adjustment_updated_by_name = userProfile.name;
+                await setDoc(doc(db, 'leave_balance', baselineCtx.balanceDocId), payload, { merge: true });
+            } else {
+                await saveAdjustmentFn(userId, amount);
+            }
+            showNotificationMsg('연차 조정 완료');
+            closeModal('adjust');
+            setAdjustUser(null);
+            setAdjustBaseline(null);
+        } catch (e) {
+            console.error('[handleSaveAdjustment] 저장 실패:', e?.code, e?.message);
+            showNotificationMsg('연차 조정 저장에 실패했습니다.', 'error');
+        }
+    }, [closeModal, showNotificationMsg, saveAdjustmentFn, userProfile]);
 
     const handleRosterUpload = async (e) => {
         const file = e.target.files[0];
@@ -1724,6 +1745,7 @@ function HRPayrollApp() {
                         selectedUser={selectedUser} handleSelectUser={handleSelectUser} calculateLeave={calculateLeave}
                         leaveBalancesByEmployeeId={leaveBalancesByEmployeeId}
                         openModal={openModal} setAdjustUser={setAdjustUser}
+                        setAdjustBaseline={setAdjustBaseline}
                     />
                 )}
 
@@ -1787,7 +1809,13 @@ function HRPayrollApp() {
             {showUserForm && <UserFormModal user={formUser} onClose={() => closeModal('userForm')} onSave={handleUserSave} onDelete={handleUserDelete} />}
             {showCalendar && selectedUser && <CalendarModal user={selectedUser} attendance={attendance[selectedUser.id] || {}} onSave={(date, form, editReason) => saveAttendance(selectedUser.id, date, form, editReason)} calculateWage={calculateDailyWage} onFileUpload={handleAttendanceUpload} onClose={() => closeModal('calendar')} isLocked={payrollStatus[payrollMonth] === 'CONFIRMED'} />}
             {showLeaveCalendar && selectedUser && <LeaveCalendarModal users={filteredData} leaveRecords={leaveRecords} onAddLeave={handleAddLeave} onDeleteLeave={handleDeleteLeave} onClose={() => closeModal('leaveCalendar')} />}
-            {showAdjustModal && adjustUser && <AdjustLeaveModal user={adjustUser} onClose={() => { closeModal('adjust'); setAdjustUser(null); }} onSave={handleSaveAdjustment} currentAdjustment={adjustments[adjustUser.id] || 0} />}
+            {showAdjustModal && adjustUser && <AdjustLeaveModal
+                user={adjustUser}
+                onClose={() => { closeModal('adjust'); setAdjustUser(null); setAdjustBaseline(null); }}
+                onSave={(userId, amount, reason) => handleSaveAdjustment(userId, amount, reason, adjustBaseline)}
+                currentAdjustment={adjustBaseline ? (adjustBaseline.currentAdjustment || 0) : (adjustments[adjustUser.id] || 0)}
+                mode={adjustBaseline ? 'baseline' : 'fallback'}
+            />}
             {modalState.payrollDetail && payrollDetailUser && <PayrollDetailModal user={payrollDetailUser} wage={calculateMonthlyWage(payrollDetailUser, payrollMonth)} payrollMonth={payrollMonth} onClose={() => { closeModal('payrollDetail'); setPayrollDetailUser(null); }} />}
         </div>
     );

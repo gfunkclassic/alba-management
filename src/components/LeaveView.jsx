@@ -30,6 +30,7 @@ const teamOf = (u) => normalizeTeam(u.team || u.team_id || u.department);
 
 // baseline 우선 표시값 산출 — baseline이 있고 baseline_type === 'cumulative_from_start_date'이면 baseline 값 사용
 // 없거나 형식이 맞지 않으면 기존 calculateLeave 결과를 그대로 fallback으로 사용
+// baseline 모드: 잔여 = total_days - used_days + adjustment_days (adjustment_days 없으면 0)
 const getDisplayLeave = (user, leaveBalancesByEmployeeId, calculateLeave) => {
     const fallback = calculateLeave(user);
     const balance = leaveBalancesByEmployeeId?.[String(user.id)];
@@ -39,7 +40,8 @@ const getDisplayLeave = (user, leaveBalancesByEmployeeId, calculateLeave) => {
     }
     const totalEarned = Number(balance.total_days ?? 0);
     const usedLeave = Number(balance.used_days ?? 0);
-    const remaining = totalEarned - usedLeave;
+    const adjustment = Number(balance.adjustment_days ?? 0) || 0;
+    const remaining = totalEarned - usedLeave + adjustment;
     return {
         mode: 'baseline',
         leave: {
@@ -50,7 +52,7 @@ const getDisplayLeave = (user, leaveBalancesByEmployeeId, calculateLeave) => {
             annualLeave: fallback.annualLeave,
             carryover: fallback.carryover,
             usedLeave,
-            adjustment: 0,         // baseline 모드: 중복 보정 방지 — 조정값 미반영
+            adjustment,                  // baseline 모드: leave_balance.adjustment_days 우선 반영
             totalEarned,
             remaining,
             absenceCount: fallback.absenceCount,
@@ -63,14 +65,30 @@ export default function LeaveView({
     users, viewMode, setViewMode, filteredData,
     selectedUser, handleSelectUser, calculateLeave,
     leaveBalancesByEmployeeId,
-    openModal, setAdjustUser
+    openModal, setAdjustUser, setAdjustBaseline
 }) {
     // ─── 팀 필터 state (LeaveView 내부 한정) ──────────────────
     const [selectedTeam, setSelectedTeam] = useState('ALL');
 
     // ─── 상단 카드용 집계 (LeaveView 내부에서만 안전하게 계산) ──
+    // 연차관리 화면 기준: 재직/퇴사 모두 "아르바이트"로 한정 (카드 숫자와 클릭 후 목록 일관성)
     const activeAlba = useMemo(() => users.filter(u => !u.resignDate && isAlba(u)), [users]);
-    const resigned = useMemo(() => users.filter(u => u.resignDate), [users]);
+    const resignedAlba = useMemo(() => users.filter(u => u.resignDate && isAlba(u)), [users]);
+
+    // 연차 조정 버튼 클릭 헬퍼 — baseline 직원이면 adjustBaseline 컨텍스트 함께 설정
+    const openAdjustModal = (user) => {
+        const balance = leaveBalancesByEmployeeId?.[String(user.id)];
+        if (balance && balance.baseline_type === 'cumulative_from_start_date') {
+            setAdjustBaseline?.({
+                balanceDocId: balance._docId || `${balance.user_id}_${balance.year}`,
+                currentAdjustment: Number(balance.adjustment_days ?? 0) || 0,
+            });
+        } else {
+            setAdjustBaseline?.(null);
+        }
+        setAdjustUser(user);
+        openModal('adjust');
+    };
 
     // 팀별 재직 아르바이트 인원 — 정규화된 teamOf 기준, 인원 많은 순
     const teamCounts = useMemo(() => {
@@ -83,10 +101,12 @@ export default function LeaveView({
             .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
     }, [activeAlba]);
 
-    // 목록 필터 — 선택된 팀만 표시 (전체이면 그대로)
+    // 목록 필터 — 연차관리 화면 기준: 아르바이트만 + 선택된 팀
+    // 카드 숫자(재직/퇴사 아르바이트)와 클릭 후 목록 인원이 일치하도록 employmentType 추가 필터 적용
     const visibleList = useMemo(() => {
-        if (selectedTeam === 'ALL') return filteredData;
-        return filteredData.filter(u => teamOf(u) === selectedTeam);
+        const albaOnly = filteredData.filter(u => isAlba(u));
+        if (selectedTeam === 'ALL') return albaOnly;
+        return albaOnly.filter(u => teamOf(u) === selectedTeam);
     }, [filteredData, selectedTeam]);
 
     // 팀 버튼 공통 스타일
@@ -136,20 +156,23 @@ export default function LeaveView({
                         </div>
                     </div>
 
-                    {/* 이번 달 연차 — 0건 표시. 캘린더 팝업은 다음 PR에서 연결 (TODO) */}
-                    <StatCard
-                        title="이번 달 연차"
-                        value="0건"
-                        icon={<Calendar size={20} />}
-                    />
+                    {/* 이번 달 연차 — 정보 카드(클릭 불가). 캘린더 팝업은 다음 PR에서 연결 (TODO) */}
+                    <div className="p-5 border-2 bg-[#f5f3e8] border-[#c5c0b0]">
+                        <p className="text-[10px] font-bold text-[#6b7b54] uppercase tracking-wider mb-1">이번 달 연차</p>
+                        <h3 className="text-2xl font-black text-[#3d472f]">0건</h3>
+                        <p className="text-[10px] text-[#7a7565] mt-1">신청 내역 기준</p>
+                    </div>
 
+                    {/* 퇴사 인원 — 연차관리 화면 기준 = 퇴사 아르바이트 */}
                     <StatCard
                         title="퇴사 인원"
-                        value={`${resigned.length}명`}
+                        value={`${resignedAlba.length}명`}
                         icon={<UserMinus size={20} />}
                         onClick={() => setViewMode('RESIGNED')}
                         active={viewMode === 'RESIGNED'}
                     />
+                    {/* 주: filteredData가 App.jsx에서 employmentType 필터를 적용하지 않을 수 있으므로,
+                        화면 일치를 위해 RESIGNED 모드에서도 알바만 필터링되도록 visibleList에서 추가 가드 */}
                 </div>
 
                 {/* ── 인원 목록 ── */}
@@ -203,7 +226,7 @@ export default function LeaveView({
                                         </td>
                                         <td className="p-3 pr-4 text-right">
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); setAdjustUser(user); openModal('adjust'); }}
+                                                onClick={(e) => { e.stopPropagation(); openAdjustModal(user); }}
                                                 className="px-3 py-1.5 text-xs bg-[#faf8f0] text-[#5d6c4a] hover:bg-[#f5f3e8] font-bold inline-flex items-center gap-1 border border-[#d4cfbf]"
                                             >
                                                 <Edit size={12} /> 연차 조정
@@ -258,6 +281,12 @@ export default function LeaveView({
                                                     <h3 className={SECTION_TITLE}>연차 현황</h3>
                                                     <InfoRow label="누적 총 발생" value={fmtDays(leave.totalEarned)} />
                                                     <InfoRow label="누적 사용" value={fmtDays(leave.usedLeave)} />
+                                                    <InfoRow
+                                                        label="관리자 조정"
+                                                        value={`${leave.adjustment > 0 ? '+' : ''}${fmtDays(leave.adjustment).replace('일', '')}일`}
+                                                    />
+                                                    <div className="border-t border-[#d4cfbf] my-2 pt-2"></div>
+                                                    <InfoRow label="최종 잔여" value={fmtDays(leave.remaining)} />
                                                 </div>
                                             </>
                                         ) : (
@@ -289,7 +318,7 @@ export default function LeaveView({
                             })()}
                         </div>
                         <div className="p-4 border-t border-[#d4cfbf] bg-[#faf8f0]">
-                            <button onClick={() => { setAdjustUser(selectedUser); openModal('adjust'); }} className="w-full py-3 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border border-[#3d472f] flex justify-center items-center gap-2"><Edit size={16} /> 연차 조정</button>
+                            <button onClick={() => openAdjustModal(selectedUser)} className="w-full py-3 bg-[#5d6c4a] text-[#f5f3e8] font-bold text-sm hover:bg-[#4a5639] border border-[#3d472f] flex justify-center items-center gap-2"><Edit size={16} /> 연차 조정</button>
                         </div>
                     </div>
                 ) : (

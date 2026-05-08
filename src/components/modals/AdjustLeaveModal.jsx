@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
 import { Edit, X } from 'lucide-react';
 
-export default function AdjustLeaveModal({ user, onClose, onSave, currentAdjustment }) {
+export default function AdjustLeaveModal({ user, onClose, onSave, currentAdjustment, mode }) {
     const [adjustment, setAdjustment] = useState(currentAdjustment || 0);
     const [reason, setReason] = useState('');
+    const isBaseline = mode === 'baseline';
 
-    const handleSubmit = (e) => { e.preventDefault(); onSave(user.id, parseFloat(adjustment), reason); };
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        const v = parseFloat(adjustment);
+        const safe = Number.isFinite(v) ? v : 0;
+        onSave(user.id, safe, reason);
+    };
 
     return (
         <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
@@ -16,6 +22,13 @@ export default function AdjustLeaveModal({ user, onClose, onSave, currentAdjustm
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4 bg-[#e8e4d4]">
                     <div className="bg-[#f5f3e8] p-3 border border-[#d4cfbf]"><p className="text-sm font-bold text-[#3d472f]">{user.name}</p><p className="text-xs text-[#7a7565]">{user.team}</p></div>
+                    {isBaseline && (
+                        <div className="bg-[#fdf6e3] border border-[#d8c490] p-2.5 text-[10px] text-[#7a5a1a] leading-relaxed">
+                            <span className="font-bold">입사일 기준 누적 연차로 관리 중인 직원입니다.</span><br />
+                            조정값은 <span className="font-mono">leave_balance.adjustment_days</span>에 저장되며,<br />
+                            잔여 연차 = 총 발생 − 사용 + 조정으로 계산됩니다.
+                        </div>
+                    )}
                     <div><label className="text-xs font-bold text-[#5d6c4a] block mb-1">조정 일수</label><input type="number" step="0.5" value={adjustment} onChange={(e) => setAdjustment(e.target.value)} className="w-full p-2 border border-[#d4cfbf] bg-[#f5f3e8] text-sm focus:border-[#5d6c4a] outline-none" placeholder="양수: 추가, 음수: 차감" /></div>
                     <div><label className="text-xs font-bold text-[#5d6c4a] block mb-1">사유</label><textarea value={reason} onChange={(e) => setReason(e.target.value)} className="w-full p-2 border border-[#d4cfbf] bg-[#f5f3e8] text-sm h-20 resize-none focus:border-[#5d6c4a] outline-none" placeholder="조정 사유를 입력하세요" /></div>
                     <div className="pt-4 border-t border-[#d4cfbf] flex justify-end gap-2">
