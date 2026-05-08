@@ -43,15 +43,6 @@ const reqIsInMonth = (req, ym) => {
     return false;
 };
 
-// 신청의 대표 날짜 (정렬/표시용) — 이번 달에 포함된 첫 날짜 우선
-const reqDisplayDate = (req, ym) => {
-    if (Array.isArray(req.applied_dates) && req.applied_dates.length > 0) {
-        const inMonth = req.applied_dates.filter(d => String(d).startsWith(ym)).sort();
-        return inMonth[0] || req.applied_dates.slice().sort()[0];
-    }
-    return req.start_date || req.date || '';
-};
-
 // 신청을 일자별로 펼쳐서 (YYYY-MM-DD) 배열로 반환
 // 우선순위: applied_dates > start_date~end_date > date
 // (timezone drift 방지를 위해 로컬 Date 사용)
@@ -116,8 +107,8 @@ const todayYM = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
-// 기간 표시 문자열 (단일/연속/비연속 처리)
-const reqDateRangeLabel = (req) => {
+// 신청의 표시용 기간 라벨 (날짜 상세 패널의 "기간/신청일" 컬럼용)
+const reqRangeLabelShort = (req) => {
     if (Array.isArray(req.applied_dates) && req.applied_dates.length > 0) {
         const sorted = [...req.applied_dates].sort();
         if (sorted.length === 1) return sorted[0];
@@ -200,6 +191,7 @@ export default function LeaveView({
     // ─── 이번 달 연차 캘린더 모달 state ──────────────────────
     const [showMonthlyModal, setShowMonthlyModal] = useState(false);
     const [calendarYM, setCalendarYM] = useState(() => todayYM()); // 캘린더 월 이동 (오늘 기준 default)
+    const [selectedCalendarDate, setSelectedCalendarDate] = useState(null); // 선택된 날짜(YYYY-MM-DD), null이면 미선택
 
     // 팀 필터 변경 시 우측 상세 패널 초기화 — handleSelectUser(null)은 App.jsx에서 안전 처리됨
     const handleTeamSelect = (team) => {
@@ -230,36 +222,33 @@ export default function LeaveView({
         return byUid;
     }, [users, leaveBalancesByEmployeeId]);
 
-    // 이번 달에 포함되는 신청 목록 (반려/취소 제외)
-    const monthlyRequests = useMemo(() => {
-        if (!Array.isArray(leaveRequests)) return [];
+    // 이번 달(오늘 기준) 카드 카운트용 — 캘린더 모달의 calendarYM과는 분리
+    const monthlyTotalCount = useMemo(() => {
+        if (!Array.isArray(leaveRequests)) return 0;
         return leaveRequests
             .filter(r => ACTIVE_REQ_STATUSES.has(r.status))
             .filter(r => reqIsInMonth(r, currentYM))
-            .map(r => {
-                const emp = userByUid.get(String(r.user_id));
-                return {
-                    ...r,
-                    _employeeName: emp?.name || r.user_id || '-',
-                    _employeeTeam: emp ? teamOf(emp) : '-',
-                    _displayDate: reqDisplayDate(r, currentYM),
-                    _rangeLabel: reqDateRangeLabel(r),
-                };
-            })
-            .sort((a, b) => {
-                const da = String(a._displayDate);
-                const dbb = String(b._displayDate);
-                if (da !== dbb) return da.localeCompare(dbb);
-                return String(a._employeeName).localeCompare(String(b._employeeName));
-            });
-    }, [leaveRequests, currentYM, userByUid]);
-
-    const monthlyTotalCount = monthlyRequests.length;
-    const monthlyPendingCount = monthlyRequests.filter(r => PENDING_REQ_STATUSES.has(r.status)).length;
-    const monthlyApprovedCount = monthlyRequests.filter(r => APPROVED_REQ_STATUSES.has(r.status)).length;
+            .length;
+    }, [leaveRequests, currentYM]);
 
     // ─── 캘린더 모달용: calendarYM 기준 데이터 ─────────────────
     const calendarCells = useMemo(() => buildCalendarGrid(calendarYM), [calendarYM]);
+
+    // 모달 닫기 시 선택 날짜 초기화 — 다음 오픈 시 깨끗한 상태로 시작
+    const closeMonthlyModal = () => {
+        setShowMonthlyModal(false);
+        setSelectedCalendarDate(null);
+    };
+
+    // 월 이동 시 선택 날짜 초기화
+    const goToMonth = (delta) => {
+        setCalendarYM(addMonths(calendarYM, delta));
+        setSelectedCalendarDate(null);
+    };
+    const goToToday = () => {
+        setCalendarYM(todayYM());
+        setSelectedCalendarDate(null);
+    };
 
     // 날짜별 신청 entries 매핑 — 활성 5종만, 각 신청을 일자별로 펼침
     const entriesByDate = useMemo(() => {
@@ -295,6 +284,40 @@ export default function LeaveView({
         }
         return map;
     }, [leaveRequests, userByUid]);
+
+    // 선택된 날짜의 신청자 전체 목록 (셀 +N명 케이스 포함, 정렬: 소속 → 이름)
+    // 신청 원본(leave_requests)도 가져와 기간/일수 표시
+    const selectedDateEntries = useMemo(() => {
+        if (!selectedCalendarDate || !Array.isArray(leaveRequests)) return [];
+        const reqsByDate = leaveRequests
+            .filter(r => ACTIVE_REQ_STATUSES.has(r.status))
+            .filter(r => expandRequestDates(r).includes(selectedCalendarDate));
+        return reqsByDate
+            .map(r => {
+                const emp = userByUid.get(String(r.user_id));
+                const team = emp ? teamOf(emp) : '-';
+                return {
+                    id: r.id,
+                    name: emp?.name || r.user_id || '직원 미확인',
+                    team,
+                    type: r.type,
+                    typeLabel: TYPE_LABEL[r.type] || r.type || '-',
+                    status: r.status,
+                    statusLabel: STATUS_LABEL[r.status] || r.status,
+                    isPending: PENDING_REQ_STATUSES.has(r.status),
+                    isApproved: APPROVED_REQ_STATUSES.has(r.status),
+                    dayCount: r.day_count ?? 1,
+                    rangeLabel: reqRangeLabelShort(r),
+                };
+            })
+            .sort((a, b) => {
+                const t = String(a.team).localeCompare(String(b.team));
+                if (t !== 0) return t;
+                const n = String(a.name).localeCompare(String(b.name));
+                if (n !== 0) return n;
+                return String(a.typeLabel).localeCompare(String(b.typeLabel));
+            });
+    }, [selectedCalendarDate, leaveRequests, userByUid]);
 
     // calendarYM 월 통계 (모달 상단 요약용)
     const calendarStats = useMemo(() => {
@@ -578,14 +601,14 @@ export default function LeaveView({
 
             {/* ── 이번 달 연차 캘린더 모달 ── */}
             {showMonthlyModal && (
-                <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={() => setShowMonthlyModal(false)}>
+                <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={closeMonthlyModal}>
                     <div className="bg-[#f5f3e8] shadow-lg w-full max-w-5xl max-h-[90vh] flex flex-col border-2 border-[#3d472f]" onClick={(e) => e.stopPropagation()}>
                         {/* 상단 바 */}
                         <div className="p-4 border-b-2 border-[#3d472f] flex justify-between items-center bg-[#5d6c4a]">
                             <h3 className="font-bold text-[#f5f3e8] flex items-center gap-2">
                                 <Calendar size={18} /> 연차 캘린더
                             </h3>
-                            <button onClick={() => setShowMonthlyModal(false)} className="text-[#d4dcc0] hover:text-[#f5f3e8]"><X size={20} /></button>
+                            <button onClick={closeMonthlyModal} className="text-[#d4dcc0] hover:text-[#f5f3e8]"><X size={20} /></button>
                         </div>
 
                         {/* 월 이동 + 요약 */}
@@ -594,7 +617,7 @@ export default function LeaveView({
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"
-                                        onClick={() => setCalendarYM(addMonths(calendarYM, -1))}
+                                        onClick={() => goToMonth(-1)}
                                         className="px-2 py-1.5 text-xs bg-[#f5f3e8] text-[#5d6c4a] hover:bg-[#e8e4d4] border border-[#d4cfbf] inline-flex items-center gap-1"
                                     >
                                         <ChevronLeft size={14} /> 이전
@@ -602,14 +625,14 @@ export default function LeaveView({
                                     <span className="text-base font-black text-[#3d472f] min-w-[110px] text-center">{calendarYM.split('-')[0]}년 {Number(calendarYM.split('-')[1])}월</span>
                                     <button
                                         type="button"
-                                        onClick={() => setCalendarYM(addMonths(calendarYM, 1))}
+                                        onClick={() => goToMonth(1)}
                                         className="px-2 py-1.5 text-xs bg-[#f5f3e8] text-[#5d6c4a] hover:bg-[#e8e4d4] border border-[#d4cfbf] inline-flex items-center gap-1"
                                     >
                                         다음 <ChevronRight size={14} />
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setCalendarYM(todayYM())}
+                                        onClick={goToToday}
                                         className={`px-3 py-1.5 text-xs font-bold border ${calendarYM === todayYM() ? 'bg-[#5d6c4a] text-[#f5f3e8] border-[#3d472f]' : 'bg-[#f5f3e8] text-[#5d6c4a] border-[#d4cfbf] hover:bg-[#e8e4d4]'}`}
                                     >
                                         이번 달
@@ -635,10 +658,13 @@ export default function LeaveView({
                                     const arr = entriesByDate.get(cell.dateStr) || [];
                                     const dayColor = cell.isSunday ? 'text-[#8d5a4d]' : cell.isSaturday ? 'text-[#5a6878]' : 'text-[#3d472f]';
                                     const bgColor = cell.isCurrentMonth ? 'bg-[#faf8f0]' : 'bg-[#f0eee0]';
+                                    const isSelected = selectedCalendarDate === cell.dateStr;
                                     return (
                                         <div
                                             key={cell.dateStr}
-                                            className={`min-h-[90px] p-1.5 ${bgColor} ${cell.isCurrentMonth ? '' : 'opacity-60'} ${cell.isToday ? 'ring-2 ring-inset ring-[#5d6c4a]' : ''}`}
+                                            onClick={() => setSelectedCalendarDate(cell.dateStr)}
+                                            className={`min-h-[90px] p-1.5 cursor-pointer hover:bg-[#e8e4d4] transition-colors ${bgColor} ${cell.isCurrentMonth ? '' : 'opacity-60'} ${cell.isToday && !isSelected ? 'ring-2 ring-inset ring-[#5d6c4a]' : ''} ${isSelected ? 'ring-2 ring-inset ring-[#a06820] bg-[#fdf6e3]' : ''}`}
+                                            title={`${cell.dateStr} 클릭하여 신청자 보기`}
                                         >
                                             <div className={`text-[11px] font-bold ${dayColor} mb-1 flex items-center justify-between`}>
                                                 <span>{cell.day}</span>
@@ -675,11 +701,75 @@ export default function LeaveView({
                                 <span className="inline-flex items-center gap-1">
                                     <span className="inline-block w-3 h-3 ring-2 ring-inset ring-[#5d6c4a] bg-[#faf8f0]" /> 오늘
                                 </span>
+                                <span className="inline-flex items-center gap-1">
+                                    <span className="inline-block w-3 h-3 ring-2 ring-inset ring-[#a06820] bg-[#fdf6e3]" /> 선택 날짜
+                                </span>
+                            </div>
+
+                            {/* 선택 날짜 상세 영역 */}
+                            <div className="mt-4 border-t-2 border-[#d4cfbf] pt-3">
+                                <div className="flex items-baseline justify-between mb-2">
+                                    <h4 className="text-xs font-bold text-[#5d6c4a] uppercase tracking-wide">선택 날짜 상세</h4>
+                                    {selectedCalendarDate && (
+                                        <span className="text-[11px] text-[#7a7565]">
+                                            {selectedCalendarDate} ({selectedDateEntries.length}건)
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedCalendarDate(null)}
+                                                className="ml-2 text-[10px] text-[#9a9585] hover:text-[#5d6c4a] underline"
+                                            >
+                                                선택 해제
+                                            </button>
+                                        </span>
+                                    )}
+                                </div>
+                                {!selectedCalendarDate ? (
+                                    <p className="text-xs text-[#9a9585] py-3 text-center">
+                                        날짜를 선택하면 해당일 연차 신청자를 확인할 수 있습니다.
+                                    </p>
+                                ) : selectedDateEntries.length === 0 ? (
+                                    <p className="text-xs text-[#9a9585] py-3 text-center">
+                                        해당 날짜의 연차 신청 내역이 없습니다.
+                                    </p>
+                                ) : (
+                                    <div className="overflow-x-auto border border-[#d4cfbf] bg-[#faf8f0]">
+                                        <table className="w-full text-xs">
+                                            <thead className="bg-[#f5f3e8] border-b border-[#d4cfbf] text-[#5d6c4a] uppercase tracking-wider font-bold">
+                                                <tr>
+                                                    <th className="p-2 pl-3 text-left">직원</th>
+                                                    <th className="p-2 text-center">소속</th>
+                                                    <th className="p-2 text-center">유형</th>
+                                                    <th className="p-2 text-center">일수</th>
+                                                    <th className="p-2 text-left">기간</th>
+                                                    <th className="p-2 pr-3 text-center">상태</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-[#ebe8db]">
+                                                {selectedDateEntries.map(e => (
+                                                    <tr key={e.id} className="hover:bg-[#f5f3e8]">
+                                                        <td className="p-2 pl-3 font-bold text-[#3d472f]">{e.name}</td>
+                                                        <td className="p-2 text-center">
+                                                            <span className="text-[10px] font-bold bg-[#f5f3e8] border border-[#d4cfbf] px-1.5 py-0.5">{e.team}</span>
+                                                        </td>
+                                                        <td className="p-2 text-center text-[#5a5545]">{e.typeLabel}</td>
+                                                        <td className="p-2 text-center font-bold text-[#5a5545]">{fmtDays(e.dayCount)}</td>
+                                                        <td className="p-2 font-mono text-[11px] text-[#5a5545]">{e.rangeLabel}</td>
+                                                        <td className="p-2 pr-3 text-center">
+                                                            <span className={`inline-block px-2 py-0.5 text-[10px] font-bold border ${e.isPending ? 'bg-[#fdf6e3] text-[#a06820] border-[#d8c490]' : e.isApproved ? 'bg-[#e8ebd8] text-[#5d6c4a] border-[#b8c4a0]' : 'bg-[#f5f3e8] text-[#7a7565] border-[#d4cfbf]'}`}>
+                                                                {e.statusLabel}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
                         <div className="p-3 border-t border-[#d4cfbf] flex justify-end bg-[#faf8f0]">
-                            <button onClick={() => setShowMonthlyModal(false)} className="px-4 py-2 text-xs bg-[#f5f3e8] text-[#5a5545] font-bold hover:bg-[#e0ddd0] border border-[#d4cfbf]">닫기</button>
+                            <button onClick={closeMonthlyModal} className="px-4 py-2 text-xs bg-[#f5f3e8] text-[#5a5545] font-bold hover:bg-[#e0ddd0] border border-[#d4cfbf]">닫기</button>
                         </div>
                     </div>
                 </div>
