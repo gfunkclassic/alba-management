@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Users, UserMinus, Calendar, Edit, Briefcase, AlertTriangle } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Users, UserMinus, Calendar, Edit, AlertTriangle } from 'lucide-react';
 import StatCard from './ui/StatCard';
 import InfoRow from './ui/InfoRow';
 
@@ -16,6 +16,17 @@ const fmtDays = (n) => {
 
 const isAlba = (u) =>
     (u.employmentType || u.position) === '아르바이트';
+
+// 팀명 정규화 — 화면 표시 + 카운트 + 필터 모두 동일 기준 사용
+// ER 팀은 운영상 QC로 통합되었으므로 화면 표시 기준에서는 QC로 합산 (데이터는 보존)
+// 그 외 팀은 하드코딩하지 않고 직원 데이터에서 동적으로 추출
+const normalizeTeam = (raw) => {
+    const t = String(raw || '').trim();
+    if (!t) return '미지정';
+    if (t === 'ER') return 'QC';
+    return t;
+};
+const teamOf = (u) => normalizeTeam(u.team || u.team_id || u.department);
 
 // baseline 우선 표시값 산출 — baseline이 있고 baseline_type === 'cumulative_from_start_date'이면 baseline 값 사용
 // 없거나 형식이 맞지 않으면 기존 calculateLeave 결과를 그대로 fallback으로 사용
@@ -39,7 +50,7 @@ const getDisplayLeave = (user, leaveBalancesByEmployeeId, calculateLeave) => {
             annualLeave: fallback.annualLeave,
             carryover: fallback.carryover,
             usedLeave,
-            adjustment: 0,         // baseline 모드: 중복 보정 방지 — 조정값 미반영 (조정은 우측 패널/별도 정책)
+            adjustment: 0,         // baseline 모드: 중복 보정 방지 — 조정값 미반영
             totalEarned,
             remaining,
             absenceCount: fallback.absenceCount,
@@ -54,69 +65,88 @@ export default function LeaveView({
     leaveBalancesByEmployeeId,
     openModal, setAdjustUser
 }) {
+    // ─── 팀 필터 state (LeaveView 내부 한정) ──────────────────
+    const [selectedTeam, setSelectedTeam] = useState('ALL');
+
     // ─── 상단 카드용 집계 (LeaveView 내부에서만 안전하게 계산) ──
     const activeAlba = useMemo(() => users.filter(u => !u.resignDate && isAlba(u)), [users]);
     const resigned = useMemo(() => users.filter(u => u.resignDate), [users]);
 
-    // 팀별 재직 아르바이트 인원 — team(또는 team_id/department) 우선순위로 키 결정
+    // 팀별 재직 아르바이트 인원 — 정규화된 teamOf 기준, 인원 많은 순
     const teamCounts = useMemo(() => {
         const m = new Map();
         for (const u of activeAlba) {
-            const key = u.team || u.team_id || u.department || '미지정';
+            const key = teamOf(u);
             m.set(key, (m.get(key) || 0) + 1);
         }
-        // 표시 순서: 인원 많은 팀 우선 + 동일 시 팀명 사전순
-        return Array.from(m.entries()).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+        return Array.from(m.entries())
+            .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
     }, [activeAlba]);
 
-    const handleThisMonthLeaveClick = () => {
-        // 캘린더 팝업은 다음 PR에서 연결 — 이번 PR은 placeholder 안내만
-        window.alert('이번 달 연차 캘린더는 다음 단계에서 연결 예정입니다.');
-    };
+    // 목록 필터 — 선택된 팀만 표시 (전체이면 그대로)
+    const visibleList = useMemo(() => {
+        if (selectedTeam === 'ALL') return filteredData;
+        return filteredData.filter(u => teamOf(u) === selectedTeam);
+    }, [filteredData, selectedTeam]);
+
+    // 팀 버튼 공통 스타일
+    const teamBtnBase = 'inline-flex items-center justify-center gap-1.5 min-w-[64px] h-8 px-3 text-xs font-bold border-2 transition-colors';
+    const teamBtnIdle = 'bg-[#f5f3e8] text-[#5d6c4a] border-[#d4cfbf] hover:bg-[#e8e4d4] hover:border-[#a8b58a]';
+    const teamBtnActive = 'bg-[#5d6c4a] text-[#f5f3e8] border-[#3d472f]';
 
     return (
         <div className="flex flex-col lg:flex-row gap-4">
             <div className={`flex-1 ${CARD_BASE} overflow-hidden`}>
-                {/* ── 상단 카드: 재직 아르바이트 / 팀별 인원 / 이번 달 연차 / 퇴사 인원 ── */}
+                {/* ── 상단 카드 ── */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border-b border-[#d4cfbf] bg-[#faf8f0]">
-                    <StatCard
-                        title="재직 아르바이트"
-                        value={`${activeAlba.length}명`}
-                        icon={<Briefcase size={20} className="text-[#5d6c4a]" />}
+                    {/* 재직 아르바이트 — 우측 아이콘 박스 제거, 보조 문구만 */}
+                    <div
                         onClick={() => setViewMode('ACTIVE')}
-                        active={viewMode === 'ACTIVE'}
-                    />
+                        className={`p-5 border-2 transition-all duration-200 cursor-pointer ${viewMode === 'ACTIVE' ? 'border-[#5d6c4a] ring-2 ring-[#5d6c4a] shadow-md transform -translate-y-0.5 bg-[#e8ebd8]' : 'bg-[#f5f3e8] border-[#c5c0b0] hover:border-[#5d6c4a] hover:bg-[#e8e4d4]'}`}
+                    >
+                        <p className="text-[10px] font-bold text-[#6b7b54] uppercase tracking-wider mb-1">재직 아르바이트</p>
+                        <h3 className="text-2xl font-black text-[#3d472f]">{activeAlba.length}명</h3>
+                        <p className="text-[10px] text-[#7a7565] mt-1">퇴사자 제외</p>
+                    </div>
 
-                    {/* 팀별 인원 — 단일 카드 안에 chip 형태 compact 표시 */}
+                    {/* 팀별 현황 — 클릭 가능한 필터 버튼 묶음 */}
                     <div className={`p-3 ${CARD_BASE}`}>
                         <div className="flex items-center gap-2 mb-2">
                             <Users size={16} className="text-[#5d6c4a]" />
                             <span className="text-[11px] font-bold text-[#7a7565] uppercase tracking-wide">팀별 현황</span>
                         </div>
-                        <div className="flex flex-wrap gap-1">
-                            {teamCounts.length === 0 ? (
-                                <span className="text-[11px] text-[#9a9585]">데이터 없음</span>
-                            ) : (
-                                teamCounts.map(([team, count]) => (
-                                    <span key={team} className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 bg-[#f5f3e8] text-[#5d6c4a] border border-[#d4cfbf]">
-                                        {team} <span className="text-[#3d472f]">{count}</span>
-                                    </span>
-                                ))
-                            )}
+                        <div className="flex flex-wrap gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedTeam('ALL')}
+                                className={`${teamBtnBase} ${selectedTeam === 'ALL' ? teamBtnActive : teamBtnIdle}`}
+                            >
+                                전체 <span className={selectedTeam === 'ALL' ? 'text-[#d4dcc0]' : 'text-[#3d472f]'}>{activeAlba.length}</span>
+                            </button>
+                            {teamCounts.map(([team, count]) => (
+                                <button
+                                    key={team}
+                                    type="button"
+                                    onClick={() => setSelectedTeam(team)}
+                                    className={`${teamBtnBase} ${selectedTeam === team ? teamBtnActive : teamBtnIdle}`}
+                                >
+                                    {team} <span className={selectedTeam === team ? 'text-[#d4dcc0]' : 'text-[#3d472f]'}>{count}</span>
+                                </button>
+                            ))}
                         </div>
                     </div>
 
+                    {/* 이번 달 연차 — 0건 표시. 캘린더 팝업은 다음 PR에서 연결 (TODO) */}
                     <StatCard
                         title="이번 달 연차"
-                        value="-"
-                        icon={<Calendar size={20} className="text-[#a78049]" />}
-                        onClick={handleThisMonthLeaveClick}
+                        value="0건"
+                        icon={<Calendar size={20} />}
                     />
 
                     <StatCard
                         title="퇴사 인원"
                         value={`${resigned.length}명`}
-                        icon={<UserMinus size={20} className="text-[#7a7565]" />}
+                        icon={<UserMinus size={20} />}
                         onClick={() => setViewMode('RESIGNED')}
                         active={viewMode === 'RESIGNED'}
                     />
@@ -137,10 +167,14 @@ export default function LeaveView({
                             </tr>
                         </thead>
                         <tbody className="text-sm divide-y divide-[#ebe8db] [&_td]:align-middle">
-                            {filteredData.map(user => {
+                            {visibleList.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="p-6 text-center text-xs text-[#9a9585]">선택한 팀에 해당하는 직원이 없습니다.</td>
+                                </tr>
+                            ) : visibleList.map(user => {
                                 const { leave } = getDisplayLeave(user, leaveBalancesByEmployeeId, calculateLeave);
                                 const isLow = leave.remaining <= 3;
-                                const teamLabel = user.team || user.team_id || user.department || '-';
+                                const teamLabel = teamOf(user);
                                 return (
                                     <tr key={user.id} onClick={() => handleSelectUser(user)} className={`group cursor-pointer hover:bg-[#f5f3e8] transition-colors ${selectedUser?.id === user.id ? 'bg-[#e8ebd8]' : ''}`}>
                                         <td className="p-3 pl-4">
@@ -191,7 +225,7 @@ export default function LeaveView({
                             <div className="flex justify-between items-start mb-2">
                                 <h2 className="text-2xl font-black text-[#f5f3e8] tracking-tight">{selectedUser.name}</h2>
                             </div>
-                            <p className="text-[#d4dcc0] text-sm font-bold">{selectedUser.team || selectedUser.team_id || selectedUser.department || '-'} | {selectedUser.startDate}</p>
+                            <p className="text-[#d4dcc0] text-sm font-bold">{teamOf(selectedUser)} | {selectedUser.startDate}</p>
                             {selectedUser.resignDate && (<p className="text-xs text-[#f5f3e8] mt-1 bg-[#8d5a4d] inline-block px-2 py-0.5 border border-[#7a4d40]">퇴사: {selectedUser.resignDate}</p>)}
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 space-y-3">
