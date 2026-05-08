@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Users, UserMinus, Calendar, Edit, AlertTriangle, X } from 'lucide-react';
+import { Users, UserMinus, Calendar, Edit, AlertTriangle, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import StatCard from './ui/StatCard';
 import InfoRow from './ui/InfoRow';
 
@@ -50,6 +50,70 @@ const reqDisplayDate = (req, ym) => {
         return inMonth[0] || req.applied_dates.slice().sort()[0];
     }
     return req.start_date || req.date || '';
+};
+
+// 신청을 일자별로 펼쳐서 (YYYY-MM-DD) 배열로 반환
+// 우선순위: applied_dates > start_date~end_date > date
+// (timezone drift 방지를 위해 로컬 Date 사용)
+const expandRequestDates = (req) => {
+    if (Array.isArray(req.applied_dates) && req.applied_dates.length > 0) {
+        return req.applied_dates.map(d => String(d)).filter(d => /^\d{4}-\d{2}-\d{2}/.test(d));
+    }
+    if (req.start_date && req.end_date) {
+        const out = [];
+        const [sy, sm, sd] = String(req.start_date).split('-').map(Number);
+        const [ey, em, ed] = String(req.end_date).split('-').map(Number);
+        const start = new Date(sy, sm - 1, sd);
+        const end = new Date(ey, em - 1, ed);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const y = d.getFullYear(), mo = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
+            out.push(`${y}-${mo}-${dd}`);
+        }
+        return out;
+    }
+    if (req.date) return [String(req.date)];
+    return [];
+};
+
+// 캘린더 그리드 셀 생성 — 월의 1일이 포함된 주(일~토) 시작 ~ 마지막 날이 포함된 주 끝
+// 각 셀: { dateStr, day, isCurrentMonth, isToday, isSunday, isSaturday }
+const buildCalendarGrid = (ymStr) => {
+    const [y, m] = ymStr.split('-').map(Number);
+    const firstOfMonth = new Date(y, m - 1, 1);
+    const lastOfMonth = new Date(y, m, 0); // 다음 달 0일 = 이번 달 마지막 날
+    const startDow = firstOfMonth.getDay(); // 0=일
+    const gridStart = new Date(y, m - 1, 1 - startDow);
+    const totalDays = lastOfMonth.getDate();
+    const rows = Math.ceil((startDow + totalDays) / 7);
+    const cells = [];
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    for (let i = 0; i < rows * 7; i++) {
+        const d = new Date(gridStart);
+        d.setDate(d.getDate() + i);
+        const yy = d.getFullYear(), mm = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${yy}-${mm}-${dd}`;
+        const dow = d.getDay();
+        cells.push({
+            dateStr,
+            day: d.getDate(),
+            isCurrentMonth: d.getMonth() === m - 1,
+            isToday: dateStr === todayStr,
+            isSunday: dow === 0,
+            isSaturday: dow === 6,
+        });
+    }
+    return cells;
+};
+
+const addMonths = (ymStr, delta) => {
+    const [y, m] = ymStr.split('-').map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+const todayYM = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
 // 기간 표시 문자열 (단일/연속/비연속 처리)
@@ -133,8 +197,9 @@ export default function LeaveView({
 }) {
     // ─── 팀 필터 state (LeaveView 내부 한정) ──────────────────
     const [selectedTeam, setSelectedTeam] = useState('ALL');
-    // ─── 이번 달 연차 모달 state ─────────────────────────────
+    // ─── 이번 달 연차 캘린더 모달 state ──────────────────────
     const [showMonthlyModal, setShowMonthlyModal] = useState(false);
+    const [calendarYM, setCalendarYM] = useState(() => todayYM()); // 캘린더 월 이동 (오늘 기준 default)
 
     // 팀 필터 변경 시 우측 상세 패널 초기화 — handleSelectUser(null)은 App.jsx에서 안전 처리됨
     const handleTeamSelect = (team) => {
@@ -192,6 +257,62 @@ export default function LeaveView({
     const monthlyTotalCount = monthlyRequests.length;
     const monthlyPendingCount = monthlyRequests.filter(r => PENDING_REQ_STATUSES.has(r.status)).length;
     const monthlyApprovedCount = monthlyRequests.filter(r => APPROVED_REQ_STATUSES.has(r.status)).length;
+
+    // ─── 캘린더 모달용: calendarYM 기준 데이터 ─────────────────
+    const calendarCells = useMemo(() => buildCalendarGrid(calendarYM), [calendarYM]);
+
+    // 날짜별 신청 entries 매핑 — 활성 5종만, 각 신청을 일자별로 펼침
+    const entriesByDate = useMemo(() => {
+        const map = new Map();
+        if (!Array.isArray(leaveRequests)) return map;
+        for (const r of leaveRequests) {
+            if (!ACTIVE_REQ_STATUSES.has(r.status)) continue;
+            const dates = expandRequestDates(r);
+            if (dates.length === 0) continue;
+            const emp = userByUid.get(String(r.user_id));
+            const entry = {
+                id: r.id,
+                name: emp?.name || r.user_id || '직원 미확인',
+                team: emp ? teamOf(emp) : '-',
+                type: r.type || '',
+                typeLabel: TYPE_LABEL[r.type] || r.type || '',
+                status: r.status,
+                statusLabel: STATUS_LABEL[r.status] || r.status,
+                isPending: PENDING_REQ_STATUSES.has(r.status),
+                isApproved: APPROVED_REQ_STATUSES.has(r.status),
+            };
+            for (const d of dates) {
+                if (!map.has(d)) map.set(d, []);
+                map.get(d).push(entry);
+            }
+        }
+        // 각 날짜별 정렬: 승인완료 → 승인대기 순(상태 동일 시 직원명 오름차순)
+        for (const [d, arr] of map.entries()) {
+            arr.sort((a, b) => {
+                if (a.isApproved !== b.isApproved) return a.isApproved ? -1 : 1;
+                return String(a.name).localeCompare(String(b.name));
+            });
+        }
+        return map;
+    }, [leaveRequests, userByUid]);
+
+    // calendarYM 월 통계 (모달 상단 요약용)
+    const calendarStats = useMemo(() => {
+        let total = 0, pending = 0, approved = 0;
+        const seenIds = new Set();
+        for (const cell of calendarCells) {
+            if (!cell.isCurrentMonth) continue;
+            const arr = entriesByDate.get(cell.dateStr) || [];
+            for (const e of arr) {
+                if (seenIds.has(e.id)) continue;
+                seenIds.add(e.id);
+                total++;
+                if (e.isPending) pending++;
+                else if (e.isApproved) approved++;
+            }
+        }
+        return { total, pending, approved };
+    }, [calendarCells, entriesByDate]);
 
     // ─── 상단 카드용 집계 (LeaveView 내부에서만 안전하게 계산) ──
     // 연차관리 화면 기준: 재직/퇴사 모두 "아르바이트"로 한정 (카드 숫자와 클릭 후 목록 일관성)
@@ -279,14 +400,14 @@ export default function LeaveView({
                         </div>
                     </div>
 
-                    {/* 이번 달 연차 — 클릭 시 월별 신청 목록 모달 표시 */}
+                    {/* 이번 달 연차 — 클릭 시 월간 캘린더 모달 표시 (모달 월은 calendarYM 별도 관리) */}
                     <div
-                        onClick={() => setShowMonthlyModal(true)}
+                        onClick={() => { setCalendarYM(todayYM()); setShowMonthlyModal(true); }}
                         className="p-5 border-2 bg-[#f5f3e8] border-[#c5c0b0] cursor-pointer hover:border-[#5d6c4a] hover:bg-[#e8e4d4] transition-colors"
                     >
                         <p className="text-[10px] font-bold text-[#6b7b54] uppercase tracking-wider mb-1">이번 달 연차</p>
                         <h3 className="text-2xl font-black text-[#3d472f]">{monthlyTotalCount}건</h3>
-                        <p className="text-[10px] text-[#7a7565] mt-1">신청 내역 기준</p>
+                        <p className="text-[10px] text-[#7a7565] mt-1">이번 달 신청 내역 기준</p>
                     </div>
 
                     {/* 퇴사 인원 — 연차관리 화면 기준 = 퇴사 아르바이트 */}
@@ -455,66 +576,108 @@ export default function LeaveView({
                 )}
             </div>
 
-            {/* ── 이번 달 연차 현황 모달 ── */}
+            {/* ── 이번 달 연차 캘린더 모달 ── */}
             {showMonthlyModal && (
                 <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={() => setShowMonthlyModal(false)}>
-                    <div className="bg-[#f5f3e8] shadow-lg w-full max-w-2xl max-h-[85vh] flex flex-col border-2 border-[#3d472f]" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-[#f5f3e8] shadow-lg w-full max-w-5xl max-h-[90vh] flex flex-col border-2 border-[#3d472f]" onClick={(e) => e.stopPropagation()}>
+                        {/* 상단 바 */}
                         <div className="p-4 border-b-2 border-[#3d472f] flex justify-between items-center bg-[#5d6c4a]">
                             <h3 className="font-bold text-[#f5f3e8] flex items-center gap-2">
-                                <Calendar size={18} /> 이번 달 연차 현황
+                                <Calendar size={18} /> 연차 캘린더
                             </h3>
                             <button onClick={() => setShowMonthlyModal(false)} className="text-[#d4dcc0] hover:text-[#f5f3e8]"><X size={20} /></button>
                         </div>
+
+                        {/* 월 이동 + 요약 */}
                         <div className="p-4 border-b border-[#d4cfbf] bg-[#faf8f0]">
-                            <div className="flex items-baseline justify-between flex-wrap gap-2">
-                                <p className="text-sm font-bold text-[#3d472f]">{currentYM.replace('-', '년 ')}월</p>
+                            <div className="flex items-center justify-between flex-wrap gap-3">
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setCalendarYM(addMonths(calendarYM, -1))}
+                                        className="px-2 py-1.5 text-xs bg-[#f5f3e8] text-[#5d6c4a] hover:bg-[#e8e4d4] border border-[#d4cfbf] inline-flex items-center gap-1"
+                                    >
+                                        <ChevronLeft size={14} /> 이전
+                                    </button>
+                                    <span className="text-base font-black text-[#3d472f] min-w-[110px] text-center">{calendarYM.split('-')[0]}년 {Number(calendarYM.split('-')[1])}월</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCalendarYM(addMonths(calendarYM, 1))}
+                                        className="px-2 py-1.5 text-xs bg-[#f5f3e8] text-[#5d6c4a] hover:bg-[#e8e4d4] border border-[#d4cfbf] inline-flex items-center gap-1"
+                                    >
+                                        다음 <ChevronRight size={14} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCalendarYM(todayYM())}
+                                        className={`px-3 py-1.5 text-xs font-bold border ${calendarYM === todayYM() ? 'bg-[#5d6c4a] text-[#f5f3e8] border-[#3d472f]' : 'bg-[#f5f3e8] text-[#5d6c4a] border-[#d4cfbf] hover:bg-[#e8e4d4]'}`}
+                                    >
+                                        이번 달
+                                    </button>
+                                </div>
                                 <div className="flex gap-3 text-xs">
-                                    <span className="text-[#7a7565]">총 <strong className="text-[#3d472f]">{monthlyTotalCount}</strong>건</span>
-                                    <span className="text-[#a78049]">승인대기 <strong>{monthlyPendingCount}</strong>건</span>
-                                    <span className="text-[#5d6c4a]">승인완료 <strong>{monthlyApprovedCount}</strong>건</span>
+                                    <span className="text-[#7a7565]">총 <strong className="text-[#3d472f]">{calendarStats.total}</strong>건</span>
+                                    <span className="text-[#a78049]">승인대기 <strong>{calendarStats.pending}</strong>건</span>
+                                    <span className="text-[#5d6c4a]">승인완료 <strong>{calendarStats.approved}</strong>건</span>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto">
-                            {monthlyRequests.length === 0 ? (
-                                <div className="p-8 text-center text-xs text-[#9a9585]">이번 달 연차 신청 내역이 없습니다.</div>
-                            ) : (
-                                <table className="w-full text-xs">
-                                    <thead className="bg-[#f5f3e8] sticky top-0 z-10 border-b border-[#d4cfbf] text-[#5d6c4a] uppercase tracking-wider font-bold">
-                                        <tr>
-                                            <th className="p-2 pl-4 text-left">직원</th>
-                                            <th className="p-2 text-center">소속</th>
-                                            <th className="p-2 text-left">기간</th>
-                                            <th className="p-2 text-center">유형</th>
-                                            <th className="p-2 text-center">일수</th>
-                                            <th className="p-2 pr-4 text-center">상태</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-[#ebe8db]">
-                                        {monthlyRequests.map(r => {
-                                            const isPending = PENDING_REQ_STATUSES.has(r.status);
-                                            const isApproved = APPROVED_REQ_STATUSES.has(r.status);
-                                            return (
-                                                <tr key={r.id} className="hover:bg-[#f5f3e8]">
-                                                    <td className="p-2 pl-4 font-bold text-[#3d472f]">{r._employeeName}</td>
-                                                    <td className="p-2 text-center">
-                                                        <span className="text-[10px] font-bold bg-[#f5f3e8] border border-[#d4cfbf] px-1.5 py-0.5">{r._employeeTeam}</span>
-                                                    </td>
-                                                    <td className="p-2 font-mono text-[11px] text-[#5a5545]">{r._rangeLabel}</td>
-                                                    <td className="p-2 text-center text-[#5a5545]">{TYPE_LABEL[r.type] || r.type || '-'}</td>
-                                                    <td className="p-2 text-center font-bold text-[#5a5545]">{fmtDays(r.day_count ?? 1)}</td>
-                                                    <td className="p-2 pr-4 text-center">
-                                                        <span className={`inline-block px-2 py-0.5 text-[10px] font-bold border ${isPending ? 'bg-[#fdf6e3] text-[#a06820] border-[#d8c490]' : isApproved ? 'bg-[#e8ebd8] text-[#5d6c4a] border-[#b8c4a0]' : 'bg-[#f5f3e8] text-[#7a7565] border-[#d4cfbf]'}`}>
-                                                            {STATUS_LABEL[r.status] || r.status}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            )}
+
+                        {/* 캘린더 그리드 */}
+                        <div className="flex-1 overflow-auto p-3 bg-[#faf8f0]">
+                            <div className="grid grid-cols-7 gap-px bg-[#d4cfbf] border border-[#d4cfbf]">
+                                {['일', '월', '화', '수', '목', '금', '토'].map((dn, i) => (
+                                    <div key={dn} className={`p-2 text-center text-[11px] font-bold uppercase tracking-wide ${i === 0 ? 'text-[#8d5a4d]' : i === 6 ? 'text-[#5a6878]' : 'text-[#5d6c4a]'} bg-[#e8e4d4]`}>
+                                        {dn}
+                                    </div>
+                                ))}
+                                {calendarCells.map(cell => {
+                                    const arr = entriesByDate.get(cell.dateStr) || [];
+                                    const dayColor = cell.isSunday ? 'text-[#8d5a4d]' : cell.isSaturday ? 'text-[#5a6878]' : 'text-[#3d472f]';
+                                    const bgColor = cell.isCurrentMonth ? 'bg-[#faf8f0]' : 'bg-[#f0eee0]';
+                                    return (
+                                        <div
+                                            key={cell.dateStr}
+                                            className={`min-h-[90px] p-1.5 ${bgColor} ${cell.isCurrentMonth ? '' : 'opacity-60'} ${cell.isToday ? 'ring-2 ring-inset ring-[#5d6c4a]' : ''}`}
+                                        >
+                                            <div className={`text-[11px] font-bold ${dayColor} mb-1 flex items-center justify-between`}>
+                                                <span>{cell.day}</span>
+                                                {arr.length > 0 && cell.isCurrentMonth && (
+                                                    <span className="text-[9px] font-normal text-[#9a9585]">{arr.length}</span>
+                                                )}
+                                            </div>
+                                            {cell.isCurrentMonth && arr.slice(0, 4).map((e, idx) => (
+                                                <div
+                                                    key={`${e.id}-${idx}`}
+                                                    className={`text-[10px] leading-tight px-1 py-0.5 mb-0.5 border truncate ${e.isPending ? 'bg-[#fdf6e3] text-[#7a5a1a] border-[#d8c490]' : 'bg-[#e8ebd8] text-[#3d472f] border-[#b8c4a0]'}`}
+                                                    title={`${e.name} · ${e.typeLabel} · ${e.statusLabel} · ${e.team}`}
+                                                >
+                                                    <span className="font-bold">{e.name}</span>
+                                                    <span className="text-[#7a7565]"> · {e.typeLabel}</span>
+                                                </div>
+                                            ))}
+                                            {cell.isCurrentMonth && arr.length > 4 && (
+                                                <div className="text-[10px] text-[#7a7565] font-bold mt-0.5">+{arr.length - 4}명</div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* 범례 */}
+                            <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-[#7a7565]">
+                                <span className="inline-flex items-center gap-1">
+                                    <span className="inline-block w-3 h-3 bg-[#fdf6e3] border border-[#d8c490]" /> 승인대기
+                                </span>
+                                <span className="inline-flex items-center gap-1">
+                                    <span className="inline-block w-3 h-3 bg-[#e8ebd8] border border-[#b8c4a0]" /> 승인완료
+                                </span>
+                                <span className="inline-flex items-center gap-1">
+                                    <span className="inline-block w-3 h-3 ring-2 ring-inset ring-[#5d6c4a] bg-[#faf8f0]" /> 오늘
+                                </span>
+                            </div>
                         </div>
+
                         <div className="p-3 border-t border-[#d4cfbf] flex justify-end bg-[#faf8f0]">
                             <button onClick={() => setShowMonthlyModal(false)} className="px-4 py-2 text-xs bg-[#f5f3e8] text-[#5a5545] font-bold hover:bg-[#e0ddd0] border border-[#d4cfbf]">닫기</button>
                         </div>
