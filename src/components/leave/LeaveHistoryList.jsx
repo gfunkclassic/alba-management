@@ -70,9 +70,18 @@ export default function LeaveHistoryList({ refreshKey }) {
 
     const filtered = filterStatus === 'ALL' ? requests : requests.filter(r => r.status === filterStatus);
     const years = [new Date().getFullYear(), new Date().getFullYear() - 1];
-    // 신청자 취소 가능 상태: 최종 승인 전 단계까지만(이번 PR에서는 SUBMITTED, TEAM_APPROVED 한정).
-    // FINAL_PENDING/CEO_PENDING은 정책 미확정으로 기존과 동일하게 미노출 유지.
-    const CANCELLABLE = new Set(['SUBMITTED', 'TEAM_APPROVED']);
+    // 신청자 취소 정책 (PR #113):
+    //  - SUBMITTED: 팀 무관 본인 취소 허용 (팀장 승인 전)
+    //  - TEAM_APPROVED: 카페(skipTeamApproval) 한정 본인 취소 허용. 일반 팀의 TEAM_APPROVED는
+    //    팀장이 이미 결재한 상태이므로 신청자 임의 취소 차단.
+    //  - 그 외(FINAL_PENDING/CEO_PENDING/FINAL_APPROVED/REJECTED/CANCELLED): 미노출.
+    // firestore.rules update 절과 동일 정책으로 정합. PR #111의 PENDING_FOR_COUNT(대기 카운트)는 유지.
+    const isCafeTeam = (req) => req.team_id === '카페';
+    const canCancelRequest = (req) => {
+        if (req.status === 'SUBMITTED') return true;
+        if (req.status === 'TEAM_APPROVED' && isCafeTeam(req)) return true;
+        return false;
+    };
     const PENDING_FOR_COUNT = new Set(['SUBMITTED', 'TEAM_APPROVED', 'FINAL_PENDING', 'CEO_PENDING']);
 
     return (
@@ -128,7 +137,7 @@ export default function LeaveHistoryList({ refreshKey }) {
                                     </span>
                                 </td>
                                 <td className="px-1 py-2 text-center whitespace-nowrap">
-                                    {CANCELLABLE.has(req.status) ? (
+                                    {canCancelRequest(req) ? (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); requestCancel(req.id); }}
                                             disabled={cancelling === req.id}
