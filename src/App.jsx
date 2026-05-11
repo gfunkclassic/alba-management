@@ -543,9 +543,12 @@ function HRPayrollApp() {
             setPendingApprovalCount(0);
             return;
         }
+        // 실장(approver_senior) 배지: FinalApprovalInbox '내 승인함' 노출 기준(TEAM_APPROVED, FINAL_PENDING)과 정렬.
+        // PR #108로 팀장 대리승인 탭이 숨겨져 SUBMITTED는 화면에서 처리 경로가 없으므로 카운트에서 제외.
+        // 대표(approver_final)는 기존대로 CEO_PENDING만.
         const statuses = role === 'approver_final'
             ? ['CEO_PENDING']
-            : ['SUBMITTED', 'TEAM_APPROVED', 'FINAL_PENDING'];
+            : ['TEAM_APPROVED', 'FINAL_PENDING'];
         const q = query(collection(db, 'leave_requests'), where('status', 'in', statuses));
         const unsub = onSnapshot(q, (snap) => {
             let count = 0;
