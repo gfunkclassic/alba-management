@@ -332,13 +332,12 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
       return;
     }
 
-    // PR-Approver-1: 1차 승인자 선택 검증 (skipTeamApproval 팀 제외)
+    // PR-Approver-1 hotfix: 1차 승인자 선택은 "skipTeamApproval 미적용 + 후보 1명 이상" 일 때만 필수.
+    // skipTeamApproval(카페 등) 팀이거나 후보가 0명이면 승인자 정보 없이 제출 → AuthContext의
+    // 기존 skipTeamApproval 분기 / V1 team_id 라우팅이 그대로 처리.
     let approverPayload = {};
-    if (!skipTeamApproval) {
-      if (approverCandidates.length === 0) {
-        setResult({ success: false, message: '소속 팀에 지정 가능한 1차 승인자(팀장)가 없습니다. 관리자에게 문의해주세요.' });
-        return;
-      }
+    const isApproverRequired = !skipTeamApproval && approverCandidates.length > 0;
+    if (isApproverRequired) {
       if (!selectedTeamApproverUid) {
         setResult({ success: false, message: '1차 승인자를 선택해주세요.' });
         return;
@@ -528,17 +527,16 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
           </div>
         </div>
 
-        {/* 1차 승인자 선택 (PR-Approver-1) */}
-        {!skipTeamApproval && (
+        {/* 1차 승인자 선택 (PR-Approver-1)
+            hotfix: skipTeamApproval(카페 등) 팀이거나, 로딩 완료 후 후보자가 0명이면
+            아예 렌더링하지 않음. 후보자가 1명 이상이고 skipTeamApproval이 아닌 경우에만
+            라벨/드롭다운/안내문 노출. 빨간 "후보 없음" 안내는 운영상 오해 소지가 있어 제거. */}
+        {!skipTeamApproval && (approverLoading || approverCandidates.length > 0) && (
           <div>
             <label className="text-[10px] font-bold text-[#7a7565] block mb-1">1차 승인자 *</label>
             {approverLoading ? (
               <div className="px-2 py-2 text-xs text-[#9a9585] border border-[#d4cfbf] bg-[#faf8f0]">
                 <Loader size={12} className="inline animate-spin mr-1" /> 1차 승인자 목록을 불러오는 중...
-              </div>
-            ) : approverCandidates.length === 0 ? (
-              <div className="px-2 py-2 text-xs font-bold border bg-[#f5ebe7] border-[#cba79c] text-[#8d5a4d]">
-                소속 팀에 지정 가능한 1차 승인자(팀장)가 없습니다. 관리자에게 문의해주세요.
               </div>
             ) : (
               <>
@@ -589,7 +587,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
 
         <button
           type="submit"
-          disabled={loading || (!skipTeamApproval && (approverLoading || approverCandidates.length === 0))}
+          disabled={loading || (!skipTeamApproval && approverLoading) || (!skipTeamApproval && approverCandidates.length > 0 && !selectedTeamApproverUid)}
           className="w-full bg-[#5d6c4a] text-[#f5f3e8] py-3 font-bold text-sm border-2 border-[#3d472f] hover:bg-[#4a5639] disabled:bg-[#c5c0b0] disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading
