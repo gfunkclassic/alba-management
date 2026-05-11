@@ -85,6 +85,12 @@ service cloud.firestore {
       allow create: if isAuthed() &&
         request.resource.data.user_id == request.auth.uid &&
         request.resource.data.status == 'SUBMITTED';
+      // skipTeamApproval 예외 (카페): 팀장 승인 생략 팀은 최초 status를 TEAM_APPROVED로
+      // 직접 생성할 수 있도록 허용. team_id는 '카페' 한정, 본인 신청에만 적용.
+      allow create: if isAuthed() &&
+        request.resource.data.user_id == request.auth.uid &&
+        request.resource.data.team_id == '카페' &&
+        request.resource.data.status == 'TEAM_APPROVED';
       // 업데이트: 본인의 SUBMITTED → CANCELLED 취소만 허용
       // 나머지 모든 상태 변경(TEAM_APPROVED, FINAL_APPROVED, REJECTED)은 Functions 전용
       allow update: if isAuthed() &&
