@@ -71,9 +71,13 @@ service cloud.firestore {
 
     // ─── leave_requests ────────────────────────────────────────
     match /leave_requests/{reqId} {
+      // PR-Approver-1: 1차 승인자 지정(uid) 또는 같은 팀 매니저(레거시) 둘 다 read 허용
       allow read: if isAuthed() && (
         resource.data.user_id == request.auth.uid ||
-        ((myRole() == 'TEAM_APPROVER' || myRoleGroup() == 'manager') && resource.data.team_id == myTeam()) ||
+        ((myRole() == 'TEAM_APPROVER' || myRoleGroup() == 'manager') && (
+          resource.data.get('team_approver_uid', null) == request.auth.uid ||
+          (resource.data.get('team_approver_uid', null) == null && resource.data.team_id == myTeam())
+        )) ||
         isActiveDelegatee(resource.data.team_id) ||
         isAdmin()
       );

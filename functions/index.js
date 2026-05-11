@@ -63,8 +63,11 @@ exports.approveTeamLeave = onCall({ region: 'asia-northeast3' }, async (req) => 
         const isFinalApproverActor = actor.role === 'FINAL_APPROVER' || actor.roleGroup === 'approver_senior' || actor.roleGroup === 'approver_final';
 
         if (isTeamApprover) {
-            if (actor.team_id !== leaveReq.team_id) {
-                throw new HttpsError('permission-denied', '본인 팀의 신청만 처리할 수 있습니다.');
+            // PR-Approver-1: V2(team_approver_uid 존재) → 지정된 본인만 / V1(없음) → 같은 team_id 매니저 허용
+            const isSelectedApprover = !!leaveReq.team_approver_uid && actorUid === leaveReq.team_approver_uid;
+            const isLegacyTeamMatch = !leaveReq.team_approver_uid && actor.team_id === leaveReq.team_id;
+            if (!isSelectedApprover && !isLegacyTeamMatch) {
+                throw new HttpsError('permission-denied', '본인이 1차 승인자로 지정된 신청만 처리할 수 있습니다.');
             }
         } else if (isFinalApproverActor) {
             isFinalProxy = true;
