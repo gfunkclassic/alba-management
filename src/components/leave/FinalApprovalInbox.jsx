@@ -175,18 +175,10 @@ export default function FinalApprovalInbox() {
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* 모드 토글 */}
-                    <div className="flex border border-[#d4cfbf] bg-[#faf8f0]">
-                        {[
-                            { key: 'FINAL', label: '내 승인함' },
-                            { key: 'PROXY', label: '팀장 대리승인' },
-                        ].map(m => (
-                            <button key={m.key} onClick={() => setMode(m.key)}
-                                className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${mode === m.key ? 'bg-[#5d6c4a] text-[#f5f3e8]' : 'text-[#5a5545] hover:bg-[#f5f3e8]'}`}>
-                                {m.label}
-                            </button>
-                        ))}
-                    </div>
+                    {/* 모드 토글: '팀장 대리승인' 탭 숨김 처리 (PR-Approver-1 이후 운영 단순화).
+                        mode state / PROXY 분기 로직 / Cloud Functions(proxyTeamApprove 등)는
+                        롤백 안전성을 위해 그대로 유지. setMode는 호출 경로가 없으므로 사실상
+                        항상 'FINAL'로 고정되어 동작합니다. */}
                     <button onClick={load} className="border border-[#d4cfbf] p-1.5 text-[#5a5545] hover:bg-[#f5f3e8]">
                         <RefreshCw size={14} />
                     </button>
@@ -224,7 +216,7 @@ export default function FinalApprovalInbox() {
                                 {isFinalMode ? (
                                     <span>
                                         현재 내가 승인할 연차 신청이 없습니다.<br />
-                                        <span className="text-[#5d6c4a] font-bold mt-1 inline-block">팀장 승인 단계의 신청은 ‘팀장 대리승인’에서 확인할 수 있습니다.</span>
+                                        <span className="text-[#5d6c4a] font-bold mt-1 inline-block">팀장 승인 완료된 건이 올라오면 이 화면에서 처리합니다.</span>
                                         <br /><span className="text-[10px] text-[#9a9585] mt-2 inline-block">결재 흐름: 팀장 승인 → 실장 병렬 승인 → 대표 최종 승인</span>
                                     </span>
                                 ) : (
