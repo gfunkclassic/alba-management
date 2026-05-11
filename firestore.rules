@@ -98,12 +98,14 @@ service cloud.firestore {
         resource.data.status == 'SUBMITTED' &&
         request.resource.data.status == 'CANCELLED' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']);
-      // PR #112: 팀장 승인 완료/생략 후 실장 승인 대기 단계(TEAM_APPROVED)에서도
-      // 본인 신청자는 취소 가능. 최종 승인 전 단계이며 used_days 차감 전이므로
-      // leave_balance 보정 불필요. FINAL_PENDING/CEO_PENDING/FINAL_APPROVED/REJECTED
-      // 단계 취소는 이 PR에서 열지 않음.
+      // PR #113: TEAM_APPROVED → CANCELLED 본인 취소를 카페(skipTeamApproval)로 한정.
+      // 카페는 팀장 승인 생략 팀이라 TEAM_APPROVED가 "팀장 승인 완료"가 아닌 "신청 직후"
+      // 의미이므로 실장 승인 전까지 본인 취소를 허용. 일반 팀의 TEAM_APPROVED는 팀장이
+      // 실제로 결재한 상태라 신청자가 임의로 취소해 결재를 무력화하지 못하도록 차단.
+      // FINAL_PENDING/CEO_PENDING/FINAL_APPROVED/REJECTED 단계 취소는 이 PR에서 열지 않음.
       allow update: if isAuthed() &&
         resource.data.user_id == request.auth.uid &&
+        resource.data.team_id == '카페' &&
         resource.data.status == 'TEAM_APPROVED' &&
         request.resource.data.status == 'CANCELLED' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']);
