@@ -447,13 +447,38 @@ export function AuthProvider({ children }) {
     };
 
     // 본인 신청 내역 조회 (ALBA)
+    // 정렬 정책:
+    //  1) 진행 중(SUBMITTED/TEAM_APPROVED/FINAL_PENDING/CEO_PENDING) → 종료(FINAL_APPROVED/REJECTED/CANCELLED) 순
+    //  2) 각 그룹 내부: created_at 최신순 → updated_at → date fallback
+    //  3) Firestore Timestamp/ISO 문자열/undefined 혼재 안전 처리
     const getMyLeaveRequests = async (year = null) => {
         const uid = auth.currentUser.uid;
         let q = query(collection(db, 'leave_requests'), where('user_id', '==', uid));
         const snap = await getDocsFromServer(q);
         let results = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         if (year) results = results.filter(r => r.date?.startsWith(String(year)));
-        return results.sort((a, b) => b.date?.localeCompare(a.date));
+
+        const ACTIVE_STATUSES = new Set(['SUBMITTED', 'TEAM_APPROVED', 'FINAL_PENDING', 'CEO_PENDING']);
+        // Firestore Timestamp 객체 / ISO 문자열 / undefined 를 모두 비교 가능한 number(ms)로 정규화.
+        // 비교 키 부재 시 0 반환 → 최후순위로 밀림.
+        const toMs = (v) => {
+            if (!v) return 0;
+            if (typeof v === 'object' && typeof v.toMillis === 'function') return v.toMillis();
+            if (typeof v === 'object' && typeof v.seconds === 'number') return v.seconds * 1000;
+            if (typeof v === 'string') { const t = Date.parse(v); return Number.isFinite(t) ? t : 0; }
+            if (v instanceof Date) return v.getTime();
+            return 0;
+        };
+        const rankWithin = (r) => toMs(r.created_at) || toMs(r.updated_at) || toMs(r.date);
+        return results.sort((a, b) => {
+            const aActive = ACTIVE_STATUSES.has(a.status) ? 1 : 0;
+            const bActive = ACTIVE_STATUSES.has(b.status) ? 1 : 0;
+            if (aActive !== bActive) return bActive - aActive; // 진행 중 우선
+            const diff = rankWithin(b) - rankWithin(a);
+            if (diff !== 0) return diff;
+            // 동률 fallback: date 문자열 내림차순 (기존 동작 호환)
+            return (b.date || '').localeCompare(a.date || '');
+        });
     };
 
     // 잔여 연차 조회 (ALBA)
