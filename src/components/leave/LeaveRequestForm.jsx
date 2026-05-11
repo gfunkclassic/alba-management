@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { CalendarPlus, AlertCircle, Check, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { KR_HOLIDAYS } from '../../data/holidays';
 
@@ -175,6 +177,49 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
   // FULL: 개별 날짜 누적 선택
   const [selectedDates, setSelectedDates] = useState([]); // 선택된 날짜 배열 (정렬됨)
 
+  // PR-Approver-1: 1차 승인자 선택 (uid 기반)
+  const [approverCandidates, setApproverCandidates] = useState([]);
+  const [selectedTeamApproverUid, setSelectedTeamApproverUid] = useState('');
+  const [skipTeamApproval, setSkipTeamApproval] = useState(false);
+  const [approverLoading, setApproverLoading] = useState(true);
+
+  // 후보자 + skipTeamApproval 로드
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setApproverLoading(true);
+      try {
+        const teamId = userProfile?.team_id || '';
+        // skipTeamApproval 조회 (카페 등)
+        let skip = false;
+        try {
+          const cfgSnap = await getDoc(doc(db, 'settings', 'team_approval_config'));
+          if (cfgSnap.exists()) {
+            const teamCfg = cfgSnap.data()?.teams?.[teamId];
+            if (teamCfg?.skipTeamApproval === true) skip = true;
+          }
+        } catch { /* 무시: 기본 false */ }
+
+        let candidates = [];
+        if (teamId && !skip) {
+          const allUsers = await getAllUsers();
+          candidates = allUsers.filter(u =>
+            u.team_id === teamId && u.roleGroup === 'manager' && (u.is_active !== false)
+          );
+        }
+        if (cancelled) return;
+        setSkipTeamApproval(skip);
+        setApproverCandidates(candidates);
+        if (candidates.length === 1) {
+          setSelectedTeamApproverUid(candidates[0].uid);
+        }
+      } finally {
+        if (!cancelled) setApproverLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userProfile?.team_id, getAllUsers]);
+
   const handleMonthChange = (dir) => {
     let m = viewMonth + dir;
     let y = viewYear;
@@ -287,11 +332,35 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
       return;
     }
 
+    // PR-Approver-1: 1차 승인자 선택 검증 (skipTeamApproval 팀 제외)
+    let approverPayload = {};
+    if (!skipTeamApproval) {
+      if (approverCandidates.length === 0) {
+        setResult({ success: false, message: '소속 팀에 지정 가능한 1차 승인자(팀장)가 없습니다. 관리자에게 문의해주세요.' });
+        return;
+      }
+      if (!selectedTeamApproverUid) {
+        setResult({ success: false, message: '1차 승인자를 선택해주세요.' });
+        return;
+      }
+      const picked = approverCandidates.find(c => c.uid === selectedTeamApproverUid);
+      if (!picked) {
+        setResult({ success: false, message: '선택한 1차 승인자가 올바르지 않습니다. 다시 선택해주세요.' });
+        return;
+      }
+      approverPayload = {
+        team_approver_uid: picked.uid,
+        team_approver_name: picked.name || '',
+        team_approver_email: picked.email || '',
+        approval_line_version: 'V2_USER_SELECTED',
+      };
+    }
+
     setResult(null);
     setLoading(true);
     try {
       // 단일 문서 + applied_dates 배열 저장
-      await submitLeaveRequest({ dates: datesToSubmit, type, reason });
+      await submitLeaveRequest({ dates: datesToSubmit, type, reason, ...approverPayload });
 
       const label = LEAVE_TYPES.find(t => t.value === type)?.label || type;
       const datesLabel =
@@ -300,11 +369,18 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
           : `${datesToSubmit[0]} ~ ${datesToSubmit[datesToSubmit.length - 1]} (${datesToSubmit.length}일)`;
       setResult({ success: true, message: `${datesLabel} ${label} 신청이 완료되었습니다.` });
 
-      // 팀 관리자 알림
+      // 알림 발송: V2(승인자 선택)면 선택된 1차 승인자에게만,
+      // 그 외(skipTeamApproval 등 V1)면 기존과 동일하게 팀 매니저 전체에게.
       try {
-        const allUsers = await getAllUsers();
         const promises = [];
-        if (userProfile?.team_id) {
+        if (approverPayload.team_approver_uid) {
+          promises.push(sendNotification(approverPayload.team_approver_uid, 'LEAVE_SUBMITTED', {
+            user_name: userProfile?.name,
+            date: datesToSubmit[0],
+            type,
+          }));
+        } else if (userProfile?.team_id) {
+          const allUsers = await getAllUsers();
           allUsers
             .filter(u => u.team_id === userProfile.team_id && u.roleGroup === 'manager')
             .forEach(ap => {
@@ -452,6 +528,40 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
           </div>
         </div>
 
+        {/* 1차 승인자 선택 (PR-Approver-1) */}
+        {!skipTeamApproval && (
+          <div>
+            <label className="text-[10px] font-bold text-[#7a7565] block mb-1">1차 승인자 *</label>
+            {approverLoading ? (
+              <div className="px-2 py-2 text-xs text-[#9a9585] border border-[#d4cfbf] bg-[#faf8f0]">
+                <Loader size={12} className="inline animate-spin mr-1" /> 1차 승인자 목록을 불러오는 중...
+              </div>
+            ) : approverCandidates.length === 0 ? (
+              <div className="px-2 py-2 text-xs font-bold border bg-[#f5ebe7] border-[#cba79c] text-[#8d5a4d]">
+                소속 팀에 지정 가능한 1차 승인자(팀장)가 없습니다. 관리자에게 문의해주세요.
+              </div>
+            ) : (
+              <>
+                <select
+                  value={selectedTeamApproverUid}
+                  onChange={e => setSelectedTeamApproverUid(e.target.value)}
+                  className="w-full p-2 border border-[#d4cfbf] bg-[#faf8f0] text-sm focus:border-[#5d6c4a] outline-none"
+                >
+                  <option value="">— 1차 승인자를 선택해주세요 —</option>
+                  {approverCandidates.map(c => (
+                    <option key={c.uid} value={c.uid}>
+                      {c.name}{c.email ? ` (${c.email})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-[#7a7565] mt-1">
+                  선택한 팀장에게만 1차 승인 알림이 전달되고, 해당 팀장이 승인함에서 처리합니다.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
         {/* 사유 */}
         <div>
           <label className="text-[10px] font-bold text-[#7a7565] block mb-1">사유 *</label>
@@ -479,7 +589,7 @@ export default function LeaveRequestForm({ onSubmitted, userProfile, balance, pe
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || (!skipTeamApproval && (approverLoading || approverCandidates.length === 0))}
           className="w-full bg-[#5d6c4a] text-[#f5f3e8] py-3 font-bold text-sm border-2 border-[#3d472f] hover:bg-[#4a5639] disabled:bg-[#c5c0b0] disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading

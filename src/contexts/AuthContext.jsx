@@ -351,7 +351,13 @@ export function AuthProvider({ children }) {
 
     // 연차 신청 (ALBA) — 중복 체크 포함 + 카페 팀 skipTeamApproval 처리
     // dates[]: 복수 날짜 배열 (FULL 연속 신청) / date: 단일 날짜 문자열 (하위호환)
-    const submitLeaveRequest = async ({ dates, date, type, reason = '' }) => {
+    const submitLeaveRequest = async ({
+        dates, date, type, reason = '',
+        team_approver_uid = null,
+        team_approver_name = '',
+        team_approver_email = '',
+        approval_line_version = 'V1_TEAM_BASED',
+    }) => {
         // dates[] 우선 사용, 없으면 단일 date를 배열로 변환 (하위호환)
         const appliedDates = dates ?? (date ? [date] : []);
         if (appliedDates.length === 0) throw new Error('날짜를 선택해주세요.');
@@ -423,6 +429,11 @@ export function AuthProvider({ children }) {
             status: initialStatus,
             created_at: now,
             updated_at: now,
+            // PR-Approver-1: V2 1차 승인자 선택 정보 (V1은 null/빈문자)
+            team_approver_uid: team_approver_uid || null,
+            team_approver_name: team_approver_name || '',
+            team_approver_email: team_approver_email || '',
+            approval_line_version: approval_line_version || 'V1_TEAM_BASED',
         });
         return docRef.id;
     };
@@ -489,18 +500,44 @@ export function AuthProvider({ children }) {
     const getTeamLeaveRequests = async () => {
         const uid = auth.currentUser.uid;
         const profileSnap = await getDoc(doc(db, 'users', uid));
-        const teamId = profileSnap.data()?.team_id;
-        if (!teamId) return [];
-        const q = query(collection(db, 'leave_requests'), where('team_id', '==', teamId));
-        const snap = await getDocsFromServer(q);
-        const reqs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const teamId = profileSnap.data()?.team_id || '';
+
+        // PR-Approver-1: 이중 조회 — (1) team_approver_uid == 나 (V2 신규), (2) team_id == 내 팀 (V1 레거시)
+        // Firestore OR query 미사용 — 두 번 조회 후 클라이언트에서 dedup + 필터링
+        const reqMap = new Map();
+        try {
+            const q1 = query(collection(db, 'leave_requests'), where('team_approver_uid', '==', uid));
+            const s1 = await getDocsFromServer(q1);
+            s1.docs.forEach(d => reqMap.set(d.id, { id: d.id, ...d.data() }));
+        } catch (e) {
+            console.warn('getTeamLeaveRequests query1(uid) 실패:', e?.message);
+        }
+        if (teamId) {
+            try {
+                const q2 = query(collection(db, 'leave_requests'), where('team_id', '==', teamId));
+                const s2 = await getDocsFromServer(q2);
+                s2.docs.forEach(d => {
+                    if (!reqMap.has(d.id)) reqMap.set(d.id, { id: d.id, ...d.data() });
+                });
+            } catch (e) {
+                console.warn('getTeamLeaveRequests query2(team_id) 실패:', e?.message);
+            }
+        }
+
+        // V2(team_approver_uid 존재): 나에게 지정된 것만 / V1(필드 없음 또는 null): 같은 team_id만
+        const reqs = [...reqMap.values()].filter(r => {
+            const isV2ForMe = r.team_approver_uid && r.team_approver_uid === uid;
+            const isLegacy = !r.team_approver_uid && teamId && r.team_id === teamId;
+            return isV2ForMe || isLegacy;
+        });
+
         // 신청자 추가 정보
         const userIds = [...new Set(reqs.map(r => r.user_id))];
         const userMap = {};
-        await Promise.all(userIds.map(async uid => {
+        await Promise.all(userIds.map(async uid2 => {
             try {
-                const u = await getDoc(doc(db, 'users', uid));
-                if (u.exists()) userMap[uid] = u.data().name;
+                const u = await getDoc(doc(db, 'users', uid2));
+                if (u.exists()) userMap[uid2] = u.data().name;
             } catch { }
         }));
         return reqs

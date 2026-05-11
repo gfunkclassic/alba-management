@@ -191,8 +191,8 @@ export default function LeaveApprovalInbox({ activeGivenDelegation = null }) {
                             <tr><td colSpan={7} className="p-8 text-center text-[#9a9585] text-xs">
                                 {filterStatus === 'SUBMITTED' ? (
                                     <span>
-                                        현재 팀장 승인 대기 중인 연차 신청이 없습니다.<br />
-                                        <span className="text-[#5d6c4a] font-bold mt-1 inline-block">팀원이 연차를 신청하면 이 화면에서 1차 승인 또는 반려를 처리할 수 있습니다.</span>
+                                        현재 처리할 팀장 승인 대기 신청이 없습니다.<br />
+                                        <span className="text-[#5d6c4a] font-bold mt-1 inline-block">팀원이 연차를 신청하면서 나를 1차 승인자로 선택하면 이 화면에서 승인 또는 반려를 처리할 수 있습니다.</span>
                                         <br /><span className="text-[10px] text-[#9a9585] mt-2 inline-block">결재 흐름: 팀장 승인 → 실장 병렬 승인 → 대표 최종 승인</span>
                                     </span>
                                 ) : (
