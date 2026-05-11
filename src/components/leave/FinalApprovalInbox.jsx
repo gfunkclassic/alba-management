@@ -76,10 +76,14 @@ export default function FinalApprovalInbox() {
                 : await getAllSubmittedRequests();
             if (mode === 'FINAL') {
                 const uid = userProfile?.uid;
-                // 내가 이미 승인/반려 처리한 FINAL_PENDING 건은 숨김
-                setRequests(data.filter(r =>
-                    r.status !== 'FINAL_PENDING' || !r.final_approvals?.[uid]
-                ));
+                // 상단 처리 대상: TEAM_APPROVED + FINAL_PENDING(내가 아직 승인 안 한 건).
+                // FINAL_APPROVED/REJECTED/CANCELLED는 처리 완료 건이므로 상단에서 제외
+                // → 하단 결재 기록 내역(AdminApprovalHistory)에서 확인.
+                setRequests(data.filter(r => {
+                    if (r.status === 'TEAM_APPROVED') return true;
+                    if (r.status === 'FINAL_PENDING' && !r.final_approvals?.[uid]) return true;
+                    return false;
+                }));
             } else {
                 setRequests(data);
             }

@@ -70,6 +70,10 @@ export default function LeaveHistoryList({ refreshKey }) {
 
     const filtered = filterStatus === 'ALL' ? requests : requests.filter(r => r.status === filterStatus);
     const years = [new Date().getFullYear(), new Date().getFullYear() - 1];
+    // 신청자 취소 가능 상태: 최종 승인 전 단계까지만(이번 PR에서는 SUBMITTED, TEAM_APPROVED 한정).
+    // FINAL_PENDING/CEO_PENDING은 정책 미확정으로 기존과 동일하게 미노출 유지.
+    const CANCELLABLE = new Set(['SUBMITTED', 'TEAM_APPROVED']);
+    const PENDING_FOR_COUNT = new Set(['SUBMITTED', 'TEAM_APPROVED', 'FINAL_PENDING', 'CEO_PENDING']);
 
     return (
         <div className="bg-[#f5f3e8] border border-[#d4cfbf]">
@@ -124,7 +128,7 @@ export default function LeaveHistoryList({ refreshKey }) {
                                     </span>
                                 </td>
                                 <td className="px-1 py-2 text-center whitespace-nowrap">
-                                    {req.status === 'SUBMITTED' ? (
+                                    {CANCELLABLE.has(req.status) ? (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); requestCancel(req.id); }}
                                             disabled={cancelling === req.id}
@@ -144,7 +148,7 @@ export default function LeaveHistoryList({ refreshKey }) {
             </div>
             {filtered.length > 0 && (
                 <div className="p-3 border-t border-[#e8e4d4] text-right text-xs text-[#9a9585]">
-                    총 {filtered.length}건 | 대기 {filtered.filter(r => r.status === 'SUBMITTED').length}건 | 취소 {filtered.filter(r => r.status === 'CANCELLED').length}건
+                    총 {filtered.length}건 | 대기 {filtered.filter(r => PENDING_FOR_COUNT.has(r.status)).length}건 | 취소 {filtered.filter(r => r.status === 'CANCELLED').length}건
                 </div>
             )}
 
