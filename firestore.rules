@@ -92,10 +92,19 @@ service cloud.firestore {
         request.resource.data.team_id == '카페' &&
         request.resource.data.status == 'TEAM_APPROVED';
       // 업데이트: 본인의 SUBMITTED → CANCELLED 취소만 허용
-      // 나머지 모든 상태 변경(TEAM_APPROVED, FINAL_APPROVED, REJECTED)은 Functions 전용
+      // 나머지 모든 상태 변경(FINAL_APPROVED, REJECTED 등)은 Functions 전용
       allow update: if isAuthed() &&
         resource.data.user_id == request.auth.uid &&
         resource.data.status == 'SUBMITTED' &&
+        request.resource.data.status == 'CANCELLED' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']);
+      // PR #112: 팀장 승인 완료/생략 후 실장 승인 대기 단계(TEAM_APPROVED)에서도
+      // 본인 신청자는 취소 가능. 최종 승인 전 단계이며 used_days 차감 전이므로
+      // leave_balance 보정 불필요. FINAL_PENDING/CEO_PENDING/FINAL_APPROVED/REJECTED
+      // 단계 취소는 이 PR에서 열지 않음.
+      allow update: if isAuthed() &&
+        resource.data.user_id == request.auth.uid &&
+        resource.data.status == 'TEAM_APPROVED' &&
         request.resource.data.status == 'CANCELLED' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']);
       // team_id 동기화: FINAL_APPROVER만 (시스템 팀명 변경 시)
