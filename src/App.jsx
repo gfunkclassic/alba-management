@@ -928,8 +928,16 @@ function HRPayrollApp() {
                     }
 
                     const isAbsent = reason.includes('결근');
-                    const checkIn = isAbsent ? '' : (rawCheckIn || user.checkIn);
-                    const checkOut = isAbsent ? '' : (rawCheckOut || user.checkOut);
+                    // PR-5: user.checkIn/Out fallback 제한 — 업로드 파일에 출근/퇴근 컬럼이 존재하면
+                    //   빈 셀은 "기록 없음"으로 해석해 빈 문자열 저장 (fmj-worklog 정책 정합).
+                    //   토/일/연차/조기퇴근일이 직원 기본 출퇴근시간으로 과다 산정되던 문제 차단.
+                    //   구형 양식(출근/퇴근 컬럼 자체 없음, idxIn === -1)은 종전대로 fallback 유지.
+                    const checkIn = isAbsent
+                        ? ''
+                        : (idxIn !== -1 ? rawCheckIn : (rawCheckIn || user.checkIn));
+                    const checkOut = isAbsent
+                        ? ''
+                        : (idxOut !== -1 ? rawCheckOut : (rawCheckOut || user.checkOut));
 
                     const idxEarlyReason = mapIdx('조기퇴근사유') !== -1 ? mapIdx('조기퇴근사유') : findExact('조기퇴근');
                     const idxOvertimeReason = mapIdx('연장근무사유') !== -1 ? mapIdx('연장근무사유') : findExact('연장근무');
