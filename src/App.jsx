@@ -751,6 +751,15 @@ function HRPayrollApp() {
         e.target.value = null; closeModal('dataMenu');
     };
 
+    // PR-4: 비고/상태 텍스트 정규화. 공란 / "-" / 순수 숫자(의미 없음) → 빈 문자열.
+    // 텍스트 메모(병원진료, 개인사유 등)는 그대로 보존.
+    const normalizeAttendanceNote = (value) => {
+        const text = String(value || '').trim();
+        if (!text || text === '-') return '';
+        if (/^\d+(\.\d+)?$/.test(text)) return '';
+        return text;
+    };
+
     // PR-3: fmj-worklog 날짜 형식 "MM/DD (요일)" → "YYYY-MM-DD" 변환.
     // 현재 선택 월(payrollMonth)의 연도를 fallback year로 사용.
     // 기존 형식(ISO/YYYYMMDD 등)은 normalizeDateStr fallback으로 처리.
@@ -778,21 +787,30 @@ function HRPayrollApp() {
                 const headers = rows[0];
                 const mapIdx = (key) => headers.findIndex(h => h && String(h).replace(/\s/g, '').includes(key));
                 const findExact = (key) => headers.findIndex(h => h && String(h).replace(/\s/g, '') === key);
-                const idxName = mapIdx('이름');
-                const idxDate = mapIdx('근무일자') !== -1 ? mapIdx('근무일자') : findExact('날짜');
+                // PR-4: 헤더 후보 확장 — 사번/이름/날짜/비고에 fmj-worklog 수정본 변형 대응.
+                // 기존 mapIdx/findExact 그대로 사용 + OR 체인으로 후보 추가.
+                const idxName = mapIdx('이름') !== -1 ? mapIdx('이름') : findExact('성명');
+                const idxDate = mapIdx('근무일자') !== -1 ? mapIdx('근무일자')
+                    : findExact('날짜') !== -1 ? findExact('날짜')
+                    : findExact('일자');
                 const idxIn = mapIdx('출근시간') !== -1 ? mapIdx('출근시간') : findExact('출근');
                 const idxOut = mapIdx('퇴근시간') !== -1 ? mapIdx('퇴근시간') : findExact('퇴근');
                 // PR-1: 야근시간 헤더(fmj-worklog) 추가 인식. 기존 연장시간/연장 호환 유지.
                 const idxOvertime = findExact('연장시간') !== -1 ? findExact('연장시간')
                     : findExact('연장') !== -1 ? findExact('연장')
                     : findExact('야근시간');
-                // PR-1: 진단용 사번/상태 헤더 추가 인식. 본 PR에서는 저장 대상 결정에 사용 안 함.
-                const idxExternalId = findExact('사번');
+                // PR-1: 진단용 사번 헤더. PR-4: '근태사번' (공백 제거 후 매칭) 후보 추가.
+                const idxExternalId = findExact('사번') !== -1 ? findExact('사번') : findExact('근태사번');
+                // PR-1: 상태 헤더. 진단/reason fallback 모두에 사용.
                 const idxStatus = findExact('상태');
 
                 if (idxName === -1 || idxDate === -1) { showNotificationMsg('이름 또는 근무일자 컬럼 누락', 'error'); return; }
 
-                const idxReason = mapIdx('근태사유') !== -1 ? mapIdx('근태사유') : (findExact('사유') !== -1 ? findExact('사유') : findExact('비고'));
+                // PR-4: 비고 후보에 '메모' 추가. mapIdx '근태사유' → exact '사유' → exact '비고' → exact '메모'.
+                const idxReason = mapIdx('근태사유') !== -1 ? mapIdx('근태사유')
+                    : findExact('사유') !== -1 ? findExact('사유')
+                    : findExact('비고') !== -1 ? findExact('비고')
+                    : findExact('메모');
 
                 // PR-1: external_employee_id 진단 map 사전 구축 (저장 대상 결정에는 사용하지 않음)
                 const employeesByExternalId = new Map();
@@ -872,7 +890,16 @@ function HRPayrollApp() {
                     const rawCheckIn = row[idxIn] ? String(row[idxIn]).replace('시', ':00') : '';
                     const rawCheckOut = row[idxOut] ? String(row[idxOut]).replace('시', ':00') : '';
                     const overtime = (row[idxOvertime] ? Number(row[idxOvertime]) : 0) || 0;
-                    const reason = idxReason !== -1 ? String(row[idxReason] || '').trim() : '';
+                    // PR-4: 비고 정규화 (공란/-/순수숫자 → 빈문자열). 그 외 텍스트는 보존.
+                    const rawReason = idxReason !== -1 ? row[idxReason] : '';
+                    let reason = normalizeAttendanceNote(rawReason);
+                    // PR-4: 비고 비어있을 때 상태 컬럼을 reason fallback 으로 사용.
+                    //   '정상'은 reason 미설정 유지(빈문자열). '연차/오전 반차/오후 반차/조기퇴근/결근' 등은 reason 으로 저장.
+                    //   기존 결근 → 주휴 박탈 분기와 자연스럽게 호환 (reason.includes('결근')).
+                    const statusText = idxStatus !== -1 ? normalizeAttendanceNote(row[idxStatus]) : '';
+                    if (!reason && statusText && statusText !== '정상') {
+                        reason = statusText;
+                    }
 
                     const isAbsent = reason.includes('결근');
                     const checkIn = isAbsent ? '' : (rawCheckIn || user.checkIn);
