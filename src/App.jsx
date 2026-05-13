@@ -751,6 +751,31 @@ function HRPayrollApp() {
         e.target.value = null; closeModal('dataMenu');
     };
 
+    // PR-5: 출퇴근 시간 셀 정규화. fmj-worklog의 "-" / 공란 / 한글 시간 형식을 안전 처리.
+    //   - null/undefined/공란/"-" → "" (빈 문자열) → calculateDailyWage 의 !start 가드로 0h 처리
+    //   - "08:55" / "08:55:00" / "8:55" → "08:55"
+    //   - "오전 8:55" / "오후 5:03" → "08:55" / "17:03"
+    //   - 인식 불가 형식 → "" (NaN 전파 차단)
+    // 본 PR은 calculateDailyWage 본체를 수정하지 않고, 업로드 시점에 입력값만 정규화.
+    const normalizeAttendanceTimeCell = (raw) => {
+        if (raw === null || raw === undefined) return '';
+        const s = String(raw).trim();
+        if (!s || s === '-') return '';
+        const normalized = s.replace('시', ':00');
+        const standard = normalized.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+        if (standard) {
+            return `${standard[1].padStart(2, '0')}:${standard[2]}`;
+        }
+        const korean = s.match(/^(오전|오후)\s*(\d{1,2}):(\d{2})/);
+        if (korean) {
+            let hour = parseInt(korean[2], 10);
+            if (korean[1] === '오후' && hour < 12) hour += 12;
+            if (korean[1] === '오전' && hour === 12) hour = 0;
+            return `${String(hour).padStart(2, '0')}:${korean[3]}`;
+        }
+        return '';
+    };
+
     // PR-4: 비고/상태 텍스트 정규화. 공란 / "-" / 순수 숫자(의미 없음) → 빈 문자열.
     // 텍스트 메모(병원진료, 개인사유 등)는 그대로 보존.
     const normalizeAttendanceNote = (value) => {
@@ -887,8 +912,9 @@ function HRPayrollApp() {
                         return;
                     }
 
-                    const rawCheckIn = row[idxIn] ? String(row[idxIn]).replace('시', ':00') : '';
-                    const rawCheckOut = row[idxOut] ? String(row[idxOut]).replace('시', ':00') : '';
+                    // PR-5: 시간 셀 정규화 — "-"/공란/한글 시간 → "" 또는 "HH:mm" 표준 형식
+                    const rawCheckIn = normalizeAttendanceTimeCell(row[idxIn]);
+                    const rawCheckOut = normalizeAttendanceTimeCell(row[idxOut]);
                     const overtime = (row[idxOvertime] ? Number(row[idxOvertime]) : 0) || 0;
                     // PR-4: 비고 정규화 (공란/-/순수숫자 → 빈문자열). 그 외 텍스트는 보존.
                     const rawReason = idxReason !== -1 ? row[idxReason] : '';
@@ -902,8 +928,16 @@ function HRPayrollApp() {
                     }
 
                     const isAbsent = reason.includes('결근');
-                    const checkIn = isAbsent ? '' : (rawCheckIn || user.checkIn);
-                    const checkOut = isAbsent ? '' : (rawCheckOut || user.checkOut);
+                    // PR-5: user.checkIn/Out fallback 제한 — 업로드 파일에 출근/퇴근 컬럼이 존재하면
+                    //   빈 셀은 "기록 없음"으로 해석해 빈 문자열 저장 (fmj-worklog 정책 정합).
+                    //   토/일/연차/조기퇴근일이 직원 기본 출퇴근시간으로 과다 산정되던 문제 차단.
+                    //   구형 양식(출근/퇴근 컬럼 자체 없음, idxIn === -1)은 종전대로 fallback 유지.
+                    const checkIn = isAbsent
+                        ? ''
+                        : (idxIn !== -1 ? rawCheckIn : (rawCheckIn || user.checkIn));
+                    const checkOut = isAbsent
+                        ? ''
+                        : (idxOut !== -1 ? rawCheckOut : (rawCheckOut || user.checkOut));
 
                     const idxEarlyReason = mapIdx('조기퇴근사유') !== -1 ? mapIdx('조기퇴근사유') : findExact('조기퇴근');
                     const idxOvertimeReason = mapIdx('연장근무사유') !== -1 ? mapIdx('연장근무사유') : findExact('연장근무');
