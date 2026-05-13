@@ -751,6 +751,23 @@ function HRPayrollApp() {
         e.target.value = null; closeModal('dataMenu');
     };
 
+    // PR-3: fmj-worklog 날짜 형식 "MM/DD (요일)" → "YYYY-MM-DD" 변환.
+    // 현재 선택 월(payrollMonth)의 연도를 fallback year로 사용.
+    // 기존 형식(ISO/YYYYMMDD 등)은 normalizeDateStr fallback으로 처리.
+    const parseAttendanceUploadDate = (rawDate, fallbackMonth) => {
+        if (!rawDate) return '';
+        const raw = String(rawDate).trim();
+        const fallbackYear = String(fallbackMonth || '').split('-')[0];
+        // fmj-worklog: "04/01 (수)", "04/01(수)", "04/01" 등
+        const mdMatch = raw.match(/^(\d{1,2})[\/.\-](\d{1,2})(?:\s*\([가-힣]\))?$/);
+        if (mdMatch && fallbackYear && /^\d{4}$/.test(fallbackYear)) {
+            const month = mdMatch[1].padStart(2, '0');
+            const day = mdMatch[2].padStart(2, '0');
+            return `${fallbackYear}-${month}-${day}`;
+        }
+        return normalizeDateStr(rawDate);
+    };
+
     const handleAttendanceUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -791,7 +808,7 @@ function HRPayrollApp() {
                     employeesByExternalId.set(ext, u);
                 });
 
-                // PR-1: 진단 카운트 (행 기준)
+                // PR-1: 진단 카운트 (행 기준) + PR-3: 날짜 파싱 카운트
                 const diag = {
                     externalIdMatchedCount: 0,        // 엑셀 사번 있고 app에서 매칭 성공
                     externalIdMissingInExcelCount: 0, // 엑셀 사번 빈값
@@ -800,8 +817,10 @@ function HRPayrollApp() {
                     externalIdConflictCount: 0,       // app employees 내 중복 사번
                     nameFallbackMatchedCount: 0,      // 기존 이름 매칭 성공 (실제 저장된 행)
                     nameNotFoundCount: 0,             // 이름 매칭도 실패 (skip)
+                    dateParseFailedCount: 0,          // PR-3: 날짜 정규화 실패로 행 skip
                 };
                 const nameMismatchSamples = []; // console 상세 보고용 (최대 10건)
+                const dateParseFailedSamples = []; // PR-3: 비정상 날짜 원본 샘플 (최대 10건)
 
                 let count = 0;
                 const saves = {}; // { [userId]: { [dateStr]: record } }
@@ -840,8 +859,15 @@ function HRPayrollApp() {
                     }
                     diag.nameFallbackMatchedCount++;
 
-                    const dateStr = normalizeDateStr(row[idxDate]);
-                    if (!dateStr) return;
+                    // PR-3: fmj-worklog 날짜 형식 우선 파싱 + 표준 형식 강제 검증
+                    const dateStr = parseAttendanceUploadDate(row[idxDate], payrollMonth);
+                    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                        diag.dateParseFailedCount++;
+                        if (dateParseFailedSamples.length < 10) {
+                            dateParseFailedSamples.push({ raw: row[idxDate], parsed: dateStr });
+                        }
+                        return;
+                    }
 
                     const rawCheckIn = row[idxIn] ? String(row[idxIn]).replace('시', ':00') : '';
                     const rawCheckOut = row[idxOut] ? String(row[idxOut]).replace('시', ':00') : '';
@@ -918,13 +944,17 @@ function HRPayrollApp() {
                     console.warn('[근무기록 업로드] 사번-이름 불일치 샘플 (최대 10건)');
                     console.table(nameMismatchSamples);
                 }
+                if (dateParseFailedSamples.length > 0) {
+                    console.warn('[근무기록 업로드] 날짜 파싱 실패 샘플 (최대 10건) — 해당 행은 저장에서 제외됨');
+                    console.table(dateParseFailedSamples);
+                }
                 if (externalIdConflicts.size > 0) {
                     console.warn('[근무기록 업로드] app employees 내 사번 중복:');
                     externalIdConflicts.forEach((names, ext) => console.warn(`  ${ext}: [${names.join(', ')}]`));
                 }
 
                 // 알림 메시지: 기존 CONFIRMED skip 문구 유지 + 사번 진단 요약 1줄 추가
-                const diagSummary = `사번매칭 ${diag.externalIdMatchedCount} / 사번없음 ${diag.externalIdMissingInExcelCount} / 사번미등록 ${diag.externalIdNotFoundCount} / 이름불일치 ${diag.externalIdNameMismatchCount} / 사번충돌 ${diag.externalIdConflictCount} (상세는 콘솔 참조)`;
+                const diagSummary = `사번매칭 ${diag.externalIdMatchedCount} / 사번없음 ${diag.externalIdMissingInExcelCount} / 사번미등록 ${diag.externalIdNotFoundCount} / 이름불일치 ${diag.externalIdNameMismatchCount} / 사번충돌 ${diag.externalIdConflictCount} / 날짜오류 ${diag.dateParseFailedCount} (상세는 콘솔 참조)`;
                 if (skippedCount > 0) {
                     const monthList = [...lockedMonths].sort().join(', ');
                     showNotificationMsg(`${appliedCount}건 등록 완료. ${skippedCount}건은 확정 월(${monthList})에 해당하여 제외되었습니다.\n[사번 진단] ${diagSummary}`, appliedCount > 0 ? 'success' : 'error');
