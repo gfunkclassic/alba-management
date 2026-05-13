@@ -382,6 +382,7 @@ export default function HRView({
                                                     <InfoRow icon={<Calendar size={14} />} label="주 근무일수" value={selectedUser.workDays} />
                                                     <InfoRow icon={<Wallet size={14} />} label="시급" value={selectedUser.wage ? `₩${Number(selectedUser.wage).toLocaleString()}` : '-'} />
                                                     <InfoRow icon={<RotateCcw size={14} />} label="계약 갱신일" value={selectedUser.renewalDate} />
+                                                    <InfoRow icon={<Briefcase size={14} />} label="근태 사번" value={selectedUser.external_employee_id || '-'} />
                                                 </>
                                             ) : (
                                                 <>

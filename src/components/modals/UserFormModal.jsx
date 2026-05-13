@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { Edit, UserPlus, X } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
-import { functions, httpsCallable } from '../../firebase';
+import { db, functions, httpsCallable } from '../../firebase';
+
+// 근태 사번 형식 검증 (경고 수준 — 저장 차단 아님). 예: LM001, QC001, CA001, PD001
+const EXTERNAL_EMP_ID_FORMAT_RE = /^[A-Z]{2,3}\d{3,4}$/;
+// 입력값 정규화: 앞뒤 공백 제거 + 영문 대문자
+const normalizeExternalEmpId = (v) => String(v || '').trim().toUpperCase();
 
 const EMPLOYMENT_TYPES = ['아르바이트', '계약직', '정직원'];
 const EMPLOYMENT_STATUSES = ['재직', '수습', '퇴사예정', '퇴사'];
@@ -41,6 +47,7 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
             startDate: new Date().toISOString().split('T')[0],
             insuranceDate: '', insuranceStatus: false, renewalDate: '',
             checkIn: '09:00', checkOut: '18:00', workHours: 8, workDays: '5일',
+            external_employee_id: '',
             wage: 0, wageIncreaseDate: '', previousWage: 0,
             phone: '', rrn: '', address: '', email: '',
             position: '아르바이트', employmentType: '아르바이트', employmentStatus: '재직',
@@ -71,6 +78,11 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
             setFormData(prev => ({ ...prev, phone: formatPhoneNumber(value) }));
             return;
         }
+        if (name === 'external_employee_id') {
+            // 입력 중에는 사용자 자유 입력 보존(소문자/공백). 저장 직전 normalize.
+            setFormData(prev => ({ ...prev, external_employee_id: value }));
+            return;
+        }
         setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
@@ -80,7 +92,46 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
         // position 필드를 employmentType으로 동기화 (하위호환)
         // 연락처는 저장 직전 한 번 더 포맷 정규화 (paste/legacy 데이터 보호)
         const normalizedPhone = formatPhoneNumber(formData.phone);
-        const saveData = { ...formData, phone: normalizedPhone, position: formData.employmentType };
+        // 근태 사번 정규화 (앞뒤 공백 제거 + 영문 대문자). 빈 값 허용.
+        const normalizedExternalEmpId = normalizeExternalEmpId(formData.external_employee_id);
+
+        // 근태 사번 형식 검증 — 경고 수준 (저장 차단 아님). 사번 체계 변경 대비.
+        if (normalizedExternalEmpId && !EXTERNAL_EMP_ID_FORMAT_RE.test(normalizedExternalEmpId)) {
+            const proceed = window.confirm(
+                `입력하신 근태 사번 "${normalizedExternalEmpId}" 이 권장 형식(LM001/QC001 등)과 다릅니다.\n` +
+                `그대로 저장하시겠습니까? (취소를 누르면 사번을 다시 입력할 수 있습니다)`
+            );
+            if (!proceed) return;
+        }
+
+        // 근태 사번 중복 검사 (값이 있는 경우에만, 퇴사자 포함 전체 employees 기준)
+        if (normalizedExternalEmpId) {
+            try {
+                const snap = await getDocs(collection(db, 'employees'));
+                const myId = user?.id;
+                const dup = snap.docs.find(d => {
+                    const data = d.data() || {};
+                    const otherId = data.id;
+                    if (myId !== undefined && String(otherId) === String(myId)) return false; // 자기 자신 제외
+                    const otherExt = normalizeExternalEmpId(data.external_employee_id);
+                    if (!otherExt) return false; // 빈 값은 중복 대상 아님
+                    return otherExt === normalizedExternalEmpId;
+                });
+                if (dup) {
+                    const dupName = dup.data()?.name || '(이름 미상)';
+                    window.alert(
+                        `이미 사용 중인 근태 사번입니다. 퇴사자를 포함해 사번은 재사용하지 않습니다.\n` +
+                        `(중복 직원: ${dupName})`
+                    );
+                    return;
+                }
+            } catch (err) {
+                console.warn('[UserFormModal] 근태 사번 중복 검사 실패 (저장은 계속):', err);
+                // read 실패 시 저장 차단하지 않음 — 사번이 실제 중복이면 추후 운영자 점검
+            }
+        }
+
+        const saveData = { ...formData, phone: normalizedPhone, position: formData.employmentType, external_employee_id: normalizedExternalEmpId };
         const isNewMode = !user;
         const trimmedEmail = String(formData.email || '').trim();
         const isAlbaEmployee = (formData.employmentType === '아르바이트') || (formData.position === '아르바이트');
@@ -222,6 +273,18 @@ export default function UserFormModal({ user, onClose, onSave, onDelete }) {
                             <div><label className={LABEL}>퇴근 시간</label><input name="checkOut" type="time" value={formData.checkOut} onChange={handleChange} className={INPUT} /></div>
                             <div><label className={LABEL}>일 근무(h)</label><input name="workHours" type="number" value={formData.workHours} onChange={handleChange} className={INPUT} /></div>
                             <div><label className={LABEL}>주 근무일수</label><input name="workDays" value={formData.workDays} onChange={handleChange} className={INPUT} /></div>
+                            <div className="col-span-2">
+                                <label className={LABEL}>근태 사번</label>
+                                <input
+                                    name="external_employee_id"
+                                    value={formData.external_employee_id || ''}
+                                    onChange={handleChange}
+                                    placeholder="예: LM001 / QC001 / CA001"
+                                    className={INPUT}
+                                    autoComplete="off"
+                                />
+                                <p className="text-[10px] text-[#7a7565] mt-1">fmj-worklog 엑셀의 사번입니다. 비워두면 자동 업로드 매칭이 제한됩니다.</p>
+                            </div>
                         </>
                     )}
 
