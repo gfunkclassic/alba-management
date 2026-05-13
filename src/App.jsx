@@ -765,11 +765,43 @@ function HRPayrollApp() {
                 const idxDate = mapIdx('근무일자') !== -1 ? mapIdx('근무일자') : findExact('날짜');
                 const idxIn = mapIdx('출근시간') !== -1 ? mapIdx('출근시간') : findExact('출근');
                 const idxOut = mapIdx('퇴근시간') !== -1 ? mapIdx('퇴근시간') : findExact('퇴근');
-                const idxOvertime = findExact('연장시간') !== -1 ? findExact('연장시간') : findExact('연장');
+                // PR-1: 야근시간 헤더(fmj-worklog) 추가 인식. 기존 연장시간/연장 호환 유지.
+                const idxOvertime = findExact('연장시간') !== -1 ? findExact('연장시간')
+                    : findExact('연장') !== -1 ? findExact('연장')
+                    : findExact('야근시간');
+                // PR-1: 진단용 사번/상태 헤더 추가 인식. 본 PR에서는 저장 대상 결정에 사용 안 함.
+                const idxExternalId = findExact('사번');
+                const idxStatus = findExact('상태');
 
                 if (idxName === -1 || idxDate === -1) { showNotificationMsg('이름 또는 근무일자 컬럼 누락', 'error'); return; }
 
                 const idxReason = mapIdx('근태사유') !== -1 ? mapIdx('근태사유') : (findExact('사유') !== -1 ? findExact('사유') : findExact('비고'));
+
+                // PR-1: external_employee_id 진단 map 사전 구축 (저장 대상 결정에는 사용하지 않음)
+                const employeesByExternalId = new Map();
+                const externalIdConflicts = new Map();
+                users.forEach((u) => {
+                    const ext = String(u.external_employee_id || '').trim().toUpperCase();
+                    if (!ext) return;
+                    if (employeesByExternalId.has(ext)) {
+                        const prev = employeesByExternalId.get(ext);
+                        externalIdConflicts.set(ext, [prev.name, u.name]);
+                        return;
+                    }
+                    employeesByExternalId.set(ext, u);
+                });
+
+                // PR-1: 진단 카운트 (행 기준)
+                const diag = {
+                    externalIdMatchedCount: 0,        // 엑셀 사번 있고 app에서 매칭 성공
+                    externalIdMissingInExcelCount: 0, // 엑셀 사번 빈값
+                    externalIdNotFoundCount: 0,       // 엑셀 사번 있으나 app에 없음
+                    externalIdNameMismatchCount: 0,   // 사번 매칭은 됐으나 이름 다름
+                    externalIdConflictCount: 0,       // app employees 내 중복 사번
+                    nameFallbackMatchedCount: 0,      // 기존 이름 매칭 성공 (실제 저장된 행)
+                    nameNotFoundCount: 0,             // 이름 매칭도 실패 (skip)
+                };
+                const nameMismatchSamples = []; // console 상세 보고용 (최대 10건)
 
                 let count = 0;
                 const saves = {}; // { [userId]: { [dateStr]: record } }
@@ -777,8 +809,36 @@ function HRPayrollApp() {
                     if (!row || row.length === 0) return;
                     const name = row[idxName];
                     if (!name) return;
+
+                    // PR-1: 사번 진단 (저장 대상 결정과 무관 — 카운트/경고만)
+                    const rawExt = idxExternalId !== -1 ? row[idxExternalId] : '';
+                    const externalId = String(rawExt || '').trim().toUpperCase();
+                    if (!externalId) {
+                        diag.externalIdMissingInExcelCount++;
+                    } else if (externalIdConflicts.has(externalId)) {
+                        diag.externalIdConflictCount++;
+                    } else {
+                        const extUser = employeesByExternalId.get(externalId);
+                        if (extUser) {
+                            diag.externalIdMatchedCount++;
+                            if (extUser.name !== name) {
+                                diag.externalIdNameMismatchCount++;
+                                if (nameMismatchSamples.length < 10) {
+                                    nameMismatchSamples.push({ externalId, excelName: name, appName: extUser.name });
+                                }
+                            }
+                        } else {
+                            diag.externalIdNotFoundCount++;
+                        }
+                    }
+
+                    // 저장 대상: 기존 이름 매칭 흐름 유지 (PR-1에서는 변경하지 않음)
                     const user = users.find(u => u.name === name);
-                    if (!user) return;
+                    if (!user) {
+                        diag.nameNotFoundCount++;
+                        return;
+                    }
+                    diag.nameFallbackMatchedCount++;
 
                     const dateStr = normalizeDateStr(row[idxDate]);
                     if (!dateStr) return;
@@ -850,11 +910,26 @@ function HRPayrollApp() {
                 });
 
                 const appliedCount = count - skippedCount;
+
+                // PR-1: 사번 진단 콘솔 출력 (상세) — 운영자가 콘솔 열어 사번 매칭 상태 확인 가능
+                console.warn('[근무기록 업로드] 사번 진단 카운트 (행 기준)');
+                console.table(diag);
+                if (nameMismatchSamples.length > 0) {
+                    console.warn('[근무기록 업로드] 사번-이름 불일치 샘플 (최대 10건)');
+                    console.table(nameMismatchSamples);
+                }
+                if (externalIdConflicts.size > 0) {
+                    console.warn('[근무기록 업로드] app employees 내 사번 중복:');
+                    externalIdConflicts.forEach((names, ext) => console.warn(`  ${ext}: [${names.join(', ')}]`));
+                }
+
+                // 알림 메시지: 기존 CONFIRMED skip 문구 유지 + 사번 진단 요약 1줄 추가
+                const diagSummary = `사번매칭 ${diag.externalIdMatchedCount} / 사번없음 ${diag.externalIdMissingInExcelCount} / 사번미등록 ${diag.externalIdNotFoundCount} / 이름불일치 ${diag.externalIdNameMismatchCount} / 사번충돌 ${diag.externalIdConflictCount} (상세는 콘솔 참조)`;
                 if (skippedCount > 0) {
                     const monthList = [...lockedMonths].sort().join(', ');
-                    showNotificationMsg(`${appliedCount}건 등록 완료. ${skippedCount}건은 확정 월(${monthList})에 해당하여 제외되었습니다.`, appliedCount > 0 ? 'success' : 'error');
+                    showNotificationMsg(`${appliedCount}건 등록 완료. ${skippedCount}건은 확정 월(${monthList})에 해당하여 제외되었습니다.\n[사번 진단] ${diagSummary}`, appliedCount > 0 ? 'success' : 'error');
                 } else {
-                    showNotificationMsg(`총 ${count}건의 근무 기록이 등록되었습니다.`);
+                    showNotificationMsg(`총 ${count}건의 근무 기록이 등록되었습니다.\n[사번 진단] ${diagSummary}`);
                 }
             }
         } catch (err) { console.error(err); showNotificationMsg(err.message || '파일 처리 실패', 'error'); }
