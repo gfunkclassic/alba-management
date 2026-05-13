@@ -265,11 +265,11 @@ export default function HRView({
                         <table className="w-full">
                             <thead className="bg-[#f5f3e8] sticky top-0 z-10 border-b border-[#d4cfbf] text-[10px] font-bold text-[#5d6c4a] uppercase tracking-wider">
                                 {typeFilter === 'STAFF' ? (
-                                    <tr><th className="p-2.5 pl-3 text-left">성별</th><th className="p-2.5 text-left">이름</th><th className="p-2.5 text-left">부서</th><th className="p-2.5 text-left">직급</th><th className="p-2.5 text-left">입사일</th><th className="p-2.5 text-center">4대보험</th><th className="p-2.5 text-left">진급일</th><th className="p-2.5 pr-3 text-right">관리</th></tr>
+                                    <tr><th className="p-2.5 pl-3 text-left">성별</th><th className="p-2.5 text-left">이름</th><th className="p-2.5 text-left">부서</th><th className="p-2.5 text-left">직급</th><th className="p-2.5 text-left whitespace-nowrap">근태 사번</th><th className="p-2.5 text-left">입사일</th><th className="p-2.5 text-center">4대보험</th><th className="p-2.5 text-left">진급일</th><th className="p-2.5 pr-3 text-right">관리</th></tr>
                                 ) : typeFilter === 'ALBA' ? (
-                                    <tr><th className="p-2.5 pl-3 text-left">성별</th><th className="p-2.5 text-left">이름</th><th className="p-2.5 text-left">팀</th><th className="p-2.5 text-left">입사일</th><th className="p-2.5 text-center">4대보험</th><th className="p-2.5 text-left">계약갱신</th><th className="p-2.5 text-center">근무시간</th><th className="p-2.5 text-right">시급</th><th className="p-2.5 pr-3 text-right">관리</th></tr>
+                                    <tr><th className="p-2.5 pl-3 text-left">성별</th><th className="p-2.5 text-left">이름</th><th className="p-2.5 text-left">팀</th><th className="p-2.5 text-left whitespace-nowrap">근태 사번</th><th className="p-2.5 text-left">입사일</th><th className="p-2.5 text-center">4대보험</th><th className="p-2.5 text-left">계약갱신</th><th className="p-2.5 text-center">근무시간</th><th className="p-2.5 text-right">시급</th><th className="p-2.5 pr-3 text-right">관리</th></tr>
                                 ) : (
-                                    <tr><th className="p-2.5 pl-3 text-left">성별</th><th className="p-2.5 text-left">이름</th><th className="p-2.5 text-left">유형</th><th className="p-2.5 text-left">팀/부서</th><th className="p-2.5 text-left">입사일</th><th className="p-2.5 text-center">4대보험</th><th className="p-2.5 text-left">상태</th><th className="p-2.5 pr-3 text-right">관리</th></tr>
+                                    <tr><th className="p-2.5 pl-3 text-left">성별</th><th className="p-2.5 text-left">이름</th><th className="p-2.5 text-left">유형</th><th className="p-2.5 text-left">팀/부서</th><th className="p-2.5 text-left whitespace-nowrap">근태 사번</th><th className="p-2.5 text-left">입사일</th><th className="p-2.5 text-center">4대보험</th><th className="p-2.5 text-left">상태</th><th className="p-2.5 pr-3 text-right">관리</th></tr>
                                 )}
                             </thead>
                             <tbody className="text-sm divide-y divide-[#ebe8db] [&_td]:align-middle">
@@ -285,6 +285,7 @@ export default function HRView({
                                                 <>
                                                     <td className="p-2.5 text-[#5a5545]">{user.team}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.jobTitle || '-'}</td>
+                                                    <td className="p-2.5 text-[#5a5545] font-mono whitespace-nowrap">{user.external_employee_id || '-'}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.startDate}</td>
                                                     <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#8d5a4d]">✗</span>}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.promotionDate || '-'}</td>
@@ -292,6 +293,7 @@ export default function HRView({
                                             ) : typeFilter === 'ALBA' ? (
                                                 <>
                                                     <td className="p-2.5 text-[#5a5545]">{user.team}</td>
+                                                    <td className="p-2.5 text-[#5a5545] font-mono whitespace-nowrap">{user.external_employee_id || '-'}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.startDate}</td>
                                                     <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#8d5a4d]">✗</span>}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.renewalDate || '-'}</td>
@@ -302,6 +304,7 @@ export default function HRView({
                                                 <>
                                                     <td className="p-2.5"><span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold border ${isAlba ? 'bg-[#e8ebd8] text-[#5d6c4a] border-[#b8c4a0]' : 'bg-[#e8edf0] text-[#5a6878] border-[#c5cbd2]'}`}>{eType}</span></td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.team}</td>
+                                                    <td className="p-2.5 text-[#5a5545] font-mono whitespace-nowrap">{user.external_employee_id || '-'}</td>
                                                     <td className="p-2.5 text-[#5a5545]">{user.startDate}</td>
                                                     <td className="p-2.5 text-center">{insured ? <span className="text-[#5d6c4a] font-bold">✓</span> : <span className="text-[#8d5a4d]">✗</span>}</td>
                                                     <td className="p-2.5">
