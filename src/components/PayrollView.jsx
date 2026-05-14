@@ -25,6 +25,16 @@ const CARD_BASE = 'bg-[#faf8f0] border border-[#d4cfbf]';
 const INNER_CARD = 'bg-[#f5f3e8] border border-[#d4cfbf]';
 const INPUT_BASE = 'border border-[#d4cfbf] bg-[#faf8f0] text-sm text-[#5a5545] focus:border-[#5d6c4a] outline-none';
 
+// 표시용 시간 포맷 (계산값 변경 없음, 표시 직전 절삭만 적용)
+// 운영 기준: 반올림 금지, 소수점 둘째자리 절삭
+// 예: 135.53333333333334 → '135.53' / 157.03333333333334 → '157.03' / 8 → '8'
+const formatHoursForDisplay = (hours) => {
+    const value = Number(hours);
+    if (!Number.isFinite(value)) return '0';
+    const truncated = Math.trunc(value * 100) / 100;
+    return String(truncated);
+};
+
 export default function PayrollView({
     users, calculateMonthlyWage, onDownloadInsured, onDownloadFreelancer, onDownloadTemplate,
     onDownloadLaborSubmission,
@@ -217,8 +227,8 @@ export default function PayrollView({
                                         {mode === 'INSURED' ? (
                                             <>
                                                 <td className="p-3 text-center text-[#5a5545]">{user.workDays}</td>
-                                                <td className="p-3 text-right text-[#5a5545]">{wage.hasRecord ? `${wage.totalActualHours}h` : '-'}</td>
-                                                <td className="p-3 text-right text-[#a78049] font-bold">{wage.hasRecord && wage.totalActualOvertime > 0 ? `+${wage.totalActualOvertime}h` : '-'}</td>
+                                                <td className="p-3 text-right text-[#5a5545]">{wage.hasRecord ? `${formatHoursForDisplay(wage.totalActualHours)}h` : '-'}</td>
+                                                <td className="p-3 text-right text-[#a78049] font-bold">{wage.hasRecord && wage.totalActualOvertime > 0 ? `+${formatHoursForDisplay(wage.totalActualOvertime)}h` : '-'}</td>
                                                 <td className="p-3 text-right pr-4">
                                                     {wage.hasRecord ? (
                                                         <button
