@@ -308,9 +308,37 @@ function HRPayrollApp() {
         const weeklyRecordedDays = {};
         const weeklyHasAbsent = {}; // 결근(reason='결근')이 있는 주는 주휴수당 미지급
 
+        // 정상근무일 일별 인정시간 상한 (PR: 분 단위 초과 누적 차단)
+        //   - 1일 인정 = min(rawRegularHours, employees.workHours)
+        //   - 적용 대상: reason 이 연차/반차/결근 이 아닌 정상근무일
+        //   - actualOvertime / overtimePay 는 그대로 유지 (야근/연장근무 정책 무영향)
+        //   - 연차/반차 인정시간 자동 가산은 본 PR 범위 외 (후속 PR)
+        const contractDailyHours = Number(user.workHours);
+        const hasContractCap = Number.isFinite(contractDailyHours) && contractDailyHours > 0;
+        const applyDailyRecognitionCap = (daily, record, dailyWage) => {
+            if (!hasContractCap) return daily;
+            const reason = String(record?.reason || '');
+            const isAnnual = reason.includes('연차') && !reason.includes('반차');
+            const isHalf = reason.includes('반차');
+            const isAbsent = reason.includes('결근');
+            if (isAnnual || isHalf || isAbsent) return daily;
+            const regular = Number(daily?.regularHours);
+            if (!Number.isFinite(regular) || regular <= contractDailyHours) return daily;
+            const wage = Number(dailyWage) || 0;
+            const ot = Number(daily.actualOvertime) || 0;
+            return {
+                ...daily,
+                regularHours: contractDailyHours,
+                hours: contractDailyHours + ot,
+                basePay: contractDailyHours * wage,
+                // overtimePay 는 raw 값 그대로 유지
+            };
+        };
+
         Object.entries(dailyRecords).sort().forEach(([dateStr, record]) => {
             const dailyWage = getWageForDate(dateStr);
-            const daily = calculateDailyWage(dailyWage, record.checkIn, record.checkOut, record.overtime);
+            const dailyRaw = calculateDailyWage(dailyWage, record.checkIn, record.checkOut, record.overtime);
+            const daily = applyDailyRecognitionCap(dailyRaw, record, dailyWage);
 
             // 이번 달 날짜만 기본급/총 근무시간 집계에 포함
             if (record.isTargetMonth) {
@@ -417,12 +445,15 @@ function HRPayrollApp() {
         const finalPayout = displayTotal - deduction;
 
         // build dailyBreakdown for drilldown modal
+        // - 누적 집계와 동일한 일별 인정시간 상한(applyDailyRecognitionCap) 적용
+        //   → 상세내역 모달 / 다운로드 시트와 화면 합계 일관성 유지
         const dailyBreakdown = Object.entries(dailyRecords)
             .filter(([, rec]) => rec.isTargetMonth)
             .sort()
             .map(([dateStr, rec]) => {
                 const dw = getWageForDate(dateStr);
-                const d = calculateDailyWage(dw, rec.checkIn, rec.checkOut, rec.overtime);
+                const raw = calculateDailyWage(dw, rec.checkIn, rec.checkOut, rec.overtime);
+                const d = applyDailyRecognitionCap(raw, rec, dw);
                 return {
                     date: dateStr,
                     checkIn: rec.checkIn || '',
