@@ -276,10 +276,24 @@ function HRPayrollApp() {
             if (record) {
                 dailyRecords[dateStr] = { checkIn: record.checkIn, checkOut: record.checkOut, overtime: record.overtime, reason: record.reason || '', isRecorded: true, isTargetMonth: isTargetMonthDay };
             } else {
-                // 운영 기준: 급여는 업로드된 attendance records 기준으로만 산출.
-                //   record 없는 날짜는 평일/주말 구분 없이 0h 처리 (user.checkIn/checkOut 자동 적용 금지).
-                //   기본 출퇴근시간은 인사정보 참고값일 뿐 급여 산출 자동 반영 X.
-                //   audit-payroll-fallback.mjs (2026-05-14) 결과: 영향 7명, LM팀 0명, 최홍석 95h→5h 예정.
+                // 운영 기준: 본월 record 없는 평일은 0h 처리 (user.checkIn/checkOut 자동 적용 금지).
+                //   기본 출퇴근시간은 인사정보 참고값일 뿐 본월 급여 산출에 자동 반영 X.
+                //   audit-payroll-fallback.mjs (2026-05-14) 결과: 영향 7명, LM팀 0명, 최홍석 95h→5h.
+                //
+                // 단 prev-month spillover (isTargetMonth=false) 는 첫 주 주휴 산정용 보조 데이터이므로
+                // 평일에 한해 user.checkIn/checkOut fallback 허용.
+                //   - 월별 누적(actualBasePayOnly / totalActualHours)은 isTargetMonth=true 만 가산되므로
+                //     spillover 가산은 weeklyHours 첫 주 평가에만 반영됨.
+                //   - 예: 2026-04 calc 의 3/30(월) / 3/31(화) → 첫 주 weeklyHours 35h 복구, 주휴 7h 정상.
+                //   - 본월 평일은 분기 미진입 → 최홍석/QC/카페 허수 차단 유지.
+                if (!isTargetMonthDay) {
+                    const [_y, _m, _d] = dateStr.split('-').map(Number);
+                    const dayOfWeek = new Date(_y, _m - 1, _d).getDay();
+                    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                        dailyRecords[dateStr] = { checkIn: user.checkIn, checkOut: user.checkOut, overtime: 0, reason: '', isRecorded: false, isTargetMonth: isTargetMonthDay };
+                        return;
+                    }
+                }
                 dailyRecords[dateStr] = { checkIn: null, checkOut: null, overtime: 0, reason: '', isRecorded: false, isTargetMonth: isTargetMonthDay };
             }
         };
