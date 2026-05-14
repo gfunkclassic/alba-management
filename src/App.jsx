@@ -276,13 +276,11 @@ function HRPayrollApp() {
             if (record) {
                 dailyRecords[dateStr] = { checkIn: record.checkIn, checkOut: record.checkOut, overtime: record.overtime, reason: record.reason || '', isRecorded: true, isTargetMonth: isTargetMonthDay };
             } else {
-                const [_y, _m, _d] = dateStr.split('-').map(Number);
-                const dayOfWeek = new Date(_y, _m - 1, _d).getDay();
-                if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-                    dailyRecords[dateStr] = { checkIn: user.checkIn, checkOut: user.checkOut, overtime: 0, reason: '', isRecorded: false, isTargetMonth: isTargetMonthDay };
-                } else {
-                    dailyRecords[dateStr] = { checkIn: null, checkOut: null, overtime: 0, reason: '', isRecorded: false, isTargetMonth: isTargetMonthDay };
-                }
+                // 운영 기준: 급여는 업로드된 attendance records 기준으로만 산출.
+                //   record 없는 날짜는 평일/주말 구분 없이 0h 처리 (user.checkIn/checkOut 자동 적용 금지).
+                //   기본 출퇴근시간은 인사정보 참고값일 뿐 급여 산출 자동 반영 X.
+                //   audit-payroll-fallback.mjs (2026-05-14) 결과: 영향 7명, LM팀 0명, 최홍석 95h→5h 예정.
+                dailyRecords[dateStr] = { checkIn: null, checkOut: null, overtime: 0, reason: '', isRecorded: false, isTargetMonth: isTargetMonthDay };
             }
         };
 
