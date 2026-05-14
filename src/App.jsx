@@ -226,8 +226,12 @@ function HRPayrollApp() {
 
         const totalHours = Math.max(0, workMinutes / 60);
         const numericWage = Number(wage) || 0;
-        const actualOvertime = Math.min(overtimeHours, totalHours);
-        const regularHours = totalHours - actualOvertime;
+        // Overtime is an additional paid period, not a deduction from regular worked hours.
+        //   - regularHours = clock window 전체 (이후 PR #121 cap 에서 workHours 로 제한)
+        //   - actualOvertime = 업로드 야근시간 (별도 1.5배 가산)
+        //   - hours = regularHours (clock window) — 야근수당은 overtimePay 로 분리 누적
+        const actualOvertime = Math.max(0, Number(overtimeHours) || 0);
+        const regularHours = totalHours;
         return { basePay: regularHours * numericWage, overtimePay: actualOvertime * numericWage * 1.5, hours: totalHours, regularHours, actualOvertime };
     };
 
