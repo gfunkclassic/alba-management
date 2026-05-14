@@ -434,15 +434,19 @@ function HRPayrollApp() {
             const sundayDate = new Date(wy, wm - 1, wd + 6);
             const sundayDateStr = `${sundayDate.getFullYear()}-${String(sundayDate.getMonth() + 1).padStart(2, '0')}-${String(sundayDate.getDate()).padStart(2, '0')}`;
 
-            // Determine if the week falls into the target month based on Thursday
-            const thursdayDate = new Date(wy, wm - 1, wd + 3);
-            const thursdayMonthStr = `${thursdayDate.getFullYear()}-${String(thursdayDate.getMonth() + 1).padStart(2, '0')}`;
-            const isTargetMonth = thursdayMonthStr === targetMonth;
+            // 주차 귀속 판단: 주의 5번째 영업일(금요일)이 어느 달에 속하는지로 결정 (Friday-rule)
+            //   운영 기준 - 월말 불완전 주차는 해당 월에서 비례 주휴수당을 지급하지 않고,
+            //   다음 달로 이월하여 완성 주차 기준으로 판단한다.
+            //   예: 2026-04-27~2026-05-01 주차는 금요일이 5/1 이므로 5월 귀속 →
+            //       4월에서는 주휴수당 0원, 5월 1주차로 평가되어 7h 지급.
+            const fridayDate = new Date(wy, wm - 1, wd + 4);
+            const fridayMonthStr = `${fridayDate.getFullYear()}-${String(fridayDate.getMonth() + 1).padStart(2, '0')}`;
+            const isTargetMonth = fridayMonthStr === targetMonth;
 
             // 주휴수당 조건:
             // 1) 주 15시간 이상 근무
             // 2) 결근일 없음 (결근이 있는 주는 주휴 미지급)
-            // 3) 해당 주가 이번 달에 귀속
+            // 3) 해당 주가 이번 달에 귀속 (Friday-rule)
             // 단축근무(출근은 했지만 시간 짧음)는 실근무시간/5 기준으로 비례 지급
             if (weeklyHours[weekKey] >= 15 && !weeklyHasAbsent[weekKey]) {
                 const holidayHours = Math.min(weeklyHours[weekKey] / 5, 8); // 항상 ÷5 (주 5일 기준)
@@ -457,7 +461,7 @@ function HRPayrollApp() {
 
             if (isTargetMonth) {
                 const startM = new Date(wy, wm - 1, wd); // Monday
-                const fridayDate = new Date(wy, wm - 1, wd + 4); // Friday
+                // fridayDate 는 위에서 이미 선언됨 (Friday-rule 귀속 판단용)
                 const startMon = String(startM.getMonth() + 1).padStart(2, '0');
                 const startDay = String(startM.getDate()).padStart(2, '0');
                 const endDay = String(fridayDate.getDate()).padStart(2, '0');
