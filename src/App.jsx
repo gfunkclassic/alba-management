@@ -426,7 +426,11 @@ function HRPayrollApp() {
                 weeklyDays[weekKey] = 0;
                 weeklyRecordedDays[weekKey] = 0;
             }
-            weeklyHours[weekKey] += daily.hours;
+            // 주휴수당 산정 기준: 연장근무 제외 정규 인정시간만 누적.
+            //   daily.hours 는 cap 후 (regular + actualOvertime) 합산 → 주휴 ÷5 산식에서 OT 가산되는 부작용.
+            //   daily.regularHours 는 cap / annual / halfDay credit chain 통과 후 정규 인정시간만 보유.
+            //   운영 기준: 주휴는 소정근로시간 기준, 연장은 overtimePay × 1.5 로 별도 지급.
+            weeklyHours[weekKey] += daily.regularHours;
             weeklyDays[weekKey] += 1;
             if (record.isRecorded) {
                 weeklyRecordedDays[weekKey] += 1;
