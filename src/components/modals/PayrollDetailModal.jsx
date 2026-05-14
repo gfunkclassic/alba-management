@@ -58,7 +58,7 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                     </div>
                     <div className="p-3 text-center border-r-2 border-[#c5c0b0]">
                         <p className="text-[10px] font-bold text-[#7a7565] uppercase mb-1">실 근무시간</p>
-                        <p className="text-xl font-black text-[#3d472f]">{Math.round((wage?.totalActualHours || 0) * 10) / 10}h</p>
+                        <p className="text-xl font-black text-[#3d472f]">{Math.round(Math.max(0, (wage?.totalActualHours || 0) - (wage?.totalActualOvertime || 0)) * 10) / 10}h</p>
                     </div>
                     <div className="p-3 text-center">
                         <p className="text-[10px] font-bold text-[#7a7565] uppercase mb-1">연장시간</p>

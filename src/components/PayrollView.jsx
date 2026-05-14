@@ -227,7 +227,7 @@ export default function PayrollView({
                                         {mode === 'INSURED' ? (
                                             <>
                                                 <td className="p-3 text-center text-[#5a5545]">{user.workDays}</td>
-                                                <td className="p-3 text-right text-[#5a5545]">{wage.hasRecord ? `${formatHoursForDisplay(wage.totalActualHours)}h` : '-'}</td>
+                                                <td className="p-3 text-right text-[#5a5545]">{wage.hasRecord ? `${formatHoursForDisplay(Math.max(0, (wage.totalActualHours || 0) - (wage.totalActualOvertime || 0)))}h` : '-'}</td>
                                                 <td className="p-3 text-right text-[#a78049] font-bold">{wage.hasRecord && wage.totalActualOvertime > 0 ? `+${formatHoursForDisplay(wage.totalActualOvertime)}h` : '-'}</td>
                                                 <td className="p-3 text-right pr-4">
                                                     {wage.hasRecord ? (
