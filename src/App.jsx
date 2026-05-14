@@ -883,6 +883,20 @@ function HRPayrollApp() {
         return text;
     };
 
+    // 야근시간 셀 파싱: fmj-worklog 형식 "2h"/"2.5h"/"2시간" 등 단위 포함 문자열을 숫자로 변환.
+    //   기존 코드 `Number("2h") = NaN` → `NaN || 0` = 0 버그 수정.
+    //   허용 입력: "2", 2, "2h", "2.5h", "2시간", " 2 h ", null/undefined/""/"-"
+    //   반환: 유한한 양수 number, 그 외는 0
+    //   ※ 산식 자체(`overtimePay = ot × wage × 1.5`)는 calculateDailyWage 그대로 사용.
+    const parseAttendanceOvertimeCell = (raw) => {
+        if (raw === null || raw === undefined) return 0;
+        const value = String(raw).trim();
+        if (!value || value === '-') return 0;
+        const match = value.match(/^(\d+(?:\.\d+)?)/);
+        const parsed = match ? Number(match[1]) : Number(value);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    };
+
     // PR-3: fmj-worklog 날짜 형식 "MM/DD (요일)" → "YYYY-MM-DD" 변환.
     // 현재 선택 월(payrollMonth)의 연도를 fallback year로 사용.
     // 기존 형식(ISO/YYYYMMDD 등)은 normalizeDateStr fallback으로 처리.
@@ -1013,7 +1027,10 @@ function HRPayrollApp() {
                     // PR-5: 시간 셀 정규화 — "-"/공란/한글 시간 → "" 또는 "HH:mm" 표준 형식
                     const rawCheckIn = normalizeAttendanceTimeCell(row[idxIn]);
                     const rawCheckOut = normalizeAttendanceTimeCell(row[idxOut]);
-                    const overtime = (row[idxOvertime] ? Number(row[idxOvertime]) : 0) || 0;
+                    // fmj-worklog 야근시간 셀이 "2h" 같은 단위 포함 문자열인 경우
+                    //   Number("2h") = NaN → 기존 코드는 0 으로 fallback 되어 야근수당 누락.
+                    //   parseAttendanceOvertimeCell 로 숫자 부분 안전 추출.
+                    const overtime = idxOvertime !== -1 ? parseAttendanceOvertimeCell(row[idxOvertime]) : 0;
                     // PR-4: 비고 정규화 (공란/-/순수숫자 → 빈문자열). 그 외 텍스트는 보존.
                     const rawReason = idxReason !== -1 ? row[idxReason] : '';
                     let reason = normalizeAttendanceNote(rawReason);
