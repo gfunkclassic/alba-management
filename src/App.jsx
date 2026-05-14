@@ -339,7 +339,7 @@ function HRPayrollApp() {
         //   - 적용 대상: reason 에 '연차' 포함 AND '반차' 미포함
         //   - 출퇴근 시간이 없어도 employees.workHours 만큼 actual / basePay 가산
         //   - 반차/결근/정상근무는 무영향 (정상근무는 cap helper 가 이미 처리)
-        //   - 반차 보전시간은 본 PR 범위 외 (후속 PR)
+        //   - 반차 보전시간은 별도 helper(applyHalfDayLeaveCredit) 에서 처리
         const applyAnnualLeaveCredit = (daily, record, dailyWage) => {
             if (!hasContractCap) return daily;
             const reason = String(record?.reason || '');
@@ -356,11 +356,38 @@ function HRPayrollApp() {
             };
         };
 
+        // 반차일 인정시간 보전 (PR: 반차 1일 최종 인정 = employees.workHours)
+        //   - 적용 대상: reason 에 '반차' 포함 (오전 반차 / 오후 반차 / 기타 반차)
+        //   - 산식: credit = max(0, workHours - actualReg)
+        //           recognized = min(workHours, actualReg + credit)
+        //   - actualReg 가 이미 workHours 이상이면 credit=0 + cap 효과로 workHours 유지
+        //   - actualOvertime / overtimePay 는 raw 값 그대로 유지 (반차 보전은 일반 인정시간 보전)
+        //   - 연차일과 중복 가산 방지: applyAnnualLeaveCredit 에서 isAnnual 가드 `!reason.includes('반차')` 명시
+        const applyHalfDayLeaveCredit = (daily, record, dailyWage) => {
+            if (!hasContractCap) return daily;
+            const reason = String(record?.reason || '');
+            const isHalf = reason.includes('반차');
+            if (!isHalf) return daily;
+            const actualReg = Number(daily?.regularHours) || 0;
+            const credit = Math.max(0, contractDailyHours - actualReg);
+            const recognized = Math.min(contractDailyHours, actualReg + credit);
+            const wage = Number(dailyWage) || 0;
+            const ot = Number(daily?.actualOvertime) || 0;
+            return {
+                ...daily,
+                regularHours: recognized,
+                hours: recognized + ot,
+                basePay: recognized * wage,
+                // overtimePay 는 raw 값 그대로 유지
+            };
+        };
+
         Object.entries(dailyRecords).sort().forEach(([dateStr, record]) => {
             const dailyWage = getWageForDate(dateStr);
             const dailyRaw = calculateDailyWage(dailyWage, record.checkIn, record.checkOut, record.overtime);
             const dailyCapped = applyDailyRecognitionCap(dailyRaw, record, dailyWage);
-            const daily = applyAnnualLeaveCredit(dailyCapped, record, dailyWage);
+            const dailyAnnual = applyAnnualLeaveCredit(dailyCapped, record, dailyWage);
+            const daily = applyHalfDayLeaveCredit(dailyAnnual, record, dailyWage);
 
             // 이번 달 날짜만 기본급/총 근무시간 집계에 포함
             if (record.isTargetMonth) {
@@ -476,7 +503,8 @@ function HRPayrollApp() {
                 const dw = getWageForDate(dateStr);
                 const raw = calculateDailyWage(dw, rec.checkIn, rec.checkOut, rec.overtime);
                 const capped = applyDailyRecognitionCap(raw, rec, dw);
-                const d = applyAnnualLeaveCredit(capped, rec, dw);
+                const annual = applyAnnualLeaveCredit(capped, rec, dw);
+                const d = applyHalfDayLeaveCredit(annual, rec, dw);
                 return {
                     date: dateStr,
                     checkIn: rec.checkIn || '',
