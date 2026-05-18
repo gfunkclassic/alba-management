@@ -57,8 +57,8 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                         <p className="text-xl font-black text-[#3d472f]">{summary.worked}일</p>
                     </div>
                     <div className="p-3 text-center border-r-2 border-[#c5c0b0]">
-                        <p className="text-[10px] font-bold text-[#7a7565] uppercase mb-1">실 근무시간</p>
-                        <p className="text-xl font-black text-[#3d472f]">{Math.round((wage?.totalActualHours || 0) * 10) / 10}h</p>
+                        <p className="text-[10px] font-bold text-[#7a7565] uppercase mb-1">급여 인정시간</p>
+                        <p className="text-xl font-black text-[#3d472f]">{Math.round((wage?.totalRegularHours ?? wage?.totalActualHours ?? 0) * 10) / 10}h</p>
                     </div>
                     <div className="p-3 text-center">
                         <p className="text-[10px] font-bold text-[#7a7565] uppercase mb-1">연장시간</p>
@@ -81,7 +81,7 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                                     <th className="p-2.5 text-left font-bold text-[#5d6c4a] uppercase">날짜</th>
                                     <th className="p-2.5 text-center font-bold text-[#5d6c4a] uppercase">출근</th>
                                     <th className="p-2.5 text-center font-bold text-[#5d6c4a] uppercase">퇴근</th>
-                                    <th className="p-2.5 text-center font-bold text-[#5d6c4a] uppercase">실근무</th>
+                                    <th className="p-2.5 text-center font-bold text-[#5d6c4a] uppercase">급여인정</th>
                                     <th className="p-2.5 text-center font-bold text-[#8d5a4d] uppercase">연장</th>
                                     <th className="p-2.5 text-right font-bold text-[#5d6c4a] uppercase pr-4">일급</th>
                                     <th className="p-2.5 text-left font-bold text-[#5d6c4a] uppercase">비고</th>
@@ -104,7 +104,7 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                                             {row.checkOut || <span className="text-[#c5c0b0]">—</span>}
                                         </td>
                                         <td className={`p-2.5 text-center ${dimText}`}>
-                                            {row.hours > 0 ? `${row.hours}h` : <span className="text-[#c5c0b0]">—</span>}
+                                            {(row.regularHours ?? row.hours ?? 0) > 0 ? `${row.regularHours ?? row.hours}h` : <span className="text-[#c5c0b0]">—</span>}
                                         </td>
                                         <td className="p-2.5 text-center">
                                             {row.overtimeHours > 0
