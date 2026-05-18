@@ -22,3 +22,27 @@ tomorrow-checklist-*.md
 
 # 테스트 데이터 정리 스크립트 (로컬 경로 하드코딩 포함, 공용 부적절)
 functions/cleanup-test.js
+
+# ─── 데이터 이전/백업 보호 (회사 GitHub 이전 대비) ───
+# Local backup outputs
+backups/
+backup/
+firestore-exports/
+
+# Firebase / Google service account keys
+*serviceAccount*.json
+*service-account*.json
+*-firebase-adminsdk-*.json
+google-application-credentials*.json
+firebase-admin-key*.json
+
+# Environment variables / local secrets
+.env
+.env.*
+!.env.example
+
+# Local logs / temporary outputs
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
