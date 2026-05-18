@@ -34,10 +34,14 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
     };
 
     const [ty, tm] = payrollMonth.split('-');
+    const weeklyLogs = wage?.weeklyLogsList || [];
+    const isNonInsured = !user.insuranceStatus;
+    const won = (v) => `₩${Number(v || 0).toLocaleString()}`;
 
     return (
-        <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[300] flex items-center justify-center p-4 print:static print:block print:bg-transparent print:backdrop-blur-none print:p-0">
-            <div className="bg-[#f5f3e8] w-full max-w-2xl max-h-[90vh] flex flex-col border-2 border-[#3d472f] shadow-2xl print:max-w-none print:max-h-none print:w-full print:border-0 print:shadow-none print:overflow-visible">
+        <>
+        <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[300] flex items-center justify-center p-4 print:hidden">
+            <div className="bg-[#f5f3e8] w-full max-w-2xl max-h-[90vh] flex flex-col border-2 border-[#3d472f] shadow-2xl">
                 {/* Header */}
                 <div className="bg-[#5d6c4a] p-4 border-b-2 border-[#3d472f] flex items-center justify-between shrink-0">
                     <div>
@@ -193,5 +197,91 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                 </div>
             </div>
         </div>
+
+        {/* ───── 인쇄 전용 A4 급여명세서 (화면 비표시) ───── */}
+        <div data-print-payslip className="hidden print:block text-[#222] text-[9px] leading-tight">
+            <h1 className="text-center text-[15px] font-bold mb-2">{ty}. {parseInt(tm)}월 급여명세서</h1>
+            <div className="flex gap-3">
+                {/* 좌측: 일별 근무시간 표 */}
+                <div className="w-[58%]">
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="bg-[#eee]">
+                                <th className="border border-[#999] px-1 py-0.5 text-center">날짜</th>
+                                <th className="border border-[#999] px-1 py-0.5 text-center">요일</th>
+                                <th className="border border-[#999] px-1 py-0.5 text-center">근무</th>
+                                <th className="border border-[#999] px-1 py-0.5 text-center">야근</th>
+                                <th className="border border-[#999] px-1 py-0.5 text-center">비고</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {breakdown.map(row => (
+                                <tr key={row.date}>
+                                    <td className="border border-[#ccc] px-1 py-[1px] text-center">{row.date.slice(5)}</td>
+                                    <td className="border border-[#ccc] px-1 py-[1px] text-center">{getDayLabel(row.date)}</td>
+                                    <td className="border border-[#ccc] px-1 py-[1px] text-center">{(row.regularHours ?? row.hours ?? 0) > 0 ? `${row.regularHours ?? row.hours}h` : '-'}</td>
+                                    <td className="border border-[#ccc] px-1 py-[1px] text-center">{row.overtimeHours > 0 ? `${row.overtimeHours}h` : '-'}</td>
+                                    <td className="border border-[#ccc] px-1 py-[1px]">{row.reason || ''}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                {/* 우측: 직원정보 / 주차별 주휴 / 급여요약 */}
+                <div className="w-[42%] flex flex-col gap-2">
+                    <table className="w-full border-collapse">
+                        <tbody>
+                            <tr><td className="border border-[#999] bg-[#eee] px-1 py-0.5 font-bold w-[35%]">이름</td><td className="border border-[#999] px-1 py-0.5">{user.name}</td></tr>
+                            <tr><td className="border border-[#999] bg-[#eee] px-1 py-0.5 font-bold">부서</td><td className="border border-[#999] px-1 py-0.5">{user.team || ''}</td></tr>
+                            <tr><td className="border border-[#999] bg-[#eee] px-1 py-0.5 font-bold">시급</td><td className="border border-[#999] px-1 py-0.5">{won(user.wage)}</td></tr>
+                            {user.startDate && <tr><td className="border border-[#999] bg-[#eee] px-1 py-0.5 font-bold">입사일</td><td className="border border-[#999] px-1 py-0.5">{user.startDate}</td></tr>}
+                            <tr><td className="border border-[#999] bg-[#eee] px-1 py-0.5 font-bold">급여월</td><td className="border border-[#999] px-1 py-0.5">{ty}. {parseInt(tm)}월</td></tr>
+                        </tbody>
+                    </table>
+
+                    {weeklyLogs.length > 0 && (
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr className="bg-[#eee]">
+                                    <th className="border border-[#999] px-1 py-0.5" colSpan={4}>주차별 주휴수당</th>
+                                </tr>
+                                <tr className="bg-[#f3f3f3]">
+                                    <th className="border border-[#999] px-1 py-0.5">주차</th>
+                                    <th className="border border-[#999] px-1 py-0.5">총시간</th>
+                                    <th className="border border-[#999] px-1 py-0.5">근무일</th>
+                                    <th className="border border-[#999] px-1 py-0.5">주휴수당</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {weeklyLogs.map((w, i) => (
+                                    <tr key={i}>
+                                        <td className="border border-[#ccc] px-1 py-[1px] text-center">{w.weekStr}</td>
+                                        <td className="border border-[#ccc] px-1 py-[1px] text-center">{Math.round(w.totalHours * 10) / 10}h</td>
+                                        <td className="border border-[#ccc] px-1 py-[1px] text-center">{w.daysWorked}일</td>
+                                        <td className="border border-[#ccc] px-1 py-[1px] text-right">{w.holidayPay > 0 ? won(w.holidayPay) : '-'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="bg-[#eee]"><th className="border border-[#999] px-1 py-0.5" colSpan={2}>급여 항목</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td className="border border-[#999] px-1 py-0.5 w-[55%]">일반급여</td><td className="border border-[#999] px-1 py-0.5 text-right">{won(wage?.baseOnlyPay)}</td></tr>
+                            <tr><td className="border border-[#999] px-1 py-0.5">야근수당</td><td className="border border-[#999] px-1 py-0.5 text-right">{won(wage?.totalOvertimePay)}</td></tr>
+                            <tr><td className="border border-[#999] px-1 py-0.5">주휴수당</td><td className="border border-[#999] px-1 py-0.5 text-right">{won(wage?.actualHolidayPay)}</td></tr>
+                            <tr className="font-bold bg-[#f3f3f3]"><td className="border border-[#999] px-1 py-0.5">총 급여(세전)</td><td className="border border-[#999] px-1 py-0.5 text-right">{won(wage?.actual)}</td></tr>
+                            {isNonInsured && <tr><td className="border border-[#999] px-1 py-0.5">3.3% 공제</td><td className="border border-[#999] px-1 py-0.5 text-right">-{won(wage?.strictDeduction)}</td></tr>}
+                            {isNonInsured && <tr className="font-bold bg-[#f3f3f3]"><td className="border border-[#999] px-1 py-0.5">실지급액</td><td className="border border-[#999] px-1 py-0.5 text-right">{won(wage?.strictFinalPayout)}</td></tr>}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <p className="mt-2 text-[8px] text-[#555]">※ 주휴수당은 주차별 근무 기준에 따라 산정되었습니다.</p>
+        </div>
+        </>
     );
 }

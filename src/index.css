@@ -1,3 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@media print {
+    body * { visibility: hidden; }
+    [data-print-payslip], [data-print-payslip] * { visibility: visible; }
+    [data-print-payslip] { position: absolute; top: 0; left: 0; width: 100%; }
+    @page { size: A4 portrait; margin: 9mm; }
+}
