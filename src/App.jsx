@@ -275,6 +275,7 @@ function HRPayrollApp() {
         let totalActualHours = 0;
         let totalRegularHours = 0;
         let totalActualOvertime = 0;
+        let totalOvertimePay = 0;
         const weeklyLogsList = [];
         let actualBasePayOnly = 0;
         const userAttendance = attendance[user.id] || {};
@@ -287,7 +288,7 @@ function HRPayrollApp() {
         };
 
         if (!targetMonth) {
-            return { estimated: 0, actual: 0, displayTotal: 0, deduction: 0, finalPayout: 0, totalActualHours: 0, totalRegularHours: 0, totalActualOvertime: 0, strictDeduction: 0, strictFinalPayout: 0, hasRecord: false, actualBasePayOnly: 0, actualHolidayPay: 0, weeklyLogsList: [], weeklyHolidayCount: 0 };
+            return { estimated: 0, actual: 0, displayTotal: 0, deduction: 0, finalPayout: 0, totalActualHours: 0, totalRegularHours: 0, totalActualOvertime: 0, strictDeduction: 0, strictFinalPayout: 0, hasRecord: false, actualBasePayOnly: 0, baseOnlyPay: 0, totalOvertimePay: 0, actualHolidayPay: 0, weeklyLogsList: [], weeklyHolidayCount: 0 };
         }
 
         const [targetYear, targetMonthNum] = targetMonth.split('-').map(Number);
@@ -443,6 +444,7 @@ function HRPayrollApp() {
             // 이번 달 날짜만 기본급/총 근무시간 집계에 포함
             if (record.isTargetMonth) {
                 actualBasePayOnly += daily.basePay;
+                totalOvertimePay += daily.overtimePay;
                 actualBaseOvertimePay += daily.basePay + daily.overtimePay;
                 totalActualHours += daily.hours;
                 totalRegularHours += daily.regularHours;
@@ -603,6 +605,8 @@ function HRPayrollApp() {
             totalActualOvertime, strictDeduction, strictFinalPayout,
             hasRecord: !!hasMonthRecord,
             actualBasePayOnly: Math.round(actualBaseOvertimePay),
+            baseOnlyPay: Math.round(actualBasePayOnly),
+            totalOvertimePay: Math.round(totalOvertimePay),
             actualHolidayPay: Math.round(actualHolidayPay),
             weeklyLogsList, dailyBreakdown
         };
@@ -1652,9 +1656,9 @@ function HRPayrollApp() {
             let gtBase = 0, gtHoliday = 0, gtOT = 0, gtTotal = 0;
             insuredUsers.forEach(u => {
                 const p = calculateMonthlyWage(u, payrollMonth);
-                const base = p.actualBasePayOnly || 0;
+                const base = p.baseOnlyPay ?? 0;
                 const holi = p.actualHolidayPay || 0;
-                const ot = Math.round((p.actual || 0) - base - holi);
+                const ot = p.totalOvertimePay ?? 0;
                 gtBase += base; gtHoliday += holi; gtOT += (ot > 0 ? ot : 0); gtTotal += (p.actual || 0);
                 sumRows.push([u.name, u.bank || '', u.account || '', base, holi, ot > 0 ? ot : 0, p.actual || 0, p.hasRecord ? '' : '미입력']);
             });
@@ -1737,8 +1741,8 @@ function HRPayrollApp() {
             const totalRow = dailyStartRow + daysInMonth;
 
             // 급여 요약: 우측에 주차별 표 바로 아래 배치
-            const basePay = pay.actualBasePayOnly || 0;
-            const overtimePay = Math.round((pay.actual || 0) - basePay - (pay.actualHolidayPay || 0));
+            const basePay = pay.baseOnlyPay ?? 0;
+            const overtimePay = pay.totalOvertimePay ?? 0;
             // 주차별 표 종료 row = dailyStartRow + wl.length, 1행 여백 후 급여요약 시작
             const summaryRow = dailyStartRow + wl.length + 1;
 
