@@ -259,7 +259,13 @@ function HRPayrollApp() {
         //   - actualOvertime = 업로드 야근시간 (별도 1.5배 가산)
         //   - hours = regularHours (clock window) — 야근수당은 overtimePay 로 분리 누적
         const actualOvertime = Math.max(0, Number(overtimeHours) || 0);
-        const regularHours = totalHours;
+        // 회사 운영 기준: 기본급 산정 실제근무시간은 분 단위 잔여 절삭 (예: 7시간 5분 → 7시간).
+        //   - 조퇴/이른 퇴근일 등 분 단위 잔여가 basePay 에 누적되는 문제 차단.
+        //   - 1e-9 보정: 정수 케이스(예 7.0)가 부동소수점 7.999.. 로 표현돼 잘못 floor 되는 것 방지.
+        //   - regularHours(기본급)에만 적용. hours(표시)/actualOvertime(OT)/holidayHours(주휴)
+        //     /연차·반차 credit(이후 chain 에서 workHours 정수 보전) 에는 floor 미적용.
+        //   - 직원/팀/월 예외처리 없음. 모든 직원 동일 일반 산식.
+        const regularHours = Math.max(0, Math.floor(totalHours + 1e-9));
         return { basePay: regularHours * numericWage, overtimePay: actualOvertime * numericWage * 1.5, hours: totalHours, regularHours, actualOvertime };
     };
 
