@@ -46,3 +46,12 @@ firebase-admin-key*.json
 *.tmp
 .DS_Store
 Thumbs.db
+
+# ─── 회사 GitHub 이전 보호: 개인정보 산출물 / 오실행 위험 스크립트 ───
+# 직원 실명·근태·계약시간 등 PII 포함 감사 산출물 (절대 커밋 금지)
+scripts/output/
+# 과거 1회성 마이그레이션/write 스크립트 묶음 (운영 데이터 변경 위험)
+scripts/archive-*/
+# 운영 데이터 변경 가능 write 스크립트
+scripts/cleanup-test-leave-data.mjs
+scripts/backfill-external-employee-id.mjs
