@@ -497,7 +497,23 @@ function HRPayrollApp() {
             // 3) 해당 주가 이번 달에 귀속 (Friday-rule)
             // 단축근무(출근은 했지만 시간 짧음)는 실근무시간/5 기준으로 비례 지급
             if (weeklyHours[weekKey] >= 15 && !weeklyHasAbsent[weekKey]) {
-                const holidayHours = Math.min(weeklyHours[weekKey] / 5, 8); // 항상 ÷5 (주 5일 기준)
+                // [주휴 발생 판단 / 주휴시간 산정 분리 — D안]
+                //   발생: 주 15h↑ + 결근 reason 없음 (지각/조퇴/외출은 결근 아님 → 발생 유지).
+                //   시간: 주휴 발생 + workHours 정상 + 주중 입·퇴사 부분주차 아님
+                //         → 직원별 1일 소정근로시간(user.workHours).
+                //   fallback(weeklyHours/5 cap8): 주중 입사/퇴사 부분주차 또는 workHours 비정상만.
+                //   월경계(spillover) 단독은 fallback 사유 아님 — Friday-rule isTargetMonth 게이트가
+                //     이미 월 귀속을 처리하므로, 월경계라도 입퇴사/결근/15h미만이 아니면 workHours 인정.
+                //   기존 weeklyHours 누적 / Friday-rule / 결근 박탈 / OT 제외 정책 무변경.
+                //   직원/팀/월 예외처리 없음. 모든 직원 동일 일반 산식.
+                const contractDailyHours = Number(user.workHours);
+                const hasValidContractDailyHours = Number.isFinite(contractDailyHours) && contractDailyHours > 0;
+                const startInWeek = !!user.startDate && String(user.startDate) >= weekKey && String(user.startDate) <= sundayDateStr;
+                const resignInWeek = !!user.resignDate && String(user.resignDate) >= weekKey && String(user.resignDate) <= sundayDateStr;
+                const isPartialWeek = startInWeek || resignInWeek;
+                const holidayHours = (hasValidContractDailyHours && !isPartialWeek)
+                    ? contractDailyHours
+                    : Math.min(weeklyHours[weekKey] / 5, 8); // fallback: 주중 입퇴사 부분주차 / workHours 비정상
 
                 if (isTargetMonth) {
                     const holidayWage = getWageForDate(sundayDateStr);
