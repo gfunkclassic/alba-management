@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { X, Calendar, Clock, TrendingUp, AlertCircle, ChevronRight } from 'lucide-react';
+import { X, Calendar, Clock, TrendingUp, AlertCircle, ChevronRight, Printer } from 'lucide-react';
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -36,8 +36,8 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
     const [ty, tm] = payrollMonth.split('-');
 
     return (
-        <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-            <div className="bg-[#f5f3e8] w-full max-w-2xl max-h-[90vh] flex flex-col border-2 border-[#3d472f] shadow-2xl">
+        <div className="fixed inset-0 bg-[#3d3929]/70 backdrop-blur-sm z-[300] flex items-center justify-center p-4 print:static print:block print:bg-transparent print:backdrop-blur-none print:p-0">
+            <div className="bg-[#f5f3e8] w-full max-w-2xl max-h-[90vh] flex flex-col border-2 border-[#3d472f] shadow-2xl print:max-w-none print:max-h-none print:w-full print:border-0 print:shadow-none print:overflow-visible">
                 {/* Header */}
                 <div className="bg-[#5d6c4a] p-4 border-b-2 border-[#3d472f] flex items-center justify-between shrink-0">
                     <div>
@@ -47,7 +47,15 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                         </h2>
                         <p className="text-[#d4dcc0] text-xs mt-0.5">{user.team} | 시급 ₩{(user.wage || 0).toLocaleString()}</p>
                     </div>
-                    <button onClick={onClose} className="text-[#d4dcc0] hover:text-[#f5f3e8]"><X size={22} /></button>
+                    <div className="flex items-center gap-2 print:hidden">
+                        <button
+                            onClick={() => window.print()}
+                            className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#5d6c4a] bg-[#d4dcc0] hover:bg-[#e8ecd8] border border-[#3d472f]"
+                        >
+                            <Printer size={14} /> 출력
+                        </button>
+                        <button onClick={onClose} className="text-[#d4dcc0] hover:text-[#f5f3e8]"><X size={22} /></button>
+                    </div>
                 </div>
 
                 {/* Summary Cards */}
@@ -67,7 +75,7 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                 </div>
 
                 {/* Table */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto print:overflow-visible print:max-h-none print:flex-none">
                     {!hasRecord ? (
                         <div className="flex flex-col items-center justify-center h-40 text-[#9a9585]">
                             <AlertCircle size={32} className="mb-2 opacity-40" />
@@ -76,7 +84,7 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                         </div>
                     ) : (
                         <table className="w-full text-xs">
-                            <thead className="bg-[#f5f3e8] sticky top-0 z-10 border-b border-[#d4cfbf]">
+                            <thead className="bg-[#f5f3e8] sticky top-0 z-10 border-b border-[#d4cfbf] print:static">
                                 <tr>
                                     <th className="p-2.5 text-left font-bold text-[#5d6c4a] uppercase">날짜</th>
                                     <th className="p-2.5 text-center font-bold text-[#5d6c4a] uppercase">출근</th>
