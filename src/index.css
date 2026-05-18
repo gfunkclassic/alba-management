@@ -5,6 +5,15 @@
 @media print {
     body * { visibility: hidden; }
     [data-print-payslip], [data-print-payslip] * { visibility: visible; }
-    [data-print-payslip] { position: absolute; top: 0; left: 0; width: 100%; }
-    @page { size: A4 portrait; margin: 9mm; }
+    [data-print-payslip] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    [data-print-payslip] table { page-break-inside: auto; }
+    [data-print-payslip] tr { page-break-inside: avoid; }
+    @page { size: A4 portrait; margin: 6mm; }
 }
