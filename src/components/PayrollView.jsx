@@ -196,7 +196,7 @@ export default function PayrollView({
                                 {mode === 'INSURED' ? (
                                     <>
                                         <th className="p-3 text-center">근무일수</th>
-                                        <th className="p-3 text-right">실 근무시간</th>
+                                        <th className="p-3 text-right">급여 인정시간</th>
                                         <th className="p-3 text-right">연장시간</th>
                                         <th className="p-3 text-right pr-4">실적 급여(세전) <span className="opacity-50 normal-case font-normal">클릭↗</span></th>
                                     </>
@@ -227,7 +227,7 @@ export default function PayrollView({
                                         {mode === 'INSURED' ? (
                                             <>
                                                 <td className="p-3 text-center text-[#5a5545]">{user.workDays}</td>
-                                                <td className="p-3 text-right text-[#5a5545]">{wage.hasRecord ? `${formatHoursForDisplay(wage.totalActualHours)}h` : '-'}</td>
+                                                <td className="p-3 text-right text-[#5a5545]">{wage.hasRecord ? `${formatHoursForDisplay(wage.totalRegularHours ?? wage.totalActualHours ?? 0)}h` : '-'}</td>
                                                 <td className="p-3 text-right text-[#a78049] font-bold">{wage.hasRecord && wage.totalActualOvertime > 0 ? `+${formatHoursForDisplay(wage.totalActualOvertime)}h` : '-'}</td>
                                                 <td className="p-3 text-right pr-4">
                                                     {wage.hasRecord ? (

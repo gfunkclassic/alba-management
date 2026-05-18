@@ -273,6 +273,7 @@ function HRPayrollApp() {
         let actualBaseOvertimePay = 0;
         let actualHolidayPay = 0;
         let totalActualHours = 0;
+        let totalRegularHours = 0;
         let totalActualOvertime = 0;
         const weeklyLogsList = [];
         let actualBasePayOnly = 0;
@@ -286,7 +287,7 @@ function HRPayrollApp() {
         };
 
         if (!targetMonth) {
-            return { estimated: 0, actual: 0, displayTotal: 0, deduction: 0, finalPayout: 0, totalActualHours: 0, totalActualOvertime: 0, strictDeduction: 0, strictFinalPayout: 0, hasRecord: false, actualBasePayOnly: 0, actualHolidayPay: 0, weeklyLogsList: [], weeklyHolidayCount: 0 };
+            return { estimated: 0, actual: 0, displayTotal: 0, deduction: 0, finalPayout: 0, totalActualHours: 0, totalRegularHours: 0, totalActualOvertime: 0, strictDeduction: 0, strictFinalPayout: 0, hasRecord: false, actualBasePayOnly: 0, actualHolidayPay: 0, weeklyLogsList: [], weeklyHolidayCount: 0 };
         }
 
         const [targetYear, targetMonthNum] = targetMonth.split('-').map(Number);
@@ -444,6 +445,7 @@ function HRPayrollApp() {
                 actualBasePayOnly += daily.basePay;
                 actualBaseOvertimePay += daily.basePay + daily.overtimePay;
                 totalActualHours += daily.hours;
+                totalRegularHours += daily.regularHours;
                 totalActualOvertime += daily.actualOvertime;
             }
 
@@ -586,6 +588,7 @@ function HRPayrollApp() {
                     overtime: rec.overtime || 0,
                     reason: rec.reason || '',
                     hours: Math.round(d.hours * 100) / 100,
+                    regularHours: Math.round(d.regularHours * 100) / 100,
                     overtimeHours: Math.round(d.actualOvertime * 100) / 100,
                     basePay: Math.round(d.basePay + d.overtimePay),
                     isRecorded: rec.isRecorded,
@@ -596,6 +599,7 @@ function HRPayrollApp() {
         return {
             estimated: estimatedTotalPay, actual: Math.round(actualTotalPay),
             displayTotal, deduction, finalPayout, totalActualHours,
+            totalRegularHours,
             totalActualOvertime, strictDeduction, strictFinalPayout,
             hasRecord: !!hasMonthRecord,
             actualBasePayOnly: Math.round(actualBaseOvertimePay),
@@ -1538,7 +1542,7 @@ function HRPayrollApp() {
 
             const calcStartRow = sheetData.length;
             sheetData.push(["급여 계산"]);
-            sheetData.push(["전체 근무시간 (h)", `${Math.round(pay.totalActualHours * 10) / 10}h`]);
+            sheetData.push(["전체 근무시간 (h)", `${Math.round((pay.totalRegularHours ?? pay.totalActualHours ?? 0) * 10) / 10}h`]);
             sheetData.push(["기본급 (정상 근무)", base]);
             sheetData.push(["기본급 합계", base]);
             sheetData.push(["주휴수당 합계", holi]);
@@ -1699,7 +1703,7 @@ function HRPayrollApp() {
                 if (entry) {
                     checkIn = entry.checkIn || '';
                     checkOut = entry.checkOut || '';
-                    hours = entry.hours > 0 ? entry.hours : '';
+                    hours = (entry.regularHours ?? entry.hours ?? 0) > 0 ? (entry.regularHours ?? entry.hours) : '';
                     overtime = entry.overtimeHours > 0 ? entry.overtimeHours : '';
                     remark = entry.reason || '';
                 }
@@ -1727,7 +1731,7 @@ function HRPayrollApp() {
             }
 
             // 일별 합계행
-            const totalHours = Math.round((pay.totalActualHours || 0) * 10) / 10;
+            const totalHours = Math.round((pay.totalRegularHours ?? pay.totalActualHours ?? 0) * 10) / 10;
             const totalOT = Math.round((pay.totalActualOvertime || 0) * 10) / 10;
             rows.push(['합계', '', '', '', totalHours, totalOT > 0 ? totalOT : '', '']);
             const totalRow = dailyStartRow + daysInMonth;
