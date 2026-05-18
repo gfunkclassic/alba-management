@@ -200,7 +200,7 @@ function HRPayrollApp() {
         setTimeout(() => setNotification(null), 3000);
     }, []);
 
-    const calculateDailyWage = (wage, start, end, overtimeHours = 0) => {
+    const calculateDailyWage = (wage, start, end, overtimeHours = 0, scheduledIn = null, scheduledOut = null) => {
         if (!start || !end) return { basePay: 0, overtimePay: 0, hours: 0, regularHours: 0, actualOvertime: 0 };
         const normalizeTime = (t) => {
             if (!t) return "00:00";
@@ -210,8 +210,36 @@ function HRPayrollApp() {
             if (parts.length >= 2) return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
             return cleanT;
         };
-        const startTime = new Date(`2000-01-01T${normalizeTime(start)}`);
-        let endTime = new Date(`2000-01-01T${normalizeTime(end)}`);
+
+        // 회사 운영 기준 출퇴근 절삭 (조기 출근 미인정 + 야근 없는 늦은 퇴근 절삭).
+        //   - effectiveIn  = max(actualIn, scheduledIn)   → 조기 출근분 정규 미인정
+        //   - effectiveOut = overtime>0 ? actualOut : min(actualOut, scheduledOut)
+        //                    야근 없는 늦은 퇴근 잔여분 정규 미인정.
+        //                    야근일은 정규를 잘라 OT 산정을 없애지 않고 actualOut 유지
+        //                    (정규 초과분은 이후 PR #121 cap 이 workHours 로 제한, OT 는 별도).
+        //   - scheduledIn/Out 누락·비정상이면 절삭 미적용 → actual 그대로 (기존 동작 유지).
+        //   - 직원/팀/월 예외처리 없음. 모든 직원 동일 일반 산식.
+        const HM_RE = /^\d{1,2}:\d{2}/;
+        const toMin = (hm) => {
+            const m = String(hm).match(/^(\d{1,2}):(\d{2})/);
+            return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null;
+        };
+        const otForTrim = Math.max(0, Number(overtimeHours) || 0);
+        const aInNorm = HM_RE.test(normalizeTime(start)) ? normalizeTime(start) : null;
+        const aOutNorm = HM_RE.test(normalizeTime(end)) ? normalizeTime(end) : null;
+        const sInNorm = scheduledIn && HM_RE.test(normalizeTime(scheduledIn)) ? normalizeTime(scheduledIn) : null;
+        const sOutNorm = scheduledOut && HM_RE.test(normalizeTime(scheduledOut)) ? normalizeTime(scheduledOut) : null;
+        let effStart = start;
+        let effEnd = end;
+        if (sInNorm && aInNorm && toMin(aInNorm) !== null && toMin(sInNorm) !== null && toMin(aInNorm) < toMin(sInNorm)) {
+            effStart = sInNorm;
+        }
+        if (otForTrim <= 0 && sOutNorm && aOutNorm && toMin(aOutNorm) !== null && toMin(sOutNorm) !== null && toMin(aOutNorm) > toMin(sOutNorm)) {
+            effEnd = sOutNorm;
+        }
+
+        const startTime = new Date(`2000-01-01T${normalizeTime(effStart)}`);
+        let endTime = new Date(`2000-01-01T${normalizeTime(effEnd)}`);
 
         if (endTime < startTime) endTime.setDate(endTime.getDate() + 1);
 
@@ -400,7 +428,7 @@ function HRPayrollApp() {
 
         Object.entries(dailyRecords).sort().forEach(([dateStr, record]) => {
             const dailyWage = getWageForDate(dateStr);
-            const dailyRaw = calculateDailyWage(dailyWage, record.checkIn, record.checkOut, record.overtime);
+            const dailyRaw = calculateDailyWage(dailyWage, record.checkIn, record.checkOut, record.overtime, user.checkIn, user.checkOut);
             const dailyCapped = applyDailyRecognitionCap(dailyRaw, record, dailyWage);
             const dailyAnnual = applyAnnualLeaveCredit(dailyCapped, record, dailyWage);
             const daily = applyHalfDayLeaveCredit(dailyAnnual, record, dailyWage);
@@ -525,7 +553,7 @@ function HRPayrollApp() {
             .sort()
             .map(([dateStr, rec]) => {
                 const dw = getWageForDate(dateStr);
-                const raw = calculateDailyWage(dw, rec.checkIn, rec.checkOut, rec.overtime);
+                const raw = calculateDailyWage(dw, rec.checkIn, rec.checkOut, rec.overtime, user.checkIn, user.checkOut);
                 const capped = applyDailyRecognitionCap(raw, rec, dw);
                 const annual = applyAnnualLeaveCredit(capped, rec, dw);
                 const d = applyHalfDayLeaveCredit(annual, rec, dw);
