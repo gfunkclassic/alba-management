@@ -3,17 +3,24 @@
 @tailwind utilities;
 
 @media print {
-    body * { visibility: hidden; }
-    [data-print-payslip], [data-print-payslip] * { visibility: visible; }
-    [data-print-payslip] {
-        position: absolute;
-        top: 0;
-        left: 0;
+    /* 인쇄 시 앱 본문(#root) 전체를 흐름에서 제거 → 빈 페이지 방지.
+       급여명세서는 body 직속으로 포털 렌더되므로 #root 숨김 영향 없음. */
+    html, body {
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        background: #fff !important;
+    }
+    body > #root { display: none !important; }
+    body > [data-print-payslip] {
+        display: block !important;
+        position: static !important;
         width: 100%;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
-    [data-print-payslip] table { page-break-inside: auto; }
     [data-print-payslip] tr { page-break-inside: avoid; }
     @page { size: A4 portrait; margin: 6mm; }
 }

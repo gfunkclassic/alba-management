@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Calendar, Clock, TrendingUp, AlertCircle, ChevronRight, Printer } from 'lucide-react';
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
@@ -203,7 +204,8 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
             </div>
         </div>
 
-        {/* ───── 인쇄 전용 A4 급여명세서 (화면 비표시) ───── */}
+        {/* ───── 인쇄 전용 A4 급여명세서 (화면 비표시, body 포털) ───── */}
+        {createPortal(
         <div data-print-payslip className="hidden print:block text-[#1a1a1a] text-[9px] leading-snug">
             <h1 className="text-center text-[16px] font-bold tracking-wide pb-1 mb-2 border-b-2 border-[#333]">{ty}년 {parseInt(tm)}월 급여명세서</h1>
 
@@ -317,7 +319,8 @@ export default function PayrollDetailModal({ user, wage, payrollMonth, onClose }
                 </tbody>
             </table>
             <p className="mt-1.5 text-[8px] text-[#555]">※ 주휴수당은 주차별 근무 기준에 따라 산정되었습니다.</p>
-        </div>
+        </div>,
+        document.body)}
         </>
     );
 }
